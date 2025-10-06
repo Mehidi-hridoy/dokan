@@ -6,6 +6,10 @@ python manage.py runserver
 
 git add .
 git commit -m "Initial commit — Dokan Ecommerce project setup"
+git push -u origin main
+
+
+
 git remote add origin https://github.com/Mehidi-hridoy/dokan.git
 
 git branch -M main
