@@ -1,0 +1,149 @@
+{% extends 'store/base.html' %}
+{% load static %}
+
+{% block title %}Products - Dokan{% endblock %}
+
+{% block content %}
+<div class="container py-5">
+    <div class="row">
+        <!-- Sidebar Filters -->
+        <div class="col-lg-3">
+            <div class="card mb-4">
+                <div class="card-header">
+                    <h5 class="mb-0">Categories</h5>
+                </div>
+                <div class="card-body">
+                    <div class="list-group list-group-flush">
+                        <a href="{% url 'products:product_list' %}" 
+                           class="list-group-item list-group-item-action {% if not selected_category %}active{% endif %}">
+                            All Categories
+                        </a>
+                        {% for category in categories %}
+                        <a href="{% url 'products:product_list' %}?category={{ category.slug }}" 
+                           class="list-group-item list-group-item-action {% if selected_category == category.slug %}active{% endif %}">
+                            {{ category.name }}
+                            <span class="badge bg-secondary float-end">{{ category.product_count }}</span>
+                        </a>
+                        {% endfor %}
+                    </div>
+                </div>
+            </div>
+
+            <div class="card mb-4">
+                <div class="card-header">
+                    <h5 class="mb-0">Brands</h5>
+                </div>
+                <div class="card-body">
+                    <div class="list-group list-group-flush">
+                        <a href="{% url 'products:product_list' %}" 
+                           class="list-group-item list-group-item-action {% if not selected_brand %}active{% endif %}">
+                            All Brands
+                        </a>
+                        {% for brand in brands %}
+                        <a href="{% url 'products:product_list' %}?brand={{ brand.slug }}" 
+                           class="list-group-item list-group-item-action {% if selected_brand == brand.slug %}active{% endif %}">
+                            {{ brand.name }}
+                            <span class="badge bg-secondary float-end">{{ brand.product_count }}</span>
+                        </a>
+                        {% endfor %}
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Product Grid -->
+        <div class="col-lg-9">
+            <!-- Header -->
+            <div class="d-flex justify-content-between align-items-center mb-4">
+                <div>
+                    <h1 class="h3 mb-0">
+                        {% if selected_category %}
+                        {{ categories|dictsort:"slug"|dictkey:selected_category|default:"Products" }}
+                        {% elif selected_brand %}
+                        {{ brands|dictsort:"slug"|dictkey:selected_brand|default:"Products" }}
+                        {% else %}
+                        All Products
+                        {% endif %}
+                    </h1>
+                    <p class="text-muted mb-0">{{ page_obj.paginator.count }} products found</p>
+                </div>
+                
+                <!-- Sort Dropdown -->
+                <div class="dropdown">
+                    <button class="btn btn-outline-secondary dropdown-toggle" type="button" data-bs-toggle="dropdown">
+                        Sort: 
+                        {% if sort_by == 'newest' %}Newest
+                        {% elif sort_by == 'price_low' %}Price: Low to High
+                        {% elif sort_by == 'price_high' %}Price: High to Low
+                        {% elif sort_by == 'name' %}Name
+                        {% elif sort_by == 'popular' %}Popular
+                        {% endif %}
+                    </button>
+                    <ul class="dropdown-menu">
+                        <li><a class="dropdown-item {% if sort_by == 'newest' %}active{% endif %}" 
+                               href="?{% if selected_category %}category={{ selected_category }}&{% endif %}{% if selected_brand %}brand={{ selected_brand }}&{% endif %}{% if search_query %}q={{ search_query }}&{% endif %}sort=newest">Newest</a></li>
+                        <li><a class="dropdown-item {% if sort_by == 'price_low' %}active{% endif %}" 
+                               href="?{% if selected_category %}category={{ selected_category }}&{% endif %}{% if selected_brand %}brand={{ selected_brand }}&{% endif %}{% if search_query %}q={{ search_query }}&{% endif %}sort=price_low">Price: Low to High</a></li>
+                        <li><a class="dropdown-item {% if sort_by == 'price_high' %}active{% endif %}" 
+                               href="?{% if selected_category %}category={{ selected_category }}&{% endif %}{% if selected_brand %}brand={{ selected_brand }}&{% endif %}{% if search_query %}q={{ search_query }}&{% endif %}sort=price_high">Price: High to Low</a></li>
+                        <li><a class="dropdown-item {% if sort_by == 'name' %}active{% endif %}" 
+                               href="?{% if selected_category %}category={{ selected_category }}&{% endif %}{% if selected_brand %}brand={{ selected_brand }}&{% endif %}{% if search_query %}q={{ search_query }}&{% endif %}sort=name">Name</a></li>
+                        <li><a class="dropdown-item {% if sort_by == 'popular' %}active{% endif %}" 
+                               href="?{% if selected_category %}category={{ selected_category }}&{% endif %}{% if selected_brand %}brand={{ selected_brand }}&{% endif %}{% if search_query %}q={{ search_query }}&{% endif %}sort=popular">Popular</a></li>
+                    </ul>
+                </div>
+            </div>
+
+            <!-- Product Grid -->
+            {% if page_obj %}
+            <div class="row g-4">
+                {% for product in page_obj %}
+                <div class="col-xl-4 col-lg-6 col-md-6">
+                    {% include 'products/partials/product_card.html' with product=product %}
+                </div>
+                {% endfor %}
+            </div>
+
+            <!-- Pagination -->
+            {% if page_obj.has_other_pages %}
+            <nav aria-label="Product pagination" class="mt-5">
+                <ul class="pagination justify-content-center">
+                    {% if page_obj.has_previous %}
+                    <li class="page-item">
+                        <a class="page-link" href="?page={{ page_obj.previous_page_number }}{% if selected_category %}&category={{ selected_category }}{% endif %}{% if selected_brand %}&brand={{ selected_brand }}{% endif %}{% if search_query %}&q={{ search_query }}{% endif %}{% if sort_by %}&sort={{ sort_by }}{% endif %}">Previous</a>
+                    </li>
+                    {% endif %}
+
+                    {% for num in page_obj.paginator.page_range %}
+                    {% if page_obj.number == num %}
+                    <li class="page-item active">
+                        <span class="page-link">{{ num }}</span>
+                    </li>
+                    {% else %}
+                    <li class="page-item">
+                        <a class="page-link" href="?page={{ num }}{% if selected_category %}&category={{ selected_category }}{% endif %}{% if selected_brand %}&brand={{ selected_brand }}{% endif %}{% if search_query %}&q={{ search_query }}{% endif %}{% if sort_by %}&sort={{ sort_by }}{% endif %}">{{ num }}</a>
+                    </li>
+                    {% endif %}
+                    {% endfor %}
+
+                    {% if page_obj.has_next %}
+                    <li class="page-item">
+                        <a class="page-link" href="?page={{ page_obj.next_page_number }}{% if selected_category %}&category={{ selected_category }}{% endif %}{% if selected_brand %}&brand={{ selected_brand }}{% endif %}{% if search_query %}&q={{ search_query }}{% endif %}{% if sort_by %}&sort={{ sort_by }}{% endif %}">Next</a>
+                    </li>
+                    {% endif %}
+                </ul>
+            </nav>
+            {% endif %}
+
+            {% else %}
+            <div class="text-center py-5">
+                <i class="fas fa-search fa-3x text-muted mb-3"></i>
+                <h3>No products found</h3>
+                <p class="text-muted">Try adjusting your search or filter criteria.</p>
+                <a href="{% url 'products:product_list' %}" class="btn btn-primary">View All Products</a>
+            </div>
+            {% endif %}
+        </div>
+    </div>
+</div>
+{% endblock %}

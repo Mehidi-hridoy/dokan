@@ -1,0 +1,342 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block title %}Dokan - Modern Ecommerce Platform{% endblock %}
+
+{% block content %}
+<!-- Hero Section -->
+<section class="hero-section">
+    <div class="container">
+        <div class="row align-items-center">
+            <div class="col-lg-6">
+                <h1 class="display-4 fw-bold mb-4">Welcome to Dokan</h1>
+                <p class="lead mb-4">Discover amazing products at great prices. Shop with confidence and enjoy fast delivery.</p>
+                <div class="d-flex gap-3">
+                    <a href="{% url 'products:product_list' %}" class="btn btn-primary btn-lg">
+                        <i class="fas fa-shopping-bag me-2"></i>Shop Now
+                    </a>
+                    <a href="#featured" class="btn btn-outline-light btn-lg">
+                        <i class="fas fa-star me-2"></i>Featured
+                    </a>
+                </div>
+            </div>
+            <div class="col-lg-6">
+                <img src="{% static 'images/hero-image.svg' %}" alt="Dokan Shopping" class="img-fluid">
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- Categories Section -->
+<section class="py-5">
+    <div class="container">
+        <div class="row mb-5">
+            <div class="col-12 text-center">
+                <h2 class="section-title">Shop by Category</h2>
+                <p class="text-muted">Browse through our wide range of categories</p>
+            </div>
+        </div>
+        <div class="row g-4">
+            {% for category in categories %}
+            <div class="col-lg-3 col-md-4 col-sm-6">
+                <div class="category-card card h-100 border-0 shadow-sm">
+                    <div class="category-image position-relative">
+                        {% if category.image %}
+                        <img src="{{ category.image.url }}" class="card-img-top" alt="{{ category.name }}" style="height: 200px; object-fit: cover;">
+                        {% else %}
+                        <img src="{% static 'images/category-placeholder.jpg' %}" class="card-img-top" alt="{{ category.name }}" style="height: 200px; object-fit: cover;">
+                        {% endif %}
+                        <div class="category-overlay"></div>
+                    </div>
+                    <div class="card-body text-center">
+                        <h5 class="card-title">{{ category.name }}</h5>
+                        <p class="card-text text-muted small">{{ category.products.count }} products</p>
+                        <a href="{% url 'products:category_products' category.slug %}" class="btn btn-outline-primary btn-sm">
+                            Explore <i class="fas fa-arrow-right ms-1"></i>
+                        </a>
+                    </div>
+                </div>
+            </div>
+            {% empty %}
+            <div class="col-12 text-center">
+                <p class="text-muted">No categories available at the moment.</p>
+            </div>
+            {% endfor %}
+        </div>
+    </div>
+</section>
+
+<!-- Featured Products -->
+<section id="featured" class="py-5 bg-light">
+    <div class="container">
+        <div class="row mb-5">
+            <div class="col-12 text-center">
+                <h2 class="section-title">Featured Products</h2>
+                <p class="text-muted">Handpicked products just for you</p>
+            </div>
+        </div>
+        <div class="row g-4">
+            {% for product in featured_products %}
+            <div class="col-xl-3 col-lg-4 col-md-6">
+                <div class="product-card card h-100 border-0 shadow-sm">
+                    {% with product.images.first as primary_image %}
+                    <div class="product-image position-relative">
+                        {% if primary_image %}
+                        <img src="{{ primary_image.image.url }}" class="card-img-top" alt="{{ product.name }}" style="height: 250px; object-fit: cover;">
+                        {% else %}
+                        <img src="{% static 'images/product-placeholder.jpg' %}" class="card-img-top" alt="{{ product.name }}" style="height: 250px; object-fit: cover;">
+                        {% endif %}
+                        
+                        {% if product.discount_percentage > 0 %}
+                        <span class="discount-badge">-{{ product.discount_percentage }}%</span>
+                        {% endif %}
+                        
+                        {% if product.featured %}
+                        <span class="featured-badge">Featured</span>
+                        {% endif %}
+                        
+                        <div class="product-actions position-absolute top-0 end-0 p-2">
+                            <button class="btn btn-light btn-sm rounded-circle mb-2" onclick="addToWishlist({{ product.id }})">
+                                <i class="far fa-heart"></i>
+                            </button>
+                            <button class="btn btn-light btn-sm rounded-circle" onclick="quickView({{ product.id }})">
+                                <i class="far fa-eye"></i>
+                            </button>
+                        </div>
+                    </div>
+                    {% endwith %}
+                    
+                    <div class="card-body">
+                        <div class="d-flex justify-content-between align-items-start mb-2">
+                            <h6 class="card-title mb-0">
+                                <a href="{% url 'products:product_detail' product.slug %}" class="text-decoration-none text-dark">
+                                    {{ product.name|truncatewords:4 }}
+                                </a>
+                            </h6>
+                            {% if product.brand %}
+                            <span class="badge bg-secondary">{{ product.brand.name }}</span>
+                            {% endif %}
+                        </div>
+                        
+                        <p class="card-text text-muted small mb-2">
+                            {{ product.short_description|default:product.description|truncatewords:10 }}
+                        </p>
+                        
+                        <div class="d-flex justify-content-between align-items-center mb-3">
+                            <div class="price-section">
+                                <span class="h5 text-primary mb-0">${{ product.price }}</span>
+                                {% if product.compare_price and product.compare_price > product.price %}
+                                <small class="text-muted text-decoration-line-through ms-2">${{ product.compare_price }}</small>
+                                {% endif %}
+                            </div>
+                            <div class="rating">
+                                <i class="fas fa-star text-warning"></i>
+                                <span class="small text-muted">4.5</span>
+                            </div>
+                        </div>
+                        
+                        <div class="d-grid gap-2">
+                            {% if product.inventory.in_stock %}
+                            <button class="btn btn-primary add-to-cart" 
+                                    data-product-id="{{ product.id }}"
+                                    data-product-name="{{ product.name }}"
+                                    data-price="{{ product.price }}"
+                                    data-image="{% if product.images.first %}{{ product.images.first.image.url }}{% else %}{% static 'images/product-placeholder.jpg' %}{% endif %}">
+                                <i class="fas fa-shopping-cart me-2"></i>Add to Cart
+                            </button>
+                            {% else %}
+                            <button class="btn btn-outline-secondary" disabled>
+                                <i class="fas fa-times me-2"></i>Out of Stock
+                            </button>
+                            {% endif %}
+                        </div>
+                    </div>
+                </div>
+            </div>
+            {% empty %}
+            <div class="col-12 text-center">
+                <p class="text-muted">No featured products available at the moment.</p>
+            </div>
+            {% endfor %}
+        </div>
+        
+        {% if featured_products %}
+        <div class="row mt-4">
+            <div class="col-12 text-center">
+                <a href="{% url 'products:product_list' %}" class="btn btn-outline-primary">
+                    View All Products <i class="fas fa-arrow-right ms-2"></i>
+                </a>
+            </div>
+        </div>
+        {% endif %}
+    </div>
+</section>
+
+<!-- New Arrivals -->
+<section class="py-5">
+    <div class="container">
+        <div class="row mb-5">
+            <div class="col-12 text-center">
+                <h2 class="section-title">New Arrivals</h2>
+                <p class="text-muted">Check out our latest products</p>
+            </div>
+        </div>
+        <div class="row g-4">
+            {% for product in new_arrivals %}
+            <div class="col-xl-3 col-lg-4 col-md-6">
+                <div class="product-card card h-100 border-0 shadow-sm">
+                    {% with product.images.first as primary_image %}
+                    <div class="product-image position-relative">
+                        {% if primary_image %}
+                        <img src="{{ primary_image.image.url }}" class="card-img-top" alt="{{ product.name }}" style="height: 250px; object-fit: cover;">
+                        {% else %}
+                        <img src="{% static 'images/product-placeholder.jpg' %}" class="card-img-top" alt="{{ product.name }}" style="height: 250px; object-fit: cover;">
+                        {% endif %}
+                        
+                        <span class="new-badge">New</span>
+                        
+                        <div class="product-actions position-absolute top-0 end-0 p-2">
+                            <button class="btn btn-light btn-sm rounded-circle mb-2" onclick="addToWishlist({{ product.id }})">
+                                <i class="far fa-heart"></i>
+                            </button>
+                            <button class="btn btn-light btn-sm rounded-circle" onclick="quickView({{ product.id }})">
+                                <i class="far fa-eye"></i>
+                            </button>
+                        </div>
+                    </div>
+                    {% endwith %}
+                    
+                    <div class="card-body">
+                        <h6 class="card-title">
+                            <a href="{% url 'products:product_detail' product.slug %}" class="text-decoration-none text-dark">
+                                {{ product.name|truncatewords:4 }}
+                            </a>
+                        </h6>
+                        
+                        <p class="card-text text-muted small mb-2">
+                            {{ product.short_description|default:product.description|truncatewords:8 }}
+                        </p>
+                        
+                        <div class="d-flex justify-content-between align-items-center">
+                            <span class="h5 text-primary mb-0">${{ product.price }}</span>
+                            {% if product.inventory.in_stock %}
+                            <button class="btn btn-outline-primary btn-sm add-to-cart"
+                                    data-product-id="{{ product.id }}"
+                                    data-product-name="{{ product.name }}"
+                                    data-price="{{ product.price }}"
+                                    data-image="{% if product.images.first %}{{ product.images.first.image.url }}{% else %}{% static 'images/product-placeholder.jpg' %}{% endif %}">
+                                <i class="fas fa-plus"></i>
+                            </button>
+                            {% else %}
+                            <span class="badge bg-secondary">Out of Stock</span>
+                            {% endif %}
+                        </div>
+                    </div>
+                </div>
+            </div>
+            {% endfor %}
+        </div>
+    </div>
+</section>
+
+<!-- Special Offers -->
+<section class="py-5 bg-primary text-white">
+    <div class="container">
+        <div class="row align-items-center">
+            <div class="col-lg-8">
+                <h3 class="display-5 fw-bold">Special Offer!</h3>
+                <p class="lead">Get 20% off on your first order. Use code: <strong>WELCOME20</strong></p>
+                <p class="mb-0">Limited time offer. Don't miss out on this amazing deal!</p>
+            </div>
+            <div class="col-lg-4 text-lg-end">
+                <a href="{% url 'products:product_list' %}" class="btn btn-light btn-lg">
+                    Shop Now <i class="fas fa-arrow-right ms-2"></i>
+                </a>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- Features Section -->
+<section class="py-5">
+    <div class="container">
+        <div class="row g-4">
+            <div class="col-md-3 col-sm-6 text-center">
+                <div class="feature-icon mb-3">
+                    <i class="fas fa-shipping-fast fa-3x text-primary"></i>
+                </div>
+                <h5>Free Shipping</h5>
+                <p class="text-muted">Free shipping on orders over $50</p>
+            </div>
+            <div class="col-md-3 col-sm-6 text-center">
+                <div class="feature-icon mb-3">
+                    <i class="fas fa-shield-alt fa-3x text-primary"></i>
+                </div>
+                <h5>Secure Payment</h5>
+                <p class="text-muted">Your payment information is safe with us</p>
+            </div>
+            <div class="col-md-3 col-sm-6 text-center">
+                <div class="feature-icon mb-3">
+                    <i class="fas fa-undo-alt fa-3x text-primary"></i>
+                </div>
+                <h5>Easy Returns</h5>
+                <p class="text-muted">30-day return policy for all items</p>
+            </div>
+            <div class="col-md-3 col-sm-6 text-center">
+                <div class="feature-icon mb-3">
+                    <i class="fas fa-headset fa-3x text-primary"></i>
+                </div>
+                <h5>24/7 Support</h5>
+                <p class="text-muted">We're here to help you anytime</p>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- Brands Section -->
+<section class="py-5 bg-light">
+    <div class="container">
+        <div class="row mb-5">
+            <div class="col-12 text-center">
+                <h2 class="section-title">Shop by Brand</h2>
+                <p class="text-muted">Discover products from trusted brands</p>
+            </div>
+        </div>
+        <div class="row g-4 align-items-center">
+            {% for brand in brands %}
+            <div class="col-lg-2 col-md-3 col-4 text-center">
+                <div class="brand-card p-3">
+                    {% if brand.logo %}
+                    <img src="{{ brand.logo.url }}" alt="{{ brand.name }}" class="img-fluid brand-logo" style="max-height: 80px;">
+                    {% else %}
+                    <div class="brand-placeholder bg-white rounded p-3">
+                        <h6 class="mb-0">{{ brand.name }}</h6>
+                    </div>
+                    {% endif %}
+                </div>
+            </div>
+            {% endfor %}
+        </div>
+    </div>
+</section>
+
+<!-- Newsletter Section -->
+<section class="py-5">
+    <div class="container">
+        <div class="row justify-content-center">
+            <div class="col-lg-6 text-center">
+                <h3>Stay Updated</h3>
+                <p class="text-muted mb-4">Subscribe to our newsletter and get the latest updates on new products and offers.</p>
+                <form class="newsletter-form">
+                    <div class="input-group">
+                        <input type="email" class="form-control form-control-lg" placeholder="Enter your email" required>
+                        <button class="btn btn-primary btn-lg" type="submit">
+                            Subscribe <i class="fas fa-paper-plane ms-2"></i>
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+</section>
+{% endblock %}

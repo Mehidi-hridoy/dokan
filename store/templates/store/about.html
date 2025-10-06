@@ -1,0 +1,49 @@
+{% extends 'store/base.html' %}
+{% load static %}
+
+{% block title %}About Us - Dokan{% endblock %}
+
+{% block content %}
+<div class="container py-5">
+    <div class="row">
+        <div class="col-lg-8 mx-auto">
+            <h1 class="display-4 text-center mb-5">About Dokan</h1>
+            
+            <div class="row mb-5">
+                <div class="col-md-6">
+                    <img src="{% static 'images/about-us.jpg' %}" alt="About Dokan" class="img-fluid rounded shadow">
+                </div>
+                <div class="col-md-6">
+                    <h3>Our Story</h3>
+                    <p class="lead">Dokan is a modern ecommerce platform dedicated to providing quality products at affordable prices.</p>
+                    <p>Founded in 2024, we believe in making online shopping accessible, secure, and enjoyable for everyone.</p>
+                </div>
+            </div>
+
+            <div class="row text-center">
+                <div class="col-md-4 mb-4">
+                    <div class="feature-icon mb-3">
+                        <i class="fas fa-bullseye fa-3x text-primary"></i>
+                    </div>
+                    <h4>Our Mission</h4>
+                    <p>To provide the best shopping experience with quality products and excellent customer service.</p>
+                </div>
+                <div class="col-md-4 mb-4">
+                    <div class="feature-icon mb-3">
+                        <i class="fas fa-eye fa-3x text-primary"></i>
+                    </div>
+                    <h4>Our Vision</h4>
+                    <p>To become the most trusted ecommerce platform for customers worldwide.</p>
+                </div>
+                <div class="col-md-4 mb-4">
+                    <div class="feature-icon mb-3">
+                        <i class="fas fa-handshake fa-3x text-primary"></i>
+                    </div>
+                    <h4>Our Values</h4>
+                    <p>Integrity, quality, customer satisfaction, and innovation drive everything we do.</p>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
