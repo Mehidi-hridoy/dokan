@@ -2,8 +2,8 @@
 <nav class="navbar navbar-expand-lg navbar-light bg-white shadow-sm sticky-top">
     <div class="container">
         <!-- Brand -->
-        <a class="navbar-brand fw-bold text-primary" href="{% url 'store:home' %}">
-            <img src="{% static 'images/logo.png' %}" alt="Dokan" height="40" class="me-2">
+        <a class="navbar-brand fw-bold text-primary" href="{% url 'core:home' %}">
+            <img src="#" alt="Dokan" height="40" class="me-2">
             Dokan
         </a>
 
@@ -16,7 +16,7 @@
         <div class="collapse navbar-collapse" id="navbarNav">
             <ul class="navbar-nav me-auto">
                 <li class="nav-item">
-                    <a class="nav-link" href="{% url 'store:home' %}">Home</a>
+                    <a class="nav-link" href="{% url 'core:home' %}">Home</a>
                 </li>
                 <li class="nav-item dropdown">
                     <a class="nav-link dropdown-toggle" href="#" role="button" data-bs-toggle="dropdown">
@@ -25,7 +25,7 @@
 <ul class="dropdown-menu">
     {% for category in categories|slice:":6" %}
     <li>
-        <a class="dropdown-item" href="{% url 'products:category_products' category.slug %}">
+        <a class="dropdown-item" href="#">
             {{ category.name }}
             <span class="badge bg-secondary float-end">{{ category.products.count }}</span>
         </a>
@@ -34,7 +34,7 @@
     {% if categories|length > 6 %}
     <li><hr class="dropdown-divider"></li>
     <li>
-        <a class="dropdown-item text-primary" href="{% url 'products:categories' %}">
+        <a class="dropdown-item text-primary" href="#">
             View All Categories
         </a>
     </li>
@@ -43,18 +43,18 @@
 
                 </li>
                 <li class="nav-item">
-                    <a class="nav-link" href="{% url 'products:product_list' %}">Products</a>
+                    <a class="nav-link" href="#">Products</a>
                 </li>
                 <li class="nav-item">
-                    <a class="nav-link" href="{% url 'store:about' %}">About</a>
+                    <a class="nav-link" href="#">About</a>
                 </li>
                 <li class="nav-item">
-                    <a class="nav-link" href="{% url 'store:contact' %}">Contact</a>
+                    <a class="nav-link" href="#">Contact</a>
                 </li>
             </ul>
 
             <!-- Search Bar -->
-            <form class="d-flex me-3" action="{% url 'products:product_search' %}" method="GET">
+            <form class="d-flex me-3" action="#" method="GET">
                 <div class="input-group">
                     <input type="text" class="form-control" placeholder="Search products..." name="q" value="{{ request.GET.q }}">
                     <button class="btn btn-outline-primary" type="submit">
@@ -67,7 +67,7 @@
             <ul class="navbar-nav">
                 <!-- Wishlist -->
                 <li class="nav-item">
-                    <a class="nav-link position-relative" href="{% url 'products:wishlist' %}">
+                    <a class="nav-link position-relative" href="#">
                         <i class="far fa-heart fa-lg"></i>
                         <span class="position-absolute top-0 start-100 translate-middle badge rounded-pill bg-danger wishlist-count">
                             {% if user.is_authenticated %}{{ user.wishlist.count }}{% else %}0{% endif %}
@@ -100,21 +100,21 @@
                         <li><hr class="dropdown-divider"></li>
                         <li><a class="dropdown-item" href="#"><i class="fas fa-user me-2"></i>Profile</a></li>
                         <li><a class="dropdown-item" href="#"><i class="fas fa-shopping-bag me-2"></i>My Orders</a></li>
-                        <li><a class="dropdown-item" href="{% url 'products:wishlist' %}"><i class="fas fa-heart me-2"></i>Wishlist</a></li>
+                        <li><a class="dropdown-item" href="#"><i class="fas fa-heart me-2"></i>Wishlist</a></li>
                         {% if user.is_staff %}
                         <li><hr class="dropdown-divider"></li>
-                        <li><a class="dropdown-item text-warning" href="{% url 'admin:index' %}"><i class="fas fa-cog me-2"></i>Admin Panel</a></li>
+                        <li><a class="dropdown-item text-warning" href="#"><i class="fas fa-cog me-2"></i>Admin Panel</a></li>
                         {% endif %}
                         <li><hr class="dropdown-divider"></li>
-                        <li><a class="dropdown-item text-danger" href="{% url 'logout' %}"><i class="fas fa-sign-out-alt me-2"></i>Logout</a></li>
+                        <li><a class="dropdown-item text-danger" href="#"><i class="fas fa-sign-out-alt me-2"></i>Logout</a></li>
                     </ul>
                 </li>
                 {% else %}
                 <li class="nav-item">
-                    <a class="nav-link" href="{% url 'login' %}">Login</a>
+                    <a class="nav-link" href="#">Login</a>
                 </li>
                 <li class="nav-item">
-                    <a class="btn btn-primary ms-2" href="{% url 'register' %}">Sign Up</a>
+                    <a class="btn btn-primary ms-2" href="#">Sign Up</a>
                 </li>
                 {% endif %}
             </ul>
