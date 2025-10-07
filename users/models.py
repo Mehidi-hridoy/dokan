@@ -3,7 +3,7 @@ from django.db import models
 
 class User(AbstractUser):
     USER_TYPE_CHOICES = [
-        ('admin', 'Admin'),
+        ('admin', 'Admin/Staff'),
         ('vendor', 'Vendor'),
         ('customer', 'Customer'),
     ]

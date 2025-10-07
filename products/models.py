@@ -17,7 +17,6 @@ WEIGHT_CHOICES = [
 SIZE_CHOICES = [
     ('S', 'Small'), ('M', 'Medium'), ('L', 'Large'), ('XL', 'XL'), ('XXL', 'XXL')
 ]
-UNIT_CHOICES = [('Small', 'Small'), ('Large', 'Large')]
 STOCK_OPTION = [('Manual', 'Manual'), ('Inventory', 'Inventory')]
 
 class Product(models.Model):
@@ -30,7 +29,7 @@ class Product(models.Model):
     category = models.ForeignKey(Category, on_delete=models.CASCADE, related_name='products')
     sub_category = models.ForeignKey(Category, on_delete=models.CASCADE, related_name='sub_products', blank=True, null=True)
     brand = models.ForeignKey(Brand, on_delete=models.SET_NULL, null=True, blank=True)
-    store = models.ForeignKey(User, on_delete=models.CASCADE, related_name='products')
+    user = models.ForeignKey(User, on_delete=models.CASCADE, related_name='products')
 
     price = models.DecimalField(max_digits=10, decimal_places=2)
     previous_price = models.DecimalField(max_digits=10, decimal_places=2, blank=True, null=True)
@@ -47,9 +46,8 @@ class Product(models.Model):
     color = models.CharField(max_length=50, choices=COLOR_CHOICES, blank=True, null=True)
     size = models.CharField(max_length=10, choices=SIZE_CHOICES, blank=True, null=True)
     weight = models.CharField(max_length=10, choices=WEIGHT_CHOICES, blank=True, null=True)
-    unit = models.CharField(max_length=20, choices=UNIT_CHOICES, blank=True, null=True)
 
-    featured_image = models.ImageField(upload_to='products/featured/', blank=True, null=True)
+    image = models.ImageField(upload_to='products/featured/', blank=True, null=True)
     gallery_images = models.ManyToManyField('ProductImage', blank=True)
 
     meta_title = models.CharField(max_length=255, blank=True, null=True)
