@@ -14,9 +14,10 @@ ALLOWED_HOSTS = config('ALLOWED_HOSTS', default='localhost', cast=Csv())
 
 # Database
 DATABASES = {
-    'default': dj_database_url.config(
-        default=config('DATABASE_URL', default=f"sqlite:///{BASE_DIR}/db.sqlite3")
-    )
+    'default': {
+        'ENGINE': 'django.db.backends.sqlite3',
+        'NAME': BASE_DIR / 'db.sqlite3',
+    }
 }
 
 # JWT Settings
@@ -93,19 +94,46 @@ INSTALLED_APPS = [
     'inventory',
     'promotions',
     'analytics',
-    'ckeditor',
-    'ckeditor_uploader',
+    # 'ckeditor',
+    'django_ckeditor_5',
 
 ]
-# settings.py
-CKEDITOR_UPLOAD_PATH = "uploads/"
-CKEDITOR_CONFIGS = {
-    'default': {
-        'toolbar': 'full',
-        'height': 300,
-        'width': '100%',
-    },
+AUTH_USER_MODEL = 'users.User'
+
+CKEDITOR_5_UPLOAD_PATH = "uploads/"
+
+CKEDITOR_5_CONFIGS = {
+    'extends': {
+        'blockToolbar': [
+            'paragraph', 'heading1', 'heading2', 'heading3', 'blockQuote', 'codeBlock'
+        ],
+        'toolbar': [
+            'heading', '|',
+            'bold', 'italic', 'underline', 'strikethrough', '|',
+            'link', 'bulletedList', 'numberedList', '|',
+            'insertTable', 'blockQuote', 'code', '|',
+            'undo', 'redo'
+        ],
+        'language': 'en',
+        'image': {
+            'toolbar': ['imageTextAlternative', 'imageStyle:full', 'imageStyle:side']
+        },
+        'table': {
+            'contentToolbar': ['tableColumn', 'tableRow', 'mergeTableCells']
+        },
+        'htmlSupport': {
+            'allow': [
+                {'name': '.*', 'attributes': True, 'classes': True, 'styles': True}
+            ]
+        },
+        # 👇 link to the custom stylesheet
+        'extraPlugins': [],
+        'extraAllowedContent': True,
+        'contentsCss': ['/static/css/ckeditor_fix.css'],  # <- important line
+    }
 }
+
+
 
 # Middleware
 MIDDLEWARE = [
@@ -160,6 +188,10 @@ USE_TZ = True
 # Static files
 STATIC_URL = '/static/'
 STATICFILES_DIRS = [os.path.join(BASE_DIR, 'static')]
+STATIC_ROOT = BASE_DIR / 'staticfiles'    # for collectstatic output
+
+MEDIA_URL = '/media/'
+MEDIA_ROOT = os.path.join(BASE_DIR, 'media')
 
 # Default primary key
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'

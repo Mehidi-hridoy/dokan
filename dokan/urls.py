@@ -5,16 +5,18 @@ from django.conf.urls.static import static
 
 urlpatterns = [
     path('admin/', admin.site.urls),
-    path('users/', include('users.urls')),
-    path('products/', include('products.urls')),
-    path('orders/', include('orders.urls')),
-    path('analytics/', include('analytics.urls')),
-    path('', include('core.urls')),
+    path('', include('products.urls', namespace='products')),
+    path('users/', include('users.urls', namespace='users')),
+    path('orders/', include('orders.urls', namespace='orders')),
+    path('ckeditor5/', include('django_ckeditor_5.urls')),
+
 ]
 
 if settings.DEBUG:
     urlpatterns += static(settings.MEDIA_URL, document_root=settings.MEDIA_ROOT)
     urlpatterns += static(settings.STATIC_URL, document_root=settings.STATIC_ROOT)
+
+    
 
 # Custom Admin Site Configuration
 admin.site.site_header = "Dokan Ecommer Administration"

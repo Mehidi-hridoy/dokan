@@ -1,5 +1,5 @@
 from django import forms
-from .models import Product, ProductReview
+from .models import Product, Review
 
 class ProductForm(forms.ModelForm):
     class Meta:
@@ -13,7 +13,7 @@ class ProductForm(forms.ModelForm):
 
 class ProductReviewForm(forms.ModelForm):
     class Meta:
-        model = ProductReview
+        model = Review
         fields = ['rating', 'title', 'comment']
         widgets = {
             'comment': forms.Textarea(attrs={'rows': 4, 'placeholder': 'Share your experience with this product...'}),

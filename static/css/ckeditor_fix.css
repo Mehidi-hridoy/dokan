@@ -1,0 +1,16 @@
+/* CKEditor Admin Styling Fix */
+.ck-editor__editable_inline {
+    color: #000 !important;               /* Black text */
+    background-color: #fff !important;    /* White background */
+    min-height: 200px !important;
+    font-family: 'Arial', sans-serif !important; /* Frontend-like font */
+    font-size: 14px !important;           /* Comfortable text size */
+    line-height: 1.6 !important;
+    padding: 10px !important;
+    border: 1px solid #ddd !important;
+    border-radius: 4px !important;
+}
+.ck-editor__editable_inline:focus {
+    border-color: #007bff !important;     /* Highlight on focus */
+    box-shadow: 0 0 3px rgba(0,123,255,0.5) !important;
+}
