@@ -5,7 +5,7 @@ python manage.py migrate
 python manage.py runserver
 
 git add .
-git commit -m "Redesigning the models"
+git commit -m "Redesigning "
 git push -u origin main
 
 
