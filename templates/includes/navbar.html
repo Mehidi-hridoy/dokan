@@ -1,123 +1,57 @@
-{% load static %}
-<nav class="navbar navbar-expand-lg navbar-light bg-white shadow-sm sticky-top">
-    <div class="container">
-        <!-- Brand -->
-        <a class="navbar-brand fw-bold text-primary" href="{% url 'products:home' %}">
-            <img src="#" alt="Dokan" height="40" class="me-2">
-            Dokan
-        </a>
+    <!-- Navigation -->
+    <nav class="bg-blue-600 text-white py-4 shadow-md">
+        <div class="container mx-auto px-4 flex justify-between items-center">
+            <a href="{% url 'products:home' %}" class="text-2xl font-bold tracking-wide">Dokan</a>
 
-        <!-- Mobile Toggle -->
-        <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav">
-            <span class="navbar-toggler-icon"></span>
-        </button>
+            <div class="flex items-center space-x-4">
+                <a href="{% url 'products:product_list' %}" class="hover:underline">Shop</a>
 
-        <!-- Navigation Links -->
-        <div class="collapse navbar-collapse" id="navbarNav">
-            <ul class="navbar-nav me-auto">
-                <li class="nav-item">
-                    <a class="nav-link" href="{% url 'products:home' %}">Home</a>
-                </li>
-                <li class="nav-item dropdown">
-                    <a class="nav-link dropdown-toggle" href="#" role="button" data-bs-toggle="dropdown">
-                        Categories
-                    </a>
-<ul class="dropdown-menu">
-    {% for category in categories|slice:":6" %}
-    <li>
-        <a class="dropdown-item" href="#">
-            {{ category.name }}
-            <span class="badge bg-secondary float-end">{{ category.products.count }}</span>
-        </a>
-    </li>
-    {% endfor %}
-    {% if categories|length > 6 %}
-    <li><hr class="dropdown-divider"></li>
-    <li>
-        <a class="dropdown-item text-primary" href="#">
-            View All Categories
-        </a>
-    </li>
-    {% endif %}
-</ul>
-
-                </li>
-                <li class="nav-item">
-                    <a class="nav-link" href="#">Products</a>
-                </li>
-                <li class="nav-item">
-                    <a class="nav-link" href="#">About</a>
-                </li>
-                <li class="nav-item">
-                    <a class="nav-link" href="#">Contact</a>
-                </li>
-            </ul>
-
-            <!-- Search Bar -->
-            <form class="d-flex me-3" action="#" method="GET">
-                <div class="input-group">
-                    <input type="text" class="form-control" placeholder="Search products..." name="q" value="{{ request.GET.q }}">
-                    <button class="btn btn-outline-primary" type="submit">
-                        <i class="fas fa-search"></i>
+                {% if request.user.is_authenticated %}
+                <div class="relative group">
+                    <button class="flex items-center focus:outline-none">
+                        <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"
+                             xmlns="http://www.w3.org/2000/svg">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                  d="M3 3h2l.4 2M7 13h10l4-8H5.4M7 13L5.4 5M7 13l-2.293 2.293c-.63.63-.184 1.707.707 1.707H17m0 0a2 2 0 100 4 2 2 0 000-4zm-8 2a2 2 0 11-4 0 2 2 0 014 0z">
+                            </path>
+                        </svg>
+                        <span class="ml-2">Cart</span>
                     </button>
-                </div>
-            </form>
 
-            <!-- User Actions -->
-            <ul class="navbar-nav">
-                <!-- Wishlist -->
-                <li class="nav-item">
-                    <a class="nav-link position-relative" href="#">
-                        <i class="far fa-heart fa-lg"></i>
-                        <span class="position-absolute top-0 start-100 translate-middle badge rounded-pill bg-danger wishlist-count">
-                            {% if user.is_authenticated %}{{ user.wishlist.count }}{% else %}0{% endif %}
-                        </span>
-                    </a>
-                </li>
-
-                <!-- Cart -->
-                <li class="nav-item">
-                    <a class="nav-link position-relative" href="#">
-                        <i class="fas fa-shopping-cart fa-lg"></i>
-                        <span class="position-absolute top-0 start-100 translate-middle badge rounded-pill bg-primary cart-count">
-                            0
-                        </span>
-                    </a>
-                </li>
-
-                <!-- User Account -->
-                {% if user.is_authenticated %}
-                <li class="nav-item dropdown">
-                    <a class="nav-link dropdown-toggle" href="#" role="button" data-bs-toggle="dropdown">
-                        <i class="fas fa-user-circle fa-lg"></i>
-                    </a>
-                    <ul class="dropdown-menu dropdown-menu-end">
-                        <li>
-                            <span class="dropdown-item-text">
-                                <strong>{{ user.get_full_name|default:user.email }}</strong>
-                            </span>
-                        </li>
-                        <li><hr class="dropdown-divider"></li>
-                        <li><a class="dropdown-item" href="#"><i class="fas fa-user me-2"></i>Profile</a></li>
-                        <li><a class="dropdown-item" href="#"><i class="fas fa-shopping-bag me-2"></i>My Orders</a></li>
-                        <li><a class="dropdown-item" href="#"><i class="fas fa-heart me-2"></i>Wishlist</a></li>
-                        {% if user.is_staff %}
-                        <li><hr class="dropdown-divider"></li>
-                        <li><a class="dropdown-item text-warning" href="#"><i class="fas fa-cog me-2"></i>Admin Panel</a></li>
+                    <!-- Cart Dropdown -->
+                    <div
+                        class="absolute top-10 right-0 bg-white text-black shadow-lg rounded-lg w-64 p-4 hidden group-hover:block z-50">
+                        {% if order and order.order_items.exists %}
+                            {% for item in order.order_items.all %}
+                            <div class="flex justify-between mb-2 text-sm">
+                                <span>{{ item.product.name }} (x{{ item.quantity }})</span>
+                                <span>${{ item.get_total }}</span>
+                            </div>
+                            {% endfor %}
+                            <a href="{% url 'orders:view_cart' %}"
+                               class="block text-center bg-blue-600 text-white py-2 rounded hover:bg-blue-700 mt-2">View Cart</a>
+                            <a href="{% url 'orders:checkout' %}"
+                               class="block text-center bg-green-600 text-white py-2 rounded hover:bg-green-700 mt-2">Checkout</a>
+                        {% else %}
+                            <p class="text-gray-600 text-sm">Your cart is empty.</p>
                         {% endif %}
-                        <li><hr class="dropdown-divider"></li>
-                        <li><a class="dropdown-item text-danger" href="#"><i class="fas fa-sign-out-alt me-2"></i>Logout</a></li>
-                    </ul>
-                </li>
+                    </div>
+                </div>
+
+                <a href="{% url 'orders:checkout' %}" class="flex items-center hover:underline">
+                    <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"
+                         xmlns="http://www.w3.org/2000/svg">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                              d="M5 13l4 4L19 7"></path>
+                    </svg>
+                    <span class="ml-2">Checkout</span>
+                </a>
+
+                <a href="{% url 'orders:order_history' %}" class="hover:underline">Orders</a>
+                <a href="{% url 'logout' %}" class="hover:underline">Logout</a>
                 {% else %}
-                <li class="nav-item">
-                    <a class="nav-link" href="#">Login</a>
-                </li>
-                <li class="nav-item">
-                    <a class="btn btn-primary ms-2" href="#">Sign Up</a>
-                </li>
+                <a href="{% url 'login' %}" class="hover:underline">Login</a>
                 {% endif %}
-            </ul>
+            </div>
         </div>
-    </div>
-</nav>
+    </nav>

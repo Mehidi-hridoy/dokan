@@ -1,49 +1,138 @@
 {% extends 'base.html' %}
 {% load static %}
 
-
 {% block extra_css %}
+<link href="https://cdn.jsdelivr.net/npm/tailwindcss@2.2.19/dist/tailwind.min.css" rel="stylesheet">
 <link rel="stylesheet" href="{% static 'products/css/products.css' %}">
 {% endblock %}
 
- {% block extra_js %}
+{% block extra_js %}
 <script src="{% static 'products/js/products.js' %}"></script>
+<script>
+document.addEventListener('DOMContentLoaded', () => {
+    const popups = document.querySelectorAll('.product-popup');
+    popups.forEach(popup => {
+        popup.addEventListener('click', (e) => {
+            if (e.target.classList.contains('popup-close') || e.target === popup) {
+                popup.classList.add('hidden');
+            }
+        });
+    });
+
+    const productImages = document.querySelectorAll('.product-image');
+    productImages.forEach(image => {
+        image.addEventListener('click', () => {
+            const popupId = image.dataset.popup;
+            document.getElementById(popupId).classList.remove('hidden');
+        });
+    });
+
+    // Filter bar toggle for mobile
+    const filterToggle = document.getElementById('filter-toggle');
+    const filterMenu = document.getElementById('filter-menu');
+    filterToggle.addEventListener('click', () => {
+        filterMenu.classList.toggle('hidden');
+    });
+});
+</script>
 {% endblock %}
 
 {% block title %}Dokan - Featured Products{% endblock %}
 
 {% block content %}
+<!-- Hero Section -->
+<section class="bg-gradient-to-r from-blue-600 to-indigo-600 text-white py-24">
+    <div class="container mx-auto px-4 text-center">
+        <h1 class="text-4xl md:text-5xl font-bold mb-4">Discover Dokan E-Commerce</h1>
+        <p class="text-lg md:text-xl mb-6">Shop the latest trends at unbeatable prices!</p>
+        <a href="{% url 'products:product_list' %}" class="bg-white text-blue-600 px-8 py-4 rounded-full font-semibold text-lg hover:bg-gray-200 transition duration-300">Explore Now</a>
+    </div>
+</section>
 
-    <!-- Hero Section -->
-    <section class="bg-blue-600 text-white py-20">
-        <div class="container mx-auto px-4 text-center">
-            <h2 class="text-4xl font-bold mb-4">Welcome to Dokan E-Commerce</h2>
-            <p class="text-lg mb-6">Discover the best products at unbeatable prices!</p>
-            <a href="{% url 'products:product_list' %}" class="bg-white text-blue-600 px-6 py-3 rounded-full font-semibold hover:bg-gray-200">Shop Now</a>
-        </div>
-    </section>
-
-    <!-- Featured Products -->
-    <section class="container mx-auto px-4 py-12">
-        <h2 class="text-3xl font-bold text-center mb-8">Products Image</h2>
-        <div class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6">
-            {% for product in products %}
-            <div class="bg-white shadow rounded-lg overflow-hidden">
-                {% if product.image %}
-                <img src="{{ product.image.url }}" alt="{{ product.name }}" class="w-full h-48 object-cover">
-                {% endif %}
-                <div class="p-4">
-                    <h3 class="text-lg font-semibold">{{ product.name }}</h3>
-                    <p class="text-gray-600">{{ product.short_description|striptags|truncatewords:10 }}</p>
-                    <p class="text-blue-600 font-bold mt-2">${{ product.price }}</p>
-                    {% if product.discount_percentage %}
-                    <p class="text-sm text-red-500">{{ product.discount_percentage }}% Off</p>
-                    {% endif %}
-                    <a href="#" class="mt-4 block text-center bg-blue-600 text-white py-2 rounded hover:bg-blue-700">Add to Cart</a>
+<!-- Filter Bar -->
+<section class="container mx-auto px-4 py-6">
+    <div class="flex justify-between items-center">
+        <h2 class="text-2xl font-semibold">Featured Products</h2>
+        <button id="filter-toggle" class="md:hidden bg-blue-600 text-white px-4 py-2 rounded-lg">Filters</button>
+    </div>
+    <div id="filter-menu" class="hidden md:block mt-4">
+        <div class="flex flex-wrap gap-4">
+            <div>
+                <label class="block text-gray-700 mb-2">Category</label>
+                <select onchange="window.location.href=this.value" class="border rounded-lg p-2">
+                    <option value="{% url 'products:product_list' %}">All Categories</option>
+                    {% for category in categories %}
+                    <option value="{% url 'products:product_list' %}?category={{ category.slug }}">{{ category.name }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+            <div>
+                <label class="block text-gray-700 mb-2">Brand</label>
+                <select onchange="window.location.href=this.value" class="border rounded-lg p-2">
+                    <option value="{% url 'products:product_list' %}">All Brands</option>
+                    {% for brand in brands %}
+                    <option value="{% url 'products:product_list' %}?brand={{ brand.slug }}">{{ brand.name }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+            <div>
+                <label class="block text-gray-700 mb-2">Tags</label>
+                <div class="flex flex-wrap gap-2">
+                    {% for product in products %}
+                    {% for tag in product.tag_list %}
+                    <a href="{% url 'products:product_list' %}?tag={{ tag|urlencode }}" class="inline-block bg-gray-200 text-gray-700 px-3 py-1 rounded-full hover:bg-blue-600 hover:text-white transition">{{ tag }}</a>
+                    {% endfor %}
+                    {% endfor %}
                 </div>
             </div>
-            {% endfor %}
         </div>
-    </section>
+    </div>
+</section>
 
+<!-- Featured Products -->
+<section class="container mx-auto px-4 py-12">
+    <div class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6">
+        {% for product in products %}
+        <div class="bg-white shadow-lg rounded-lg overflow-hidden transform hover:scale-105 transition duration-300">
+            {% if product.image %}
+            <a href="{% url 'products:product_detail' product.slug %}">
+                <img src="{{ product.image.url }}" alt="{{ product.name }}" class="w-full h-48 object-cover cursor-pointer product-image" data-popup="popup-{{ product.id }}">
+            </a>
+            {% endif %}
+            {% if product.discount_percentage %}
+            <span class="absolute top-2 right-2 bg-red-500 text-white text-xs font-bold px-2 py-1 rounded-full">{{ product.discount_percentage }}% OFF</span>
+            {% endif %}
+            <div class="p-4">
+                <h3 class="text-lg font-semibold truncate">{{ product.name }}</h3>
+                <p class="text-gray-600 text-sm">{{ product.short_description|striptags|truncatewords:8 }}</p>
+                <p class="text-blue-600 font-bold mt-2">${{ product.price }}</p>
+                {% if product.tag_list %}
+                <div class="mt-2 flex flex-wrap gap-2">
+                    {% for tag in product.tag_list %}
+                    <a href="{% url 'products:product_list' %}?tag={{ tag|urlencode }}" class="inline-block text-xs bg-gray-100 text-gray-700 px-2 py-1 rounded-full hover:bg-blue-600 hover:text-white transition">{{ tag }}</a>
+                    {% endfor %}
+                </div>
+                {% endif %}
+                <div class="mt-4 flex space-x-2">
+                    <a href="{% url 'orders:add_to_cart' product.slug %}" class="flex-1 text-center bg-blue-600 text-white py-2 rounded hover:bg-blue-700 transition">Add to Cart</a>
+                </div>
+            </div>
+
+            <!-- Pop-up for Add to Cart/Checkout -->
+            <div id="popup-{{ product.id }}" class="product-popup hidden fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+                <div class="bg-white rounded-lg p-6 w-full max-w-md">
+                    <h3 class="text-lg font-bold mb-4">{{ product.name }}</h3>
+                    <img src="{{ products.image.url }}" alt="{{ product.name }}" class="w-full h-32 object-cover mb-4 rounded">
+                    <p class="text-gray-600 mb-4">${{ product.price }}</p>
+                    <div class="flex justify-between gap-4">
+                        <a href="{% url 'orders:add_to_cart' product.slug %}" class="flex-1 bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700">Add to Cart</a>
+                        <a href="{% url 'orders:checkout' %}" class="flex-1 bg-green-600 text-white px-4 py-2 rounded hover:bg-green-700">Checkout</a>
+                    </div>
+                    <button class="popup-close mt-4 text-gray-500 hover:text-gray-700 w-full text-center">Close</button>
+                </div>
+            </div>
+        </div>
+        {% endfor %}
+    </div>
+</section>
 {% endblock %}

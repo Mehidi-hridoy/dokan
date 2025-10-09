@@ -1,0 +1,50 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block extra_css %}
+<link href="https://cdn.jsdelivr.net/npm/tailwindcss@2.2.19/dist/tailwind.min.css" rel="stylesheet">
+<link rel="stylesheet" href="{% static 'products/css/products.css' %}">
+{% endblock %}
+
+{% block extra_js %}
+<script src="{% static 'products/js/products.js' %}"></script>
+{% endblock %}
+
+{% block title %}Order History - Dokan{% endblock %}
+
+{% block content %}
+<section class="container mx-auto px-4 py-12">
+    <h1 class="text-3xl font-bold mb-8">Order History</h1>
+    {% if orders %}
+    {% for order in orders %}
+    <div class="bg-white shadow-lg rounded-lg p-6 mb-6">
+        <h2 class="text-xl font-semibold mb-4">Order #{{ order.id }} - {{ order.created_at|date:"F d, Y" }}</h2>
+        <p class="text-gray-600 mb-2">Status: {{ 'Completed' if order.is_completed else 'Pending' }}</p>
+        <p class="text-gray-600 mb-2">Total: ${{ order.total }}</p>
+        <p class="text-gray-600 mb-2">Shipping Address: {{ order.shipping_address|default:'Not provided' }}</p>
+        <p class="text-gray-600 mb-4">Payment Method: {{ order.payment_method|default:'Not provided' }}</p>
+        <h3 class="text-lg font-semibold mb-2">Items</h3>
+        {% for item in order.order_items.all %}
+        <div class="flex justify-between mb-2">
+            <div>
+                <p class="font-semibold">{{ item.product.name }} (x{{ item.quantity }})</p>
+                {% if item.color %}
+                <p class="text-gray-600">Color: {{ item.color }}</p>
+                {% endif %}
+                {% if item.size %}
+                <p class="text-gray-600">Size: {{ item.size }}</p>
+                {% endif %}
+                {% if item.weight %}
+                <p class="text-gray-600">Weight: {{ item.weight }}</p>
+                {% endif %}
+            </div>
+            <p class="text-blue-600 font-bold">${{ item.get_total }}</p>
+        </div>
+        {% endfor %}
+    </div>
+    {% endfor %}
+    {% else %}
+    <p class="text-gray-600">You have no completed orders. <a href="{% url 'products:product_list' %}" class="text-blue-500 hover:underline">Continue shopping</a>.</p>
+    {% endif %}
+</section>
+{% endblock %}

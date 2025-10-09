@@ -47,7 +47,7 @@ class Product(models.Model):
     size = models.CharField(max_length=10, choices=SIZE_CHOICES, blank=True, null=True)
     weight = models.CharField(max_length=10, choices=WEIGHT_CHOICES, blank=True, null=True)
 
-    image = models.ImageField(upload_to='products/featured/', blank=True, null=True)
+    image = models.ImageField(upload_to='products/images/', blank=True, null=True)
     gallery_images = models.ManyToManyField('ProductImage', blank=True)
 
     meta_title = models.CharField(max_length=255, blank=True, null=True)

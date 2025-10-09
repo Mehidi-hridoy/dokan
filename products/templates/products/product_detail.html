@@ -1,0 +1,101 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block extra_css %}
+<link href="https://cdn.jsdelivr.net/npm/tailwindcss@2.2.19/dist/tailwind.min.css" rel="stylesheet">
+<link rel="stylesheet" href="{% static 'products/css/products.css' %}">
+{% endblock %}
+
+{% block extra_js %}
+<script src="{% static 'products/js/products.js' %}"></script>
+{% endblock %}
+
+{% block title %}{{ product.name }} - Dokan{% endblock %}
+
+{% block content %}
+<section class="container mx-auto px-4 py-12">
+    <div class="grid grid-cols-1 md:grid-cols-2 gap-8">
+        <!-- Product Images -->
+        <div>
+            {% if product.image %}
+            <img src="{{ product.image.url }}" alt="{{ product.name }}" class="w-full h-96 object-cover rounded-lg mb-4">
+            {% endif %}
+            {% if product.gallery_images.exists %}
+            <div class="grid grid-cols-3 gap-2">
+                {% for image in product.gallery_images.all %}
+                <img src="{{ image.image.url }}" alt="{{ image.alt_text|default:image.id }}" class="w-full h-24 object-cover rounded-lg">
+                {% endfor %}
+            </div>
+            {% endif %}
+        </div>
+
+        <!-- Product Details -->
+        <div>
+            <h1 class="text-3xl font-bold mb-4">{{ product.name }}</h1>
+            <p class="text-gray-600 mb-4">{{ product.short_description|safe }}</p>
+            <p class="text-blue-600 font-bold text-2xl mb-4">${{ product.price }}</p>
+            {% if product.discount_percentage %}
+            <p class="text-red-500 mb-4">{{ product.discount_percentage }}% OFF (Was ${{ product.previous_price }})</p>
+            {% endif %}
+            <p class="text-gray-600 mb-4">{{ product.description|safe }}</p>
+
+            <!-- Product Options -->
+            <form action="{% url 'orders:add_to_cart' product.slug %}" method="post" class="mb-4">
+                {% csrf_token %}
+                {% if product.color %}
+                <div class="mb-4">
+                    <label class="block text-gray-700">Color</label>
+                    <select name="color" class="w-full border rounded-lg p-2">
+                        <option value="{{ product.color }}">{{ product.color }}</option>
+                    </select>
+                </div>
+                {% endif %}
+                {% if product.size %}
+                <div class="mb-4">
+                    <label class="block text-gray-700">Size</label>
+                    <select name="size" class="w-full border rounded-lg p-2">
+                        <option value="{{ product.size }}">{{ product.size }}</option>
+                    </select>
+                </div>
+                {% endif %}
+                {% if product.weight %}
+                <div class="mb-4">
+                    <label class="block text-gray-700">Weight</label>
+                    <select name="weight" class="w-full border rounded-lg p-2">
+                        <option value="{{ product.weight }}">{{ product.weight }}</option>
+                    </select>
+                </div>
+                {% endif %}
+                <div class="flex space-x-4">
+                    <button type="submit" class="bg-blue-600 text-white px-6 py-3 rounded-lg hover:bg-blue-700">Add to Cart</button>
+                    <a href="{% url 'orders:checkout' %}" class="bg-green-600 text-white px-6 py-3 rounded-lg hover:bg-green-700">Checkout</a>
+                </div>
+            </form>
+
+            <!-- Tags -->
+            {% if product.tag_list %}
+            <div class="mb-4">
+                <h3 class="text-lg font-semibold">Tags</h3>
+                {% for tag in product.tag_list %}
+                <a href="{% url 'products:product_list' %}?tag={{ tag|urlencode }}" class="inline-block text-sm text-blue-500 hover:underline mr-2">{{ tag }}</a>
+                {% endfor %}
+            </div>
+            {% endif %}
+
+            <!-- Reviews -->
+            {% if reviews %}
+            <div>
+                <h3 class="text-lg font-semibold mb-2">Reviews</h3>
+                {% for review in reviews %}
+                <div class="border-t py-4">
+                    <p class="font-semibold">{{ review.user.username }} - {{ review.rating }} Stars</p>
+                    <p class="text-gray-600">{{ review.comment }}</p>
+                    <p class="text-sm text-gray-500">{{ review.created_at|date:"F d, Y" }}</p>
+                </div>
+                {% endfor %}
+            </div>
+            {% endif %}
+        </div>
+    </div>
+</section>
+{% endblock %}

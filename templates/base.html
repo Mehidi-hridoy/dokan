@@ -5,25 +5,86 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>{% block title %}Dokan - Modern Ecommerce{% endblock %}</title>
-    
-    <!-- Bootstrap CSS -->
-    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+
+    <!-- Tailwind CSS -->
     <link href="https://cdn.jsdelivr.net/npm/tailwindcss@2.2.19/dist/tailwind.min.css" rel="stylesheet">
+    <!-- Bootstrap CSS (optional for grid/components) -->
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
 
     <!-- Font Awesome -->
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <!-- Google Fonts -->
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
-    <!-- Custom CSS -->
-    
+
+    <!-- Global & Product CSS -->
+    <link rel="stylesheet" href="{% static 'css/global.css' %}">
+    <link rel="stylesheet" href="{% static 'products/css/products.css' %}">
+
     {% block extra_css %}{% endblock %}
 </head>
-<body>
+
+<body class="font-inter bg-gray-50 text-gray-900">
+
     <!-- Navigation -->
-    {% include 'includes/navbar.html' %}
+    <nav class="bg-blue-600 text-white py-4 shadow-md">
+        <div class="container mx-auto px-4 flex justify-between items-center">
+            <a href="{% url 'products:home' %}" class="text-2xl font-bold tracking-wide">Dokan</a>
+
+            <div class="flex items-center space-x-4">
+                <a href="{% url 'products:product_list' %}" class="hover:underline">Shop</a>
+
+                {% if request.user.is_authenticated %}
+                <div class="relative group">
+                    <button class="flex items-center focus:outline-none">
+                        <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"
+                             xmlns="http://www.w3.org/2000/svg">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                  d="M3 3h2l.4 2M7 13h10l4-8H5.4M7 13L5.4 5M7 13l-2.293 2.293c-.63.63-.184 1.707.707 1.707H17m0 0a2 2 0 100 4 2 2 0 000-4zm-8 2a2 2 0 11-4 0 2 2 0 014 0z">
+                            </path>
+                        </svg>
+                        <span class="ml-2">Cart</span>
+                    </button>
+
+                    <!-- Cart Dropdown -->
+                    <div
+                        class="absolute top-10 right-0 bg-white text-black shadow-lg rounded-lg w-64 p-4 hidden group-hover:block z-50">
+                        {% if order and order.order_items.exists %}
+                            {% for item in order.order_items.all %}
+                            <div class="flex justify-between mb-2 text-sm">
+                                <span>{{ item.product.name }} (x{{ item.quantity }})</span>
+                                <span>${{ item.get_total }}</span>
+                            </div>
+                            {% endfor %}
+                            <a href="{% url 'orders:view_cart' %}"
+                               class="block text-center bg-blue-600 text-white py-2 rounded hover:bg-blue-700 mt-2">View Cart</a>
+                            <a href="{% url 'orders:checkout' %}"
+                               class="block text-center bg-green-600 text-white py-2 rounded hover:bg-green-700 mt-2">Checkout</a>
+                        {% else %}
+                            <p class="text-gray-600 text-sm">Your cart is empty.</p>
+                        {% endif %}
+                    </div>
+                </div>
+
+                <a href="{% url 'orders:checkout' %}" class="flex items-center hover:underline">
+                    <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"
+                         xmlns="http://www.w3.org/2000/svg">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                              d="M5 13l4 4L19 7"></path>
+                    </svg>
+                    <span class="ml-2">Checkout</span>
+                </a>
+
+                <a href="{% url 'orders:order_history' %}" class="hover:underline">Orders</a>
+                <a href="{% url 'logout' %}" class="hover:underline">Logout</a>
+                {% else %}
+                <a href="{% url 'login' %}" class="hover:underline">Login</a>
+                {% endif %}
+            </div>
+        </div>
+    </nav>
 
     <!-- Main Content -->
-    <main>
+    <main class="min-h-screen">
         {% block content %}
         {% endblock %}
     </main>
@@ -31,10 +92,10 @@
     <!-- Footer -->
     {% include 'includes/footer.html' %}
 
-    <!-- Bootstrap JS -->
+    <!-- Scripts -->
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
-    <!-- Custom JS -->
-    
+    <script src="{% static 'js/global.js' %}"></script>
+
     {% block extra_js %}{% endblock %}
 </body>
 </html>
