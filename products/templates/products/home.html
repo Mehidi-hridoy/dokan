@@ -1,37 +1,31 @@
-<!DOCTYPE html>
-<html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Dokan E-Commerce</title>
-    <link href="https://cdn.jsdelivr.net/npm/tailwindcss@2.2.19/dist/tailwind.min.css" rel="stylesheet">
-</head>
-<body class="bg-gray-100">
-    <!-- Header -->
-    <header class="bg-white shadow">
-        <div class="container mx-auto px-4 py-4 flex justify-between items-center">
-            <h1 class="text-2xl font-bold">Dokan E-Commerce</h1>
-            <nav>
-                <a href="#" class="text-gray-600 hover:text-blue-600 mx-2">Home</a>
-                <a href="#" class="text-gray-600 hover:text-blue-600 mx-2">Shop</a>
-                <a href="#" class="text-gray-600 hover:text-blue-600 mx-2">Cart</a>
-                <a href="#" class="text-gray-600 hover:text-blue-600 mx-2">Account</a>
-            </nav>
-        </div>
-    </header>
+{% extends 'base.html' %}
+{% load static %}
+
+
+{% block extra_css %}
+<link rel="stylesheet" href="{% static 'products/css/products.css' %}">
+{% endblock %}
+
+ {% block extra_js %}
+<script src="{% static 'products/js/products.js' %}"></script>
+{% endblock %}
+
+{% block title %}Dokan - Featured Products{% endblock %}
+
+{% block content %}
 
     <!-- Hero Section -->
     <section class="bg-blue-600 text-white py-20">
         <div class="container mx-auto px-4 text-center">
             <h2 class="text-4xl font-bold mb-4">Welcome to Dokan E-Commerce</h2>
             <p class="text-lg mb-6">Discover the best products at unbeatable prices!</p>
-            <a href="#" class="bg-white text-blue-600 px-6 py-3 rounded-full font-semibold hover:bg-gray-200">Shop Now</a>
+            <a href="{% url 'products:product_list' %}" class="bg-white text-blue-600 px-6 py-3 rounded-full font-semibold hover:bg-gray-200">Shop Now</a>
         </div>
     </section>
 
     <!-- Featured Products -->
     <section class="container mx-auto px-4 py-12">
-        <h2 class="text-3xl font-bold text-center mb-8">Featured Products</h2>
+        <h2 class="text-3xl font-bold text-center mb-8">Products Image</h2>
         <div class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6">
             {% for product in products %}
             <div class="bg-white shadow rounded-lg overflow-hidden">
@@ -52,11 +46,4 @@
         </div>
     </section>
 
-    <!-- Footer -->
-    <footer class="bg-gray-800 text-white py-8">
-        <div class="container mx-auto px-4 text-center">
-            <p>&copy; 2025 Dokan E-Commerce. All rights reserved.</p>
-        </div>
-    </footer>
-</body>
-</html>
+{% endblock %}

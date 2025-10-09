@@ -1,4 +1,4 @@
-{% extends 'store/base.html' %}
+{% extends 'base.html' %}
 {% load static %}
 
 
@@ -57,15 +57,24 @@
             <!-- Header -->
             <div class="d-flex justify-content-between align-items-center mb-4">
                 <div>
-                    <h1 class="h3 mb-0">
-                        {% if selected_category %}
-                        {{ categories|dictsort:"slug"|dictkey:selected_category|default:"Products" }}
-                        {% elif selected_brand %}
-                        {{ brands|dictsort:"slug"|dictkey:selected_brand|default:"Products" }}
-                        {% else %}
-                        All Products
-                        {% endif %}
-                    </h1>
+<h1 class="h3 mb-0">
+    {% if selected_category %}
+        {% for category in categories %}
+            {% if category.slug == selected_category %}
+                {{ category.name }}
+            {% endif %}
+        {% endfor %}
+    {% elif selected_brand %}
+        {% for brand in brands %}
+            {% if brand.slug == selected_brand %}
+                {{ brand.name }}
+            {% endif %}
+        {% endfor %}
+    {% else %}
+        All Products
+    {% endif %}
+</h1>
+
                     <p class="text-muted mb-0">{{ page_obj.paginator.count }} products found</p>
                 </div>
                 
