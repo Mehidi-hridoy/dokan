@@ -20,7 +20,7 @@ SIZE_CHOICES = [
 STOCK_OPTION = [('Manual', 'Manual'), ('Inventory', 'Inventory')]
 
 class Product(models.Model):
-    name = models.CharField(max_length=255, unique=True)
+    name = models.CharField(max_length=255,)
     slug = models.SlugField(max_length=255, unique=True, blank=True)
     product_code = models.CharField(max_length=20, unique=True, blank=True)
     short_description = CKEditor5Field(blank=True, null=True, config_name='extends')
@@ -47,7 +47,7 @@ class Product(models.Model):
     size = models.CharField(max_length=10, choices=SIZE_CHOICES, blank=True, null=True)
     weight = models.CharField(max_length=10, choices=WEIGHT_CHOICES, blank=True, null=True)
 
-    image = models.ImageField(upload_to='products/featured/', blank=True, null=True)
+    products_image = models.ImageField(upload_to='products/images/', blank=True, null=True)
     gallery_images = models.ManyToManyField('ProductImage', blank=True)
 
     meta_title = models.CharField(max_length=255, blank=True, null=True)

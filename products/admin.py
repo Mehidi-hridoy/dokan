@@ -34,7 +34,7 @@ class ProductAdmin(admin.ModelAdmin):
             'fields': ('short_description', 'description', 'color', 'size', 'weight', )
         }),
         ('Images', {
-            'fields': ('image', 'gallery_images')
+            'fields': ('products_image', 'gallery_images')
         }),
         ('SEO', {
             'fields': ('meta_title', 'meta_description', 'tags')
@@ -60,10 +60,11 @@ class ProductAdmin(admin.ModelAdmin):
         super().save_model(request, obj, form, change)
 
     def image_tag(self, obj):
-        if obj.image:
-            return format_html('<img src="{}" width="50" height="50" style="object-fit: cover;">', obj.image.url)
+        if obj.products_image:
+            return format_html('<img src="{}" width="50" height="50" style="object-fit: cover;">', obj.products_image.url)
         return "-"
     image_tag.short_description = 'Image'
+
 
 
 @admin.register(ProductImage)

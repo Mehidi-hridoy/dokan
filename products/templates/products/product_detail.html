@@ -1,0 +1,132 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block extra_css %}
+<link href="https://cdn.jsdelivr.net/npm/tailwindcss@2.2.19/dist/tailwind.min.css" rel="stylesheet">
+<link rel="stylesheet" href="{% static 'css/style.css' %}">
+{% endblock %}
+
+{% block extra_js %}
+<script src="{% static 'js/cart.js' %}"></script>
+{% endblock %}
+
+{% block title %}Dokan - {{ product.name }}{% endblock %}
+
+{% block content %}
+<section class="container mx-auto px-4 py-12">
+    <div class="grid grid-cols-1 md:grid-cols-2 gap-8">
+        <!-- Product Image -->
+        <div>
+            {% if product.image %}
+            <img src="{{ product.image.url }}" alt="{{ product.name }}" class="w-full h-96 object-cover rounded-lg product-image" data-popup="popup-{{ product.id }}">
+            {% else %}
+            <div class="w-full h-96 bg-gray-200 flex items-center justify-center rounded-lg">
+                <span class="text-gray-500">No Image</span>
+            </div>
+            {% endif %}
+            {% if product.discount_percentage %}
+            <span class="absolute top-2 right-2 bg-red-500 text-white text-xs font-bold px-2 py-1 rounded-full">{{ product.discount_percentage }}% OFF</span>
+            {% endif %}
+        </div>
+
+        <!-- Product Details -->
+        <div>
+            <h1 class="text-3xl font-bold mb-4">{{ product.name }}</h1>
+            <p class="text-gray-600 mb-4">{{ product.description|safe }}</p>
+            <p class="text-blue-600 font-bold text-2xl mb-4">${{ product.price }}</p>
+            {% if product.tag_list %}
+            <div class="mb-4 flex flex-wrap gap-2">
+                {% for tag in product.tag_list %}
+                <a href="{% url 'products:product_list' %}?tag={{ tag|urlencode }}" class="inline-block text-xs bg-gray-100 text-gray-700 px-2 py-1 rounded-full hover:bg-blue-600 hover:text-white transition">{{ tag }}</a>
+                {% endfor %}
+            </div>
+            {% endif %}
+
+            <!-- Add to Cart Form -->
+            <form action="{% url 'products:add_to_cart' product.slug %}" method="POST" class="add-to-cart-form">
+                {% csrf_token %}
+                {% if product.colors %}
+                <select name="color" class="border rounded p-2 mb-4 w-full">
+                    {% for color in product.colors %}
+                    <option value="{{ color }}">{{ color }}</option>
+                    {% endfor %}
+                </select>
+                {% endif %}
+                {% if product.sizes %}
+                <select name="size" class="border rounded p-2 mb-4 w-full">
+                    {% for size in product.sizes %}
+                    <option value="{{ size }}">{{ size }}</option>
+                    {% endfor %}
+                </select>
+                {% endif %}
+                {% if product.weights %}
+                <select name="weight" class="border rounded p-2 mb-4 w-full">
+                    {% for weight in product.weights %}
+                    <option value="{{ weight }}">{{ weight }}</option>
+                    {% endfor %}
+                </select>
+                {% endif %}
+                <button type="submit" class="add-to-cart bg-blue-600 text-white px-6 py-3 rounded-lg hover:bg-blue-700 transition w-full">Add to Cart</button>
+            </form>
+
+            <!-- Reviews -->
+            {% if reviews %}
+            <div class="mt-8">
+                <h2 class="text-2xl font-semibold mb-4">Reviews</h2>
+                {% for review in reviews %}
+                <div class="mb-4 p-4 bg-gray-100 rounded-lg">
+                    <p class="font-semibold">{{ review.user.username }}</p>
+                    <p class="text-gray-600">{{ review.comment }}</p>
+                    <p class="text-sm text-gray-500">{{ review.created_at|date:"F d, Y" }}</p>
+                </div>
+                {% endfor %}
+            </div>
+            {% endif %}
+        </div>
+    </div>
+
+    <!-- Pop-up for Quick View -->
+    <div id="popup-{{ product.id }}" class="product-popup hidden fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+        <div class="bg-white rounded-lg p-6 w-full max-w-md">
+            <h3 class="text-lg font-bold mb-4">{{ product.name }}</h3>
+            {% if product.image %}
+            <img src="{{ product.image.url }}" alt="{{ product.name }}" class="w-full h-32 object-cover mb-4 rounded">
+            {% else %}
+            <div class="w-full h-32 bg-gray-200 flex items-center justify-center mb-4 rounded">
+                <span class="text-gray-500">No Image</span>
+            </div>
+            {% endif %}
+            <p class="text-gray-600 mb-4">${{ product.price }}</p>
+            <form action="{% url 'products:add_to_cart' product.slug %}" method="POST" class="add-to-cart-form">
+                {% csrf_token %}
+                {% if product.colors %}
+                <select name="color" class="border rounded p-1 mb-2 w-full">
+                    {% for color in product.colors %}
+                    <option value="{{ color }}">{{ color }}</option>
+                    {% endfor %}
+                </select>
+                {% endif %}
+                {% if product.sizes %}
+                <select name="size" class="border rounded p-1 mb-2 w-full">
+                    {% for size in product.sizes %}
+                    <option value="{{ size }}">{{ size }}</option>
+                    {% endfor %}
+                </select>
+                {% endif %}
+                {% if product.weights %}
+                <select name="weight" class="border rounded p-1 mb-2 w-full">
+                    {% for weight in product.weights %}
+                    <option value="{{ weight }}">{{ weight }}</option>
+                    {% endfor %}
+                </select>
+                {% endif %}
+                <div class="flex justify-between gap-4">
+                    <button type="submit" class="add-to-cart flex-1 bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700">Add to Cart</button>
+                    <a href="{% url 'products:checkout' %}" class="flex-1 bg-green-600 text-white px-4 py-2 rounded hover:bg-green-700 text-center">Checkout</a>
+                </div>
+            </form>
+            <button class="popup-close mt-4 text-gray-500 hover:text-gray-700 w-full text-center">Close</button>
+        </div>
+    </div>
+</section>
+{% endblock %}

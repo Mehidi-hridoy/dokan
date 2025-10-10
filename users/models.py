@@ -6,6 +6,7 @@ class User(AbstractUser):
         ('admin', 'Admin/Staff'),
         ('vendor', 'Vendor'),
         ('customer', 'Customer'),
+        ('dokan', "Dokan"),
     ]
     user_type = models.CharField(max_length=20, choices=USER_TYPE_CHOICES, default='customer')
     phone_number = models.CharField(max_length=15, blank=True, null=True)
@@ -29,3 +30,6 @@ class User(AbstractUser):
 
     def __str__(self):
         return self.username
+    
+
+

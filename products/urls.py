@@ -1,14 +1,22 @@
-from django.urls import path
-from . import views
-from django.conf import settings
-from django.conf.urls.static import static
 
+from django.conf import settings
+from django.urls import path
+from django.conf.urls.static import static
+from . import views
 
 app_name = 'products'
 
 urlpatterns = [
     path('', views.home, name='home'),
+    path('products/', views.product_list, name='product_list'),
+    path('product/<slug:slug>/', views.product_detail, name='product_detail'),
+    path('search/', views.search, name='search'),
+    path('cart/add/<slug:slug>/', views.add_to_cart, name='add_to_cart'),  # Updated to use slug
+    path('cart/', views.view_cart, name='view_cart'),
+    path('checkout/', views.checkout, name='checkout'),
+    path('orders/history/', views.order_history, name='order_history'),
+]+ static(settings.MEDIA_URL, document_root=settings.MEDIA_ROOT)
 
 
 
-] + static(settings.MEDIA_URL, document_root=settings.MEDIA_ROOT)
+

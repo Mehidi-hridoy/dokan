@@ -1,9 +1,8 @@
 from django.urls import path
-from . import views  # Import your app's views
+from . import views
 
 
 app_name = 'orders'
 
 urlpatterns = [
-    
 ]
