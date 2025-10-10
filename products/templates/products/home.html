@@ -223,54 +223,5 @@
 {% endblock %}
 
 {% block extra_js %}
-<script>
-    // Add to cart functionality with AJAX
-    document.addEventListener('DOMContentLoaded', function() {
-        const addToCartForms = document.querySelectorAll('form[action*="add_to_cart"]');
-        
-        addToCartForms.forEach(form => {
-            form.addEventListener('submit', function(e) {
-                e.preventDefault();
-                
-                const formData = new FormData(this);
-                const url = this.action;
-                
-                fetch(url, {
-                    method: 'POST',
-                    body: formData,
-                    headers: {
-                        'X-Requested-With': 'XMLHttpRequest',
-                    },
-                })
-                .then(response => response.json())
-                .then(data => {
-                    if (data.success) {
-                        // Show success message
-                        showMessage(data.message, 'success');
-                        // Update cart count in navbar
-                        updateCartCount(data.cart_count);
-                    } else {
-                        showMessage(data.message, 'error');
-                    }
-                })
-                .catch(error => {
-                    console.error('Error:', error);
-                    showMessage('An error occurred. Please try again.', 'error');
-                });
-            });
-        });
-        
-        function showMessage(message, type) {
-            // You can implement a toast notification system here
-            alert(message);
-        }
-        
-        function updateCartCount(count) {
-            const cartCountElement = document.querySelector('.bg-red-500');
-            if (cartCountElement) {
-                cartCountElement.textContent = count;
-            }
-        }
-    });
-</script>
+
 {% endblock %}

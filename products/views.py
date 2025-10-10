@@ -30,7 +30,7 @@ def _get_user_order(request):
             order_status__in=active_statuses
         ).first()
     return None
-
+ 
 def home(request):
     products = Product.objects.filter(is_active=True).select_related('category', 'brand')
     categories = Category.objects.all()
@@ -46,12 +46,14 @@ def home(request):
     }
     return render(request, 'products/home.html', context)
 
+
 def product_list(request):
-    category_slug = request.GET.get('category')
-    brand_slug = request.GET.get('brand')
-    tag = request.GET.get('tag')
+    category_slug = request.GET.get('category', '')
+    brand_slug = request.GET.get('brand', '')
+    tag = request.GET.get('tag', '')
     sort = request.GET.get('sort', 'name')
 
+    # Start with all active products
     products = Product.objects.filter(is_active=True).select_related('category', 'brand')
     categories = Category.objects.all()
     brands = Brand.objects.all()
@@ -61,10 +63,14 @@ def product_list(request):
         category = get_object_or_404(Category, slug=category_slug)
         products = products.filter(category=category)
         header_name = category.name
+        # Get brands that have products in this category
+        brands = brands.filter(products__category=category, products__is_active=True).distinct()
     elif brand_slug:
         brand = get_object_or_404(Brand, slug=brand_slug)
         products = products.filter(brand=brand)
         header_name = brand.name
+        # Get categories that have products from this brand
+        categories = categories.filter(products__brand=brand, products__is_active=True).distinct()
     elif tag:
         products = products.filter(tags__icontains=tag)
         header_name = f"Products tagged with: {tag}"
@@ -81,12 +87,45 @@ def product_list(request):
     elif sort == 'name':
         products = products.order_by('name')
 
+    # Get product counts for categories and brands in the current filtered view
+    category_counts = {}
+    for category in categories:
+        count = Product.objects.filter(category=category, is_active=True).count()
+        category_counts[category.id] = count
+    
+    brand_counts = {}
+    for brand in brands:
+        count = Product.objects.filter(brand=brand, is_active=True).count()
+        brand_counts[brand.id] = count
+
+    # Check if user can review each product
+    if request.user.is_authenticated:
+        # Get delivered orders for the current user
+        delivered_orders = Order.objects.filter(
+            user=request.user,
+            order_status='delivered'
+        )
+        
+        # Get product IDs that user has received
+        delivered_product_ids = OrderItem.objects.filter(
+            order__in=delivered_orders
+        ).values_list('product_id', flat=True).distinct()
+        
+        # Check for each product if user can review
+        for product in products:
+            product.can_review = product.id in delivered_product_ids and not product.reviews.filter(user=request.user).exists()
+    else:
+        for product in products:
+            product.can_review = False
+
     products = [_calculate_discount(product) for product in products]
 
     context = {
         'products': products,
         'categories': categories,
         'brands': brands,
+        'category_counts': category_counts,
+        'brand_counts': brand_counts,
         'header_name': header_name,
         'selected_category': category_slug,
         'selected_brand': brand_slug,
@@ -95,6 +134,7 @@ def product_list(request):
         'order': _get_user_order(request),
     }
     return render(request, 'products/product_list.html', context)
+
 
 def product_detail(request, slug):
     product = get_object_or_404(Product, slug=slug, is_active=True)
@@ -134,16 +174,12 @@ def add_to_cart(request, slug):
         return JsonResponse({'success': False, 'message': f"{product.name} is out of stock."}, status=400)
 
     # Get or create an order with pending status
-    active_statuses = ['pending', 'processing', 'on_hold']  # Add your actual status values
-    order = Order.objects.filter(
-        user=request.user, 
-        order_status__in=active_statuses
-    ).first()
+    order = Order.objects.filter(user=request.user, order_status='pending').first()
     
     if not order:
         order = Order.objects.create(
             user=request.user,
-            order_status='pending',  # Use your actual pending status value
+            order_status='pending',
             total=0
         )
 
@@ -161,15 +197,21 @@ def add_to_cart(request, slug):
         order_item.save()
 
     # Recalculate order total
-    order_total = sum(item.get_total() for item in order.order_items.all())
-    order.total = order_total
-    order.save()
+    _calculate_order_total(order)
     
     return JsonResponse({
         'success': True,
         'message': f"{product.name} added to cart!",
         'cart_count': order.order_items.count()
     })
+
+def _calculate_order_total(order):
+    """Helper function to calculate order total"""
+    total = sum(item.get_total() for item in order.order_items.all())
+    order.total = total
+    order.save()
+    return order
+
 
 @login_required
 def view_cart(request):

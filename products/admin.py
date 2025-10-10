@@ -71,3 +71,4 @@ class ProductAdmin(admin.ModelAdmin):
 class ProductImageAdmin(admin.ModelAdmin):
     list_display = ('alt_text', 'image')
     search_fields = ('alt_text',)
+ 

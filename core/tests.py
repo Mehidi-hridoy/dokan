@@ -5,7 +5,7 @@ python manage.py migrate
 python manage.py runserver
 
 git add .
-git commit -m "HTML and def updated"
+git commit -m "HTML updated"
 git push -u origin main
 python manage.py runserver
 

@@ -13,10 +13,8 @@ urlpatterns = [
     path('search/', views.search, name='search'),
     path('cart/add/<slug:slug>/', views.add_to_cart, name='add_to_cart'),  # Updated to use slug
     path('cart/', views.view_cart, name='view_cart'),
-    path('checkout/', views.checkout, name='checkout'),
     path('orders/history/', views.order_history, name='order_history'),
 ]+ static(settings.MEDIA_URL, document_root=settings.MEDIA_ROOT)
-
 
 
 
