@@ -14,6 +14,7 @@ urlpatterns = [
     path('cart/add/<slug:slug>/', views.add_to_cart, name='add_to_cart'),  # Updated to use slug
     path('cart/', views.view_cart, name='view_cart'),
     path('orders/history/', views.order_history, name='order_history'),
+    path('checkout/', views.checkout, name='checkout'),  # Remove @require_POST decorator from view
 ]+ static(settings.MEDIA_URL, document_root=settings.MEDIA_ROOT)
 
 

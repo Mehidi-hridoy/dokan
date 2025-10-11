@@ -100,6 +100,11 @@ INSTALLED_APPS = [
 ]
 AUTH_USER_MODEL = 'users.User'
 
+# # Add these settings
+# LOGIN_REDIRECT_URL = 'products:home'  # Redirect to home after login
+# LOGOUT_REDIRECT_URL = 'products:home'  # Redirect to home after logout
+# LOGIN_URL = 'login'  # URL to redirect to for 
+
 CKEDITOR_5_UPLOAD_PATH = "uploads/"
 
 CKEDITOR_5_CONFIGS = {

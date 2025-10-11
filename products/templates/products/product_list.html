@@ -311,15 +311,20 @@
                                    class="flex-1 bg-gray-100 text-gray-700 text-center py-2 rounded hover:bg-gray-200 transition duration-200 text-sm">
                                     View Details
                                 </a>
-                                {% if product.is_in_stock %}
-                                <form action="{% url 'products:add_to_cart' product.slug %}" method="POST" class="flex-1">
-                                    {% csrf_token %}
-                                    <button type="submit" 
-                                            class="w-full bg-blue-600 text-white py-2 rounded hover:bg-blue-700 transition duration-200 text-sm">
-                                        Add to Cart
-                                    </button>
-                                </form>
-                                {% endif %}
+<!-- In product_list.html and other product templates -->
+{% if product.is_in_stock %}
+<form action="{% url 'products:add_to_cart' product.slug %}" method="POST" class="flex-1">
+    {% csrf_token %}
+    <button type="submit" 
+            class="w-full bg-blue-600 text-white py-2 rounded hover:bg-blue-700 transition duration-200 text-sm">
+        Add to Cart
+    </button>
+</form>
+{% else %}
+<button class="w-full bg-gray-400 text-white py-2 rounded text-sm cursor-not-allowed" disabled>
+    Out of Stock
+</button>
+{% endif %}
                             </div>
                             
                             <!-- Add Review Button (only for users who ordered and received the product) -->
