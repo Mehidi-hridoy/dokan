@@ -3,6 +3,7 @@ from django.core.validators import MinValueValidator, MaxValueValidator
 from users.models import User
 from products.models import Product
 from decimal import Decimal
+from products.models import COLOR_CHOICES, SIZE_CHOICES, WEIGHT_CHOICES
 
 class Order(models.Model):
     # Order Status Choices
@@ -35,27 +36,23 @@ class Order(models.Model):
         ('refunded', 'Refunded'),
         ('partially_refunded', 'Partially Refunded'),
     ]
+    PAYMENT_METHOD_CHOICES = [
+        ('cod', 'Cash on Delivery'),
+        ('card', 'Credit/Debit Card'),
+        ('bank_transfer', 'Bank Transfer'),
+        ('mobile_money', 'Mobile Money'),
+        ('paypal', 'PayPal'),
+        ('other', 'Other'),
+    ]
 
     # Basic Information
     user = models.ForeignKey(User, on_delete=models.CASCADE, related_name='orders')
     order_number = models.CharField(max_length=20, unique=True, blank=True)
     
     # Status Fields
-    order_status = models.CharField(
-        max_length=20, 
-        choices=ORDER_STATUS_CHOICES, 
-        default='pending'
-    )
-    courier_status = models.CharField(
-        max_length=20, 
-        choices=COURIER_STATUS_CHOICES, 
-        default='pending'
-    )
-    payment_status = models.CharField(
-        max_length=20, 
-        choices=PAYMENT_STATUS_CHOICES, 
-        default='pending'
-    )
+    order_status = models.CharField( max_length=20,  choices=ORDER_STATUS_CHOICES,  default='pending' )
+    courier_status = models.CharField(  max_length=20,  choices=COURIER_STATUS_CHOICES,  default='pending' )
+    payment_status = models.CharField(  max_length=20,choices=PAYMENT_STATUS_CHOICES, default='pending' )
     
     # Financial Information
     subtotal = models.DecimalField(max_digits=10, decimal_places=2, default=0)
@@ -74,7 +71,8 @@ class Order(models.Model):
     # Additional Fields
     order_note = models.TextField(blank=True, null=True, help_text="Customer's order note")
     admin_comment = models.TextField(blank=True, null=True, help_text="Internal admin comments")
-    payment_method = models.CharField(max_length=50, blank=True, null=True)
+ 
+    payment_method = models.CharField(  max_length=50, choices=PAYMENT_METHOD_CHOICES, blank=True, null=True   )
     
     # Area/Region Filtering
     delivery_area = models.CharField(max_length=100, blank=True, null=True)
@@ -82,9 +80,26 @@ class Order(models.Model):
     zip_code = models.CharField(max_length=10, blank=True, null=True)
     
     # Courier Information
-    courier_name = models.CharField(max_length=100, blank=True, null=True)
-    tracking_number = models.CharField(max_length=100, blank=True, null=True)
-    estimated_delivery = models.DateField(blank=True, null=True)
+    courier_name = models.CharField(
+        max_length=100, 
+        blank=True, 
+        null=True, 
+        help_text="Name of the courier service"
+    )
+    courier_choice = models.CharField(
+        max_length=50,
+        choices=[
+            ('pathao', 'Pathao'),
+            ('red_x', 'Red X'),
+            ('steadfast', 'Steadfast'),],blank=True, null=True,help_text="Select courier service"
+    )
+    tracking_number = models.CharField( max_length=100,   blank=True,  null=True, help_text="Tracking number provided by courier"
+    )
+    estimated_delivery = models.DateField(
+        blank=True, 
+        null=True, 
+        help_text="Estimated delivery date"
+    )
     
     # Timestamps
     created_at = models.DateTimeField(auto_now_add=True)
@@ -107,7 +122,7 @@ class Order(models.Model):
         if not self.order_number:
             # Generate unique order number
             import uuid
-            self.order_number = f"ORD-{uuid.uuid4().hex[:10].upper()}"
+            self.order_number = f"ORD-{uuid.uuid4().hex[:5].upper()}"
         
         # Calculate total if not set
         if not self.total and self.subtotal:
@@ -148,20 +163,27 @@ class Order(models.Model):
         return sum((item.product.price * item.quantity for item in self.order_items.all()), Decimal('0'))
 
 class OrderItem(models.Model):
+    DELIVERY_STATUS_CHOICES = [
+        ('pending', 'Pending'),
+        ('picked_up', 'Picked Up'),
+        ('in_transit', 'In Transit'),
+        ('out_for_delivery', 'Out for Delivery'),
+        ('delivered', 'Delivered'),
+        ('failed', 'Delivery Failed'),
+        ('returned', 'Returned to Seller'),
+    ]
     order = models.ForeignKey(Order, on_delete=models.CASCADE, related_name='order_items')
     product = models.ForeignKey(Product, on_delete=models.CASCADE)
     quantity = models.PositiveIntegerField(default=1, validators=[MinValueValidator(1)])
     price = models.DecimalField(max_digits=10, decimal_places=2, default=0)
-    
+
     # Product variants
-    color = models.CharField(max_length=50, blank=True, null=True)
-    size = models.CharField(max_length=10, blank=True, null=True)
-    weight = models.CharField(max_length=10, blank=True, null=True)
-    
+    color = models.CharField(max_length=10,choices=COLOR_CHOICES, blank=True, null=True)
+    size = models.CharField(max_length=10, choices=SIZE_CHOICES, blank=True, null=True)
+    weight = models.CharField(max_length=10, choices=WEIGHT_CHOICES, blank=True, null=True)
+    delivery_status = models.CharField( max_length=20,choices=DELIVERY_STATUS_CHOICES,default='pending')
     # Additional item info
     item_note = models.TextField(blank=True, null=True)
-    is_delivered = models.BooleanField(default=False)
-    delivered_quantity = models.PositiveIntegerField(default=0)
     
     # Timestamps
     created_at = models.DateTimeField(auto_now_add=True)
@@ -174,14 +196,6 @@ class OrderItem(models.Model):
         price = self.price or 0
         quantity = self.quantity or 0
         return price * quantity
-
-
-
-    def get_delivery_progress(self):
-        """Calculate delivery progress percentage"""
-        if self.quantity == 0:
-            return 0
-        return (self.delivered_quantity / self.quantity) * 100
 
     def __str__(self):
         return f"{self.quantity} x {self.product.name} in Order {self.order.order_number}"

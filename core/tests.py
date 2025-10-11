@@ -1,6 +1,6 @@
 from django.test import TestCase
 """
-python manage.py makemigrations order
+python manage.py makemigrations
 python manage.py migrate
 python manage.py runserver
 

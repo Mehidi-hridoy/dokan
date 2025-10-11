@@ -1,4 +1,3 @@
-# admin.py
 from django.contrib import admin
 from django.utils.html import format_html
 from django.http import HttpResponse
@@ -8,8 +7,8 @@ from .models import Order, OrderItem, BulkOrderOperation
 class OrderItemInline(admin.TabularInline):
     model = OrderItem
     extra = 0
-    readonly_fields = ['get_total', 'get_delivery_progress']
-    fields = ['product', 'quantity', 'price', 'get_total', 'color', 'size', 'weight', 'delivered_quantity', 'get_delivery_progress']
+    readonly_fields = ['get_total', ]
+    fields = ['product', 'quantity', 'price', 'get_total', 'color', 'size', 'weight',]
 
 class StatusFilter(admin.SimpleListFilter):
     title = 'Order Status'
@@ -161,15 +160,18 @@ class OrderAdmin(admin.ModelAdmin):
     date_display.short_description = 'Date'
 
     def customer_info_display(self, obj):
+        # Show the entered customer name first, fallback to user
+        name = obj.customer_name or (obj.user.get_full_name() if obj.user else 'Guest')
         phone = obj.phone_number or "No Phone"
-        email = obj.email or obj.user.email if obj.user else "No Email"
+        email = obj.email or (obj.user.email if obj.user else "No Email")
         return format_html(
-            f"<strong>{obj.user.username if obj.user else 'Guest'}</strong><br>"
+            f"<strong>{name}</strong><br>"
             f"📞 {phone}<br>"
             f"📧 {email}<br>"
             f"📍 {obj.delivery_area or 'N/A'}"
         )
     customer_info_display.short_description = 'Customer Info'
+
 
     def product_info_display(self, obj):
         items = obj.order_items.all()[:3]  # Show first 3 items
@@ -330,6 +332,7 @@ class OrderAdmin(admin.ModelAdmin):
 class OrderItemAdmin(admin.ModelAdmin):
     list_display = [
         'order_number',
+        'customer_name',
         'product_name',
         'quantity',
         'price',
@@ -337,12 +340,16 @@ class OrderItemAdmin(admin.ModelAdmin):
         'color',
         'size',
         'weight',
-        'delivery_progress'
+        'item_note',
     ]
     
     list_filter = ['order__order_status', 'created_at', 'color', 'size']
     search_fields = ['order__order_number', 'product__name']
-    
+     
+    def customer_name(self, obj):
+        return obj.order.customer_name or (obj.order.user.get_full_name() if obj.order.user else "Guest")
+    customer_name.short_description = 'Customer Name'
+
     def order_number(self, obj):
         return obj.order.order_number
     order_number.short_description = 'Order Number'
@@ -350,16 +357,7 @@ class OrderItemAdmin(admin.ModelAdmin):
     def product_name(self, obj):
         return obj.product.name
     product_name.short_description = 'Product'
-    
-    def delivery_progress(self, obj):
-        progress = obj.get_delivery_progress()
-        color = 'green' if progress == 100 else 'orange' if progress > 0 else 'red'
-        return format_html(
-            f'<div style="background: #f0f0f0; border-radius: 10px; height: 20px; width: 100px; display: inline-block;">'
-            f'<div style="background: {color}; border-radius: 10px; height: 100%; width: {progress}%; text-align: center; color: white; font-size: 12px; line-height: 20px;">'
-            f'{progress:.0f}%</div></div>'
-        )
-    delivery_progress.short_description = 'Delivery Progress'
+
 
 @admin.register(BulkOrderOperation)
 class BulkOrderOperationAdmin(admin.ModelAdmin):
