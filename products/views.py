@@ -302,11 +302,12 @@ def view_cart(request):
 def checkout(request):
     """Checkout process for authenticated users"""
     order = _get_user_order(request)
-
-    # Check if order exists and has items
-    if not order or not hasattr(order, 'order_items') or not order.order_items.exists():
-        messages.error(request, "Your cart is empty.")
-        return redirect('products:view_cart')
+    if not order:
+        order = Order.objects.create(
+            user=request.user,
+            order_status='pending',
+            customer_name=f"{request.user.first_name} {request.user.last_name}".strip() or request.user.username
+        )
 
     if request.method == 'POST':
         try:
@@ -402,31 +403,12 @@ def thank_you(request, order_id):
     }
     return render(request, 'products/thank_you.html', context)
 
+
 def _get_user_order(request):
-    """Get or create a single pending order for authenticated user"""
+    """Get the current pending order for user, but don't create new one automatically."""
     if not request.user.is_authenticated:
         return None
-
-    try:
-        # Try to get the most recent pending order
-        order = Order.objects.filter(user=request.user, order_status='pending').latest('created_at')
-    except Order.DoesNotExist:
-        # Create a new pending order and save immediately
-        order = Order(user=request.user, order_status='pending')
-        order.save()
-    except Order.MultipleObjectsReturned:
-        # Keep the most recent order
-        orders = Order.objects.filter(user=request.user, order_status='pending').order_by('-created_at')
-        order = orders.first()
-        # Delete other duplicates
-        orders.exclude(id=order.id).delete()
-
-    # Ensure order is saved before returning
-    if order.pk is None:
-        order.save()
-
-    return order
-
+    return Order.objects.filter(user=request.user, order_status='pending').order_by('-created_at').first()
 
 
 @login_required

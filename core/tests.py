@@ -5,7 +5,7 @@ python manage.py migrate
 python manage.py runserver
 
 git add .
-git commit -m "Check Out fixed "
+git commit -m "Fixed Admin  "
 git push -u origin main
 python manage.py runserver
 
