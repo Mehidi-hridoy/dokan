@@ -15,6 +15,8 @@ urlpatterns = [
     path('cart/', views.view_cart, name='view_cart'),
     path('orders/history/', views.order_history, name='order_history'),
     path('checkout/', views.checkout, name='checkout'),  # Remove @require_POST decorator from view
+    path('thank-you/<int:order_id>/', views.thank_you, name='thank_you'),  # Add thank_you here
+
 ]+ static(settings.MEDIA_URL, document_root=settings.MEDIA_ROOT)
 
 

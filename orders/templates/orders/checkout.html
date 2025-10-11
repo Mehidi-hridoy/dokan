@@ -11,14 +11,46 @@
     </div>
 
     {% if order and order.order_items.exists %}
+
     <div class="grid grid-cols-1 lg:grid-cols-2 gap-8">
         <!-- Checkout Form -->
         <div class="bg-white rounded-lg shadow-sm border p-6">
             <h2 class="text-xl font-semibold mb-6">Shipping Information</h2>
             
-            <form id="checkoutForm" method="POST" action="{% url 'orders:checkout' %}">
+            <!-- FIXED: Use products:checkout URL -->
+            <form id="checkoutForm" method="POST" action="{% url 'products:checkout' %}">
                 {% csrf_token %}
                 
+                <!-- Customer Information -->
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
+                    <div>
+                        <label for="customer_name" class="block text-sm font-medium text-gray-700 mb-2">
+                            Full Name *
+                        </label>
+                        <input type="text" id="customer_name" name="customer_name" 
+                               value="{{ user.get_full_name|default:user.username }}" required
+                               class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500">
+                    </div>
+                    
+                    <div>
+                        <label for="phone_number" class="block text-sm font-medium text-gray-700 mb-2">
+                            Phone Number *
+                        </label>
+                        <input type="tel" id="phone_number" name="phone_number" required
+                               class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                               placeholder="Enter your phone number">
+                    </div>
+                </div>
+
+                <div class="mb-4">
+                    <label for="email" class="block text-sm font-medium text-gray-700 mb-2">
+                        Email Address *
+                    </label>
+                    <input type="email" id="email" name="email" 
+                           value="{{ user.email }}" required
+                           class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500">
+                </div>
+
                 <div class="mb-4">
                     <label for="shipping_address" class="block text-sm font-medium text-gray-700 mb-2">
                         Shipping Address *
@@ -28,13 +60,33 @@
                               placeholder="Enter your complete shipping address"></textarea>
                 </div>
 
-                <div class="mb-4">
-                    <label for="phone_number" class="block text-sm font-medium text-gray-700 mb-2">
-                        Phone Number *
-                    </label>
-                    <input type="tel" id="phone_number" name="phone_number" required
-                           class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-                           placeholder="Enter your phone number">
+                <div class="grid grid-cols-1 md:grid-cols-3 gap-4 mb-4">
+                    <div>
+                        <label for="delivery_area" class="block text-sm font-medium text-gray-700 mb-2">
+                            Area
+                        </label>
+                        <input type="text" id="delivery_area" name="delivery_area"
+                               class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                               placeholder="Your area">
+                    </div>
+                    
+                    <div>
+                        <label for="city" class="block text-sm font-medium text-gray-700 mb-2">
+                            City *
+                        </label>
+                        <input type="text" id="city" name="city" required
+                               class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                               placeholder="Your city">
+                    </div>
+                    
+                    <div>
+                        <label for="zip_code" class="block text-sm font-medium text-gray-700 mb-2">
+                            ZIP Code
+                        </label>
+                        <input type="text" id="zip_code" name="zip_code"
+                               class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                               placeholder="ZIP code">
+                    </div>
                 </div>
 
                 <div class="mb-6">
@@ -47,13 +99,22 @@
                         <option value="credit_card">Credit Card</option>
                         <option value="debit_card">Debit Card</option>
                         <option value="paypal">PayPal</option>
-                        <option value="cash_on_delivery">Cash on Delivery</option>
+                        <option value="cash_on_delivery" selected>Cash on Delivery</option>
                     </select>
+                </div>
+
+                <div class="mb-6">
+                    <label for="order_note" class="block text-sm font-medium text-gray-700 mb-2">
+                        Order Notes (Optional)
+                    </label>
+                    <textarea id="order_note" name="order_note" rows="3"
+                              class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                              placeholder="Any special instructions for your order..."></textarea>
                 </div>
 
                 <button type="submit" 
                         class="w-full bg-green-600 text-white py-3 rounded-lg hover:bg-green-700 transition duration-200 font-semibold">
-                    Place Order
+                    Place Order - ₹{{ total }}
                 </button>
             </form>
         </div>
@@ -63,8 +124,8 @@
             <h2 class="text-xl font-semibold mb-4">Order Summary</h2>
             
             <!-- Order Items -->
-            <div class="mb-6">
-                {% for item in order.order_items.all %}
+            <div class="mb-6 max-h-96 overflow-y-auto">
+                {% for item in order.items.all %}
                 <div class="flex items-center space-x-3 py-3 border-b border-gray-100">
                     {% if item.product.products_image %}
                     <img src="{{ item.product.products_image.url }}" alt="{{ item.product.name }}" 
@@ -81,7 +142,7 @@
                             {% if item.color %} | Color: {{ item.color }}{% endif %}
                             {% if item.size %} | Size: {{ item.size }}{% endif %}
                         </p>
-                        <p class="text-sm font-semibold text-blue-600">${{ item.get_total }}</p>
+                        <p class="text-sm font-semibold text-blue-600">₹{{ item.get_total }}</p>
                     </div>
                 </div>
                 {% endfor %}
@@ -91,25 +152,32 @@
             <div class="space-y-2 mb-6">
                 <div class="flex justify-between">
                     <span class="text-gray-600">Subtotal</span>
-                    <span>${{ order.total|default:0 }}</span>
+                    <span>₹{{ subtotal }}</span>
+                </div>
+                <div class="flex justify-between">
+                    <span class="text-gray-600">Tax (18%)</span>
+                    <span>₹{{ tax_amount|floatformat:2 }}</span>
                 </div>
                 <div class="flex justify-between">
                     <span class="text-gray-600">Shipping</span>
-                    <span class="text-green-600">Free</span>
-                </div>
-                <div class="flex justify-between">
-                    <span class="text-gray-600">Tax</span>
-                    <span>$0.00</span>
+                    <span>
+                        {% if shipping_cost == 0 %}
+                        <span class="text-green-600">Free</span>
+                        {% else %}
+                        ₹{{ shipping_cost }}
+                        {% endif %}
+                    </span>
                 </div>
                 <div class="border-t pt-3">
                     <div class="flex justify-between text-lg font-semibold">
                         <span>Total</span>
-                        <span class="text-blue-600">${{ order.total|default:0 }}</span>
+                        <span class="text-blue-600">₹{{ total|floatformat:2 }}</span>
                     </div>
                 </div>
             </div>
 
-            <a href="{% url 'orders:view_cart' %}" 
+            <!-- FIXED: Use products namespace for view_cart if it's in products app -->
+            <a href="{% url 'products:view_cart' %}" 
                class="block w-full bg-gray-200 text-gray-700 text-center py-3 rounded-lg hover:bg-gray-300 transition duration-200">
                 Back to Cart
             </a>
@@ -155,6 +223,7 @@
                     body: formData,
                     headers: {
                         'X-Requested-With': 'XMLHttpRequest',
+                        'X-CSRFToken': '{{ csrf_token }}',
                     },
                 })
                 .then(response => response.json())
@@ -162,10 +231,15 @@
                     if (data.success) {
                         showMessage(data.message, 'success');
                         setTimeout(() => {
-                            window.location.href = data.redirect;
+                            // FIXED: Use the redirect URL from the response
+                            if (data.redirect) {
+                                window.location.href = data.redirect;
+                            } else if (data.order_id) {
+                                window.location.href = `/thank-you/${data.order_id}/`;
+                            }
                         }, 1500);
                     } else {
-                        showMessage(data.message, 'error');
+                        showMessage(data.message || 'An error occurred', 'error');
                         submitButton.textContent = originalText;
                         submitButton.disabled = false;
                     }

@@ -5,7 +5,7 @@ python manage.py migrate
 python manage.py runserver
 
 git add .
-git commit -m "LOGIN  updated"
+git commit -m "Check Out "
 git push -u origin main
 python manage.py runserver
 

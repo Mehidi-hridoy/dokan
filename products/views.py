@@ -8,6 +8,8 @@ from store.models import Category, Brand
 from orders.models import Order, OrderItem
 from django.db.models import Q
 from decimal import Decimal
+from django.db import transaction  # ADD THIS IMPORT
+from django.utils import timezone  # ADD THIS IMPORT
 
 def _calculate_discount(product):
     """Helper function to calculate discount percentage and tag list"""
@@ -21,17 +23,21 @@ def _calculate_discount(product):
     return product
 
 def _get_user_order(request):
-    """Helper function to get current user's active order or session cart"""
+    """Get or create a single pending order for authenticated user"""
     if request.user.is_authenticated:
-        # Get orders that are not completed (pending, processing, etc.)
-        active_statuses = ['pending', 'processing', 'on_hold']
-        return Order.objects.filter(
-            user=request.user, 
-            order_status__in=active_statuses
-        ).first()
-    else:
-        # Return None for anonymous users; cart items are handled via session
-        return None
+        # Get the most recent pending order or create a new one
+        order = Order.objects.filter(
+            user=request.user,
+            order_status='pending'
+        ).order_by('-created_at').first()
+        
+        if not order:
+            order = Order.objects.create(
+                user=request.user,
+                order_status='pending'
+            )
+        return order
+    return None
 
 def _get_session_cart(request):
     """Helper function to get cart items from session for anonymous users"""
@@ -291,27 +297,123 @@ def view_cart(request):
     }
     return render(request, 'orders/cart.html', context)
 
-@require_POST
 @login_required
 def checkout(request):
+    """Checkout process for authenticated users"""
     order = _get_user_order(request)
-    if not order or not order.order_items.exists():
-        return JsonResponse({'success': False, 'message': "Your cart is empty."}, status=400)
+    
+    # Check if order exists and has items
+    if not order or not hasattr(order, 'items') or not order.items.exists():
+        messages.error(request, "Your cart is empty.")
+        return redirect('products:view_cart')  # FIXED: Use namespace
+    
+    if request.method == 'POST':
+        try:
+            with transaction.atomic():
+                # Update order with customer information
+                order.customer_name = request.POST.get('customer_name', f"{request.user.first_name} {request.user.last_name}".strip() or request.user.username)
+                order.phone_number = request.POST.get('phone_number', '')
+                order.email = request.POST.get('email', request.user.email)
+                order.shipping_address = request.POST.get('shipping_address', '')
+                order.billing_address = request.POST.get('billing_address', '') or request.POST.get('shipping_address', '')
+                order.order_note = request.POST.get('order_note', '')
+                order.payment_method = request.POST.get('payment_method', 'cash_on_delivery')
+                order.delivery_area = request.POST.get('delivery_area', '')
+                order.city = request.POST.get('city', '')
+                order.zip_code = request.POST.get('zip_code', '')
+                
+                # Calculate final totals
+                order.tax_amount = float(request.POST.get('tax_amount', 0) or 0)
+                order.shipping_cost = float(request.POST.get('shipping_cost', 0) or 0)
+                order.discount_amount = float(request.POST.get('discount_amount', 0) or 0)
+                
+                # Recalculate total
+                order.total = order.subtotal + order.tax_amount + order.shipping_cost - order.discount_amount
+                
+                # Update order status
+                order.order_status = 'processed'
+                order.payment_status = 'pending'
+                
+                # For demo, mark as paid if payment method is not COD
+                if order.payment_method != 'cash_on_delivery':
+                    order.payment_status = 'paid'
+                    order.processed_at = timezone.now()
+                
+                order.save()
+                
+                messages.success(request, f'Order #{order.order_number} placed successfully!')
+                
+                if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
+                    return JsonResponse({
+                        'success': True,
+                        'message': f'Order #{order.order_number} placed successfully!',
+                        'redirect': f'/thank-you/{order.id}/',
+                        'order_id': order.id
+                    })
+                else:
+                    return redirect('products:thank_you', order_id=order.id)  # FIXED: Use namespace
+                    
+        except Exception as e:
+            messages.error(request, f'Error processing order: {str(e)}')
+            if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
+                return JsonResponse({'success': False, 'message': f'Error: {str(e)}'})
+            else:
+                return redirect('products:checkout')  # FIXED: Use namespace
+    
+    # Calculate shipping and tax
+    shipping_cost = 0 if order.subtotal >= 500 else 50  # Free shipping above ₹500
+    tax_amount = order.subtotal * 0.18  # 18% GST
+    
+    context = {
+        'order': order,
+        'subtotal': order.subtotal,
+        'tax_amount': tax_amount,
+        'shipping_cost': shipping_cost,
+        'total': order.subtotal + tax_amount + shipping_cost,
+    }
+    return render(request, 'orders/checkout.html', context)
 
-    shipping_address = request.POST.get('address')
-    phone_number = request.POST.get('phone_number')
-    payment_method = request.POST.get('payment_method')
+@login_required
+def thank_you(request, order_id):
+    """Order thank you page"""
+    order = get_object_or_404(Order, id=order_id, user=request.user)
+    order_items = order.items.select_related('product').all()
+    
+    context = {
+        'order': order,
+        'order_items': order_items,
+    }
+    return render(request, 'orders/thank_you.html', context)
 
-    if not all([shipping_address, phone_number, payment_method]):
-        return JsonResponse({'success': False, 'message': "Missing required fields."}, status=400)
+# Make sure _get_user_order function exists
+def _get_user_order(request):
+    """Get or create a single pending order for authenticated user"""
+    if request.user.is_authenticated:
+        try:
+            # Try to get the most recent pending order
+            order = Order.objects.filter(
+                user=request.user,
+                order_status='pending'
+            ).latest('created_at')
+        except Order.DoesNotExist:
+            # Create a new pending order
+            order = Order.objects.create(
+                user=request.user,
+                order_status='pending'
+            )
+        except Order.MultipleObjectsReturned:
+            # Handle multiple orders by getting the most recent and cleaning up others
+            orders = Order.objects.filter(
+                user=request.user,
+                order_status='pending'
+            ).order_by('-created_at')
+            order = orders.first()
+            # Delete the older duplicate orders
+            orders.exclude(id=order.id).delete()
+        
+        return order
+    return None
 
-    order.shipping_address = shipping_address
-    order.phone_number = phone_number
-    order.payment_method = payment_method
-    order.order_status = 'completed'
-    order.save()
-
-    return JsonResponse({'success': True, 'message': "Order placed successfully!", 'redirect': '/orders/history/'})
 
 @login_required
 def order_history(request):
