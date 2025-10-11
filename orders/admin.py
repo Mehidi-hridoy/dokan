@@ -5,6 +5,12 @@ import csv
 from .models import Order, OrderItem, BulkOrderOperation
 from django.urls import reverse
 from django.utils import timezone
+from django.urls import path
+from django.shortcuts import redirect, get_object_or_404
+from django.contrib import admin
+from django.utils.html import format_html
+from django.contrib import messages
+
 
 class OrderItemInline(admin.TabularInline):
     model = OrderItem
@@ -240,11 +246,31 @@ class OrderAdmin(admin.ModelAdmin):
             'returned': '#e83e8c',
         }
         color = status_colors.get(obj.order_status, '#6c757d')
-        return format_html(
-            f'<span style="display: inline-block; padding: 4px 12px; '
-            f'background-color: {color}; color: white; border-radius: 12px; '
-            f'font-weight: bold; font-size: 12px;">{obj.get_order_status_display().upper()}</span>'
+        choices = getattr(obj, 'ORDER_STATUS_CHOICES', [
+            ('pending', 'Pending'),
+            ('processed', 'Processed'),
+            ('on_delivery', 'On Delivery'),
+            ('partial_delivery', 'Partial Delivery'),
+            ('delivered', 'Delivered'),
+            ('cancelled', 'Cancelled'),
+            ('returned', 'Returned'),
+        ])
+        options_html = ""
+        current_status = obj.order_status
+        for value, label in choices:
+            selected = 'selected' if value == current_status else ''
+            options_html += f'<option value="{value}" {selected}>{label}</option>'
+        save_url = f"/admin/orders/order/{obj.id}/change/"
+        dropdown_html = (
+            f'<form method="get" action="{save_url}" style="display:inline;">'
+            f'<select name="order_status" style="background:{color};color:white;border-radius:12px;padding:4px 12px;font-weight:bold;font-size:12px;">'
+            f'{options_html}'
+            f'</select>'
+            f'<button type="submit" style="margin-left:8px; background:#28a745; color:white; border:none; border-radius:4px; padding:4px 8px; font-size:12px;">Save</button>'
+            f'</form>'
         )
+        return format_html(dropdown_html)
+    
     order_status_display.short_description = 'Order Status'
 
     def courier_status_display(self, obj):
@@ -428,6 +454,35 @@ class OrderAdmin(admin.ModelAdmin):
         )
         self.message_user(request, f'{updated} orders updated with tracking information.')
     update_tracking_info.short_description = "Update tracking information for selected orders"
+
+    def get_urls(self):
+        urls = super().get_urls()
+        custom_urls = [
+            path(
+                'update-status/<int:order_id>/<str:new_status>/',
+                self.admin_site.admin_view(self.update_order_status),
+                name='update_order_status',
+            ),
+        ]
+        return custom_urls + urls
+
+    def update_order_status(self, request, order_id, new_status):
+        order = get_object_or_404(Order, id=order_id)
+        if new_status in dict(Order.ORDER_STATUS_CHOICES).keys():
+            order.order_status = new_status
+            if new_status == 'processed' and not order.processed_at:
+                order.processed_at = timezone.now()
+            elif new_status == 'delivered' and not order.delivered_at:
+                order.delivered_at = timezone.now()
+            order.save()
+            self.message_user(request, f"Order #{order.order_number} status updated to {order.get_order_status_display()}.")
+        else:
+            self.message_user(request, "Invalid status.", level=messages.ERROR)
+        return redirect(request.META.get('HTTP_REFERER', '/admin/orders/order/'))
+
+
+
+
 
 @admin.register(OrderItem)
 class OrderItemAdmin(admin.ModelAdmin):
