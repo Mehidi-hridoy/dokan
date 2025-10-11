@@ -2,6 +2,7 @@ from django.db import models
 from django.core.validators import MinValueValidator, MaxValueValidator
 from users.models import User
 from products.models import Product
+from decimal import Decimal
 
 class Order(models.Model):
     # Order Status Choices
@@ -138,6 +139,13 @@ class Order(models.Model):
     def __str__(self):
         return f"Order {self.order_number} - {self.user.username} {self.customer_name} ({self.get_order_status_display()})"
     
+
+    @property
+    def subtotal(self):
+        # Prevent ValueError if order not saved yet
+        if not self.pk:
+            return Decimal('0')
+        return sum((item.product.price * item.quantity for item in self.order_items.all()), Decimal('0'))
 
 class OrderItem(models.Model):
     order = models.ForeignKey(Order, on_delete=models.CASCADE, related_name='order_items')

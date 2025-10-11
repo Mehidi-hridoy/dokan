@@ -125,7 +125,7 @@
             
             <!-- Order Items -->
             <div class="mb-6 max-h-96 overflow-y-auto">
-                {% for item in order.items.all %}
+                {% for item in order.order_items.all %}
                 <div class="flex items-center space-x-3 py-3 border-b border-gray-100">
                     {% if item.product.products_image %}
                     <img src="{{ item.product.products_image.url }}" alt="{{ item.product.name }}" 
@@ -149,30 +149,39 @@
             </div>
 
             <!-- Price Breakdown -->
-            <div class="space-y-2 mb-6">
-                <div class="flex justify-between">
-                    <span class="text-gray-600">Subtotal</span>
-                    <span>₹{{ subtotal }}</span>
+            <!-- Price Breakdown -->
+            <div class="space-y-3 mb-6 bg-gray-50 p-4 rounded-lg shadow-sm">
+                <!-- Subtotal -->
+                <div class="flex justify-between text-gray-700">
+                    <span>Subtotal</span>
+                    <span>₹{{ subtotal|floatformat:2 }}</span>
                 </div>
-                <div class="flex justify-between">
-                    <span class="text-gray-600">Tax (18%)</span>
+
+                <!-- Tax -->
+                <div class="flex justify-between text-gray-700">
+                    <span>Tax (18%)</span>
                     <span>₹{{ tax_amount|floatformat:2 }}</span>
                 </div>
-                <div class="flex justify-between">
-                    <span class="text-gray-600">Shipping</span>
+
+                <!-- Shipping -->
+                <div class="flex justify-between text-gray-700">
+                    <span>Shipping</span>
                     <span>
-                        {% if shipping_cost == 0 %}
-                        <span class="text-green-600">Free</span>
+                        {% if shipping_cost == 0 or shipping_cost == '0.00' %}
+                            <span class="text-green-600 font-medium">Free</span>
                         {% else %}
-                        ₹{{ shipping_cost }}
+                            ₹{{ shipping_cost|floatformat:2 }}
                         {% endif %}
                     </span>
                 </div>
-                <div class="border-t pt-3">
-                    <div class="flex justify-between text-lg font-semibold">
-                        <span>Total</span>
-                        <span class="text-blue-600">₹{{ total|floatformat:2 }}</span>
-                    </div>
+
+                <!-- Divider -->
+                <div class="border-t border-gray-200 pt-3 mt-3"></div>
+
+                <!-- Total -->
+                <div class="flex justify-between text-lg font-semibold">
+                    <span>Total</span>
+                    <span class="text-blue-600">₹{{ total|floatformat:2 }}</span>
                 </div>
             </div>
 

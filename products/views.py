@@ -7,9 +7,10 @@ from products.models import Product
 from store.models import Category, Brand
 from orders.models import Order, OrderItem
 from django.db.models import Q
-from decimal import Decimal
-from django.db import transaction  # ADD THIS IMPORT
-from django.utils import timezone  # ADD THIS IMPORT
+from django.db import transaction
+from django.utils import timezone
+from decimal import Decimal  # ✅ Keep only this one
+
 
 def _calculate_discount(product):
     """Helper function to calculate discount percentage and tag list"""
@@ -301,16 +302,16 @@ def view_cart(request):
 def checkout(request):
     """Checkout process for authenticated users"""
     order = _get_user_order(request)
-    
+
     # Check if order exists and has items
-    if not order or not hasattr(order, 'items') or not order.items.exists():
+    if not order or not hasattr(order, 'order_items') or not order.order_items.exists():
         messages.error(request, "Your cart is empty.")
-        return redirect('products:view_cart')  # FIXED: Use namespace
-    
+        return redirect('products:view_cart')
+
     if request.method == 'POST':
         try:
             with transaction.atomic():
-                # Update order with customer information
+                # Update order with customer info
                 order.customer_name = request.POST.get('customer_name', f"{request.user.first_name} {request.user.last_name}".strip() or request.user.username)
                 order.phone_number = request.POST.get('phone_number', '')
                 order.email = request.POST.get('email', request.user.email)
@@ -321,28 +322,33 @@ def checkout(request):
                 order.delivery_area = request.POST.get('delivery_area', '')
                 order.city = request.POST.get('city', '')
                 order.zip_code = request.POST.get('zip_code', '')
-                
-                # Calculate final totals
-                order.tax_amount = float(request.POST.get('tax_amount', 0) or 0)
-                order.shipping_cost = float(request.POST.get('shipping_cost', 0) or 0)
-                order.discount_amount = float(request.POST.get('discount_amount', 0) or 0)
-                
-                # Recalculate total
-                order.total = order.subtotal + order.tax_amount + order.shipping_cost - order.discount_amount
-                
+
+                # ✅ Convert to Decimal instead of float
+                order.tax_amount = Decimal(request.POST.get('tax_amount', 0) or 0)
+                order.shipping_cost = Decimal(request.POST.get('shipping_cost', 0) or 0)
+                order.discount_amount = Decimal(request.POST.get('discount_amount', 0) or 0)
+
+                # ✅ Recalculate total using Decimal math
+                order.total = (
+                    order.subtotal
+                    + order.tax_amount
+                    + order.shipping_cost
+                    - order.discount_amount
+                )
+
                 # Update order status
                 order.order_status = 'processed'
                 order.payment_status = 'pending'
-                
-                # For demo, mark as paid if payment method is not COD
+
+                # Auto-mark as paid if not COD
                 if order.payment_method != 'cash_on_delivery':
                     order.payment_status = 'paid'
                     order.processed_at = timezone.now()
-                
+
                 order.save()
-                
+
                 messages.success(request, f'Order #{order.order_number} placed successfully!')
-                
+
                 if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
                     return JsonResponse({
                         'success': True,
@@ -351,68 +357,76 @@ def checkout(request):
                         'order_id': order.id
                     })
                 else:
-                    return redirect('products:thank_you', order_id=order.id)  # FIXED: Use namespace
-                    
+                    return redirect('products:thank_you', order_id=order.id)
+
         except Exception as e:
+            import traceback
+            print("🧩 DEBUG TRACEBACK:", traceback.format_exc())  # ✅ See full error in terminal
             messages.error(request, f'Error processing order: {str(e)}')
             if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
                 return JsonResponse({'success': False, 'message': f'Error: {str(e)}'})
             else:
-                return redirect('products:checkout')  # FIXED: Use namespace
-    
-    # Calculate shipping and tax
-    shipping_cost = 0 if order.subtotal >= 500 else 50  # Free shipping above ₹500
-    tax_amount = order.subtotal * 0.18  # 18% GST
-    
+                return redirect('products:checkout')
+
+
+
+    # Calculate subtotal from order items (safe for Decimal)
+    subtotal = sum((item.product.price * item.quantity for item in order.order_items.all()), Decimal('0'))
+
+    # Calculate shipping & tax
+    shipping_cost = Decimal('0') if subtotal >= Decimal('500') else Decimal('50')
+    tax_amount = (subtotal * Decimal('0.18')).quantize(Decimal('0.01'))
+    total = (subtotal + tax_amount + shipping_cost).quantize(Decimal('0.01'))
+
     context = {
         'order': order,
-        'subtotal': order.subtotal,
+        'subtotal': subtotal,
         'tax_amount': tax_amount,
         'shipping_cost': shipping_cost,
-        'total': order.subtotal + tax_amount + shipping_cost,
+        'total': total,
     }
+
+
     return render(request, 'orders/checkout.html', context)
+
 
 @login_required
 def thank_you(request, order_id):
     """Order thank you page"""
     order = get_object_or_404(Order, id=order_id, user=request.user)
-    order_items = order.items.select_related('product').all()
+    order_items = order.order_items.select_related('product').all()
     
     context = {
         'order': order,
         'order_items': order_items,
     }
-    return render(request, 'orders/thank_you.html', context)
+    return render(request, 'products/thank_you.html', context)
 
-# Make sure _get_user_order function exists
 def _get_user_order(request):
     """Get or create a single pending order for authenticated user"""
-    if request.user.is_authenticated:
-        try:
-            # Try to get the most recent pending order
-            order = Order.objects.filter(
-                user=request.user,
-                order_status='pending'
-            ).latest('created_at')
-        except Order.DoesNotExist:
-            # Create a new pending order
-            order = Order.objects.create(
-                user=request.user,
-                order_status='pending'
-            )
-        except Order.MultipleObjectsReturned:
-            # Handle multiple orders by getting the most recent and cleaning up others
-            orders = Order.objects.filter(
-                user=request.user,
-                order_status='pending'
-            ).order_by('-created_at')
-            order = orders.first()
-            # Delete the older duplicate orders
-            orders.exclude(id=order.id).delete()
-        
-        return order
-    return None
+    if not request.user.is_authenticated:
+        return None
+
+    try:
+        # Try to get the most recent pending order
+        order = Order.objects.filter(user=request.user, order_status='pending').latest('created_at')
+    except Order.DoesNotExist:
+        # Create a new pending order and save immediately
+        order = Order(user=request.user, order_status='pending')
+        order.save()
+    except Order.MultipleObjectsReturned:
+        # Keep the most recent order
+        orders = Order.objects.filter(user=request.user, order_status='pending').order_by('-created_at')
+        order = orders.first()
+        # Delete other duplicates
+        orders.exclude(id=order.id).delete()
+
+    # Ensure order is saved before returning
+    if order.pk is None:
+        order.save()
+
+    return order
+
 
 
 @login_required
@@ -430,4 +444,4 @@ def order_history(request):
         'cart_items': cart_items,
         'cart_total': cart_total,
     }
-    return render(request, 'orders/order_history.html', context)
+    return render(request, 'products/order_history.html', context)
