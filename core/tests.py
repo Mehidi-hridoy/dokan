@@ -5,7 +5,7 @@ python manage.py migrate
 python manage.py runserver
 
 git add .
-git commit -m "Customer list Added  "
+git commit -m "Customer list Added Dashbord UI Updated  "
 git push -u origin main
 python manage.py runserver
 

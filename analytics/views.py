@@ -138,6 +138,9 @@ def analytics_dashboard(request):
         'usage_count': PromotionUsage.objects.filter(staff_filter & Q(used_at__range=(start_datetime, end_datetime))).count(),
     }
 
+    # Add customer stats to dashboard
+    customer_stats = Customer.objects.get_customer_stats()
+
     context = {
         'form': form,
         'start_date': start_date,
@@ -149,6 +152,7 @@ def analytics_dashboard(request):
         'products_stats': products_stats,
         'inventory_stats': inventory_stats,
         'promotions_stats': promotions_stats,
+        'customer_stats': customer_stats,
     }
 
     return render(request, 'analytics/dashboard.html', context)
@@ -194,7 +198,9 @@ def customer_analytics(request):
 @login_required
 def customer_detail(request, customer_id):
     customer = get_object_or_404(Customer, id=customer_id)
-    orders = customer.orders.all().order_by('-created_at')
+    
+    # Get orders for this customer using the customer field in Order model
+    orders = Order.objects.filter(customer=customer).order_by('-created_at')
     
     # Order statistics for this customer
     order_stats = {
@@ -224,11 +230,13 @@ def toggle_customer_status(request, customer_id):
         
         if action == 'block':
             customer.is_fraudulent = True
+            customer.customer_type = 'fraud'
             customer.save()
             messages.warning(request, f'{customer.name} has been marked as fraudulent.')
         elif action == 'unblock':
             customer.is_fraudulent = False
-            customer.save()
+            # Recalculate customer type after unblocking
+            customer.update_customer_stats()
             messages.success(request, f'{customer.name} has been unblocked.')
         elif action == 'convert':
             # Convert guest to registered user logic
@@ -241,7 +249,6 @@ def handle_guest_checkout(order_data):
     """
     Handle guest checkout - create or get customer and link to order
     """
-    
     email = order_data.get('email')
     phone = order_data.get('phone_number')
     name = order_data.get('customer_name')
@@ -267,7 +274,6 @@ def update_customer_on_order_save(sender, instance, **kwargs):
     
     # If no customer linked but we have customer info, try to find/create one
     elif not instance.customer and instance.email and instance.phone_number:
-        from customers.models import Customer
         customer, created = Customer.objects.get_or_create_guest_customer(
             email=instance.email,
             phone=instance.phone_number,
@@ -303,4 +309,3 @@ def customer_search_api(request):
         return JsonResponse({'results': results})
     
     return JsonResponse({'results': []})
-

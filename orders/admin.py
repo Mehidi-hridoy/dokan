@@ -73,7 +73,7 @@ class CourierChoiceFilter(admin.SimpleListFilter):
 class OrderAdmin(admin.ModelAdmin):
     list_display = [
         'order_number',
-        'customer_name',
+        'customer',
         'date_display',
         'customer_info_display',
         'product_info_display',
@@ -137,7 +137,7 @@ class OrderAdmin(admin.ModelAdmin):
         }),
         ('Customer Information', {
             'fields': (
-                'customer_name',
+                'customer',
                 'shipping_address',
                 'billing_address',
                 'phone_number',
@@ -208,7 +208,7 @@ class OrderAdmin(admin.ModelAdmin):
     date_display.short_description = 'Date'
 
     def customer_info_display(self, obj):
-        name = obj.customer_name or (obj.user.get_full_name() if obj.user else 'Guest')
+        name = obj.customer or (obj.user.get_full_name() if obj.user else 'Guest')
         phone = obj.phone_number or "No Phone"
         email = obj.email or (obj.user.email if obj.user else "No Email")
         return format_html(
@@ -414,7 +414,7 @@ class OrderAdmin(admin.ModelAdmin):
             writer.writerow([
                 order.order_number,
                 order.created_at,
-                order.customer_name or (order.user.get_full_name() if order.user else 'Guest'),
+                order.customer or (order.user.get_full_name() if order.user else 'Guest'),
                 order.email,
                 order.phone_number,
                 order.total,
@@ -488,7 +488,7 @@ class OrderAdmin(admin.ModelAdmin):
 class OrderItemAdmin(admin.ModelAdmin):
     list_display = [
         'order_number',
-        'customer_name',
+        'customer',
         'product_name',
         'quantity',
         'price',
@@ -504,9 +504,9 @@ class OrderItemAdmin(admin.ModelAdmin):
     list_filter = ['order__order_status', 'delivery_status', 'color', 'size', 'created_at']
     search_fields = ['order__order_number', 'product__name', 'tracking_number']
     
-    def customer_name(self, obj):
-        return obj.order.customer_name or (obj.order.user.get_full_name() if obj.order.user else "Guest")
-    customer_name.short_description = 'Customer Name'
+    def customer(self, obj):
+        return obj.order.customer or (obj.order.user.get_full_name() if obj.order.user else "Guest")
+    customer.short_description = 'Customer Name'
 
     def order_number(self, obj):
         return obj.order.order_number

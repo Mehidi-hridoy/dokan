@@ -1,10 +1,9 @@
 from django.db import models
-from django.contrib.auth.models import User
+from django.conf import settings  # Import settings to get AUTH_USER_MODEL
 from django.db.models import Count, Sum, F, Q, Min
 from datetime import timedelta
 from django.utils import timezone
 from django.core.validators import RegexValidator
-from django.conf import settings
 
 class CustomerManager(models.Manager):
     def get_customer_stats(self):
@@ -20,26 +19,18 @@ class CustomerManager(models.Manager):
         ).count()
         
         # Regular customers (2-5 orders)
-        regular_customers = self.annotate(
-            order_count=Count('orders', filter=Q(orders__order_status='confirmed'))
-        ).filter(
-            order_count__gte=2,
-            order_count__lte=5
+        regular_customers = self.filter(
+            total_orders__gte=2,
+            total_orders__lte=5
         ).count()
         
         # VIP customers (6+ orders or high spending)
-        vip_customers = self.annotate(
-            order_count=Count('orders', filter=Q(orders__order_status='confirmed')),
-            total_spent=Sum('orders__total', filter=Q(orders__order_status='confirmed'))
-        ).filter(
-            Q(order_count__gte=6) | Q(total_spent__gte=1000)
+        vip_customers = self.filter(
+            Q(total_orders__gte=6) | Q(total_spent__gte=1000)
         ).count()
         
         # Fraud customers
-        fraud_customers = self.filter(
-            Q(is_fraudulent=True) | 
-            Q(orders__order_status='rejected')
-        ).distinct().count()
+        fraud_customers = self.filter(is_fraudulent=True).count()
         
         return {
             'new_customers': new_customers,
@@ -75,15 +66,16 @@ class Customer(models.Model):
         ('vip', 'VIP Customer'),
         ('fraud', 'Fraud Customer'),
     )
-    # Link to User model (optional - for registered users)
+    
+    # Link to User model (optional - for registered users) - FIXED
     user = models.OneToOneField(
-    settings.AUTH_USER_MODEL,  # <-- use this instead of User
-    on_delete=models.CASCADE,
-    related_name='customer_profile',
-    null=True,
-    blank=True
-)
-  
+        settings.AUTH_USER_MODEL,  # Use settings.AUTH_USER_MODEL instead of direct User
+        on_delete=models.CASCADE, 
+        related_name='customer_profile',
+        null=True,
+        blank=True
+    )
+    
     # Customer information (for both guest and registered users)
     name = models.CharField(max_length=100)
     email = models.EmailField()
@@ -130,7 +122,10 @@ class Customer(models.Model):
     
     def update_customer_stats(self):
         """Update customer statistics based on order history"""
-        orders = self.orders.all()
+        # Import here to avoid circular imports
+        from orders.models import Order
+        
+        orders = Order.objects.filter(customer=self)
         completed_orders = orders.filter(order_status='confirmed')
         
         self.total_orders = completed_orders.count()

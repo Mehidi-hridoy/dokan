@@ -32,6 +32,35 @@ class OrderManager(models.Manager):
         return self.filter(created_at__gte=timezone.now()-timedelta(days=days))
 
 
+from django.db import models
+from django.conf import settings  # Import settings for AUTH_USER_MODEL
+from django.core.validators import MinValueValidator, MaxValueValidator
+from decimal import Decimal
+
+class OrderManager(models.Manager):
+    def confirmed_orders(self):
+        return self.filter(order_status='confirmed')
+    
+    def rejected_orders(self):
+        return self.filter(order_status='rejected')
+    
+    def hold_orders(self):
+        return self.filter(order_status='hold')
+    
+    def pending_orders(self):
+        return self.filter(order_status='pending')
+    
+    def processed_orders(self):
+        return self.filter(order_status='processed')
+    
+    def by_area(self, area):
+        return self.filter(delivery_area=area)
+    
+    def recent_orders(self, days=30):
+        from django.utils import timezone
+        from datetime import timedelta
+        return self.filter(created_at__gte=timezone.now()-timedelta(days=days))
+
 class Order(models.Model):
     # Order Status Choices
     ORDER_STATUS_CHOICES = [
@@ -40,7 +69,6 @@ class Order(models.Model):
         ('hold', 'On Hold'),
         ('pending', 'Pending'),
         ('processed', 'Processed'),
-    
     ]
     
     # Courier Status Choices
@@ -62,6 +90,7 @@ class Order(models.Model):
         ('refunded', 'Refunded'),
         ('partially_refunded', 'Partially Refunded'),
     ]
+    
     PAYMENT_METHOD_CHOICES = [
         ('cod', 'Cash on Delivery'),
         ('card', 'Credit/Debit Card'),
@@ -71,15 +100,36 @@ class Order(models.Model):
         ('other', 'Other'),
     ]
 
-    # Basic Information
-    user = models.ForeignKey(User, on_delete=models.CASCADE, blank=True, null=True, related_name='orders')
-    assigned_staff = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, blank=True, related_name='assigned_orders')
+    # Basic Information - FIXED: Use settings.AUTH_USER_MODEL
+    user = models.ForeignKey(
+        settings.AUTH_USER_MODEL, 
+        on_delete=models.CASCADE, 
+        blank=True, 
+        null=True, 
+        related_name='orders'
+    )
+    
+    # Customer relationship - FIXED
+    customer = models.ForeignKey(
+        'analytics.Customer',  # Replace 'analytics' with your actual app name
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='orders'
+    )
+    
+    assigned_staff = models.ForeignKey(
+        settings.AUTH_USER_MODEL, 
+        on_delete=models.SET_NULL, 
+        null=True, 
+        blank=True, 
+        related_name='assigned_orders'
+    )
+    
     order_number = models.CharField(max_length=20, unique=True, blank=True)
     order_status = models.CharField(max_length=20, choices=ORDER_STATUS_CHOICES, default='pending')
-
-
-    courier_status = models.CharField(  max_length=20,  choices=COURIER_STATUS_CHOICES,  default='pending' )
-    payment_status = models.CharField(  max_length=20,choices=PAYMENT_STATUS_CHOICES, default='pending' )
+    courier_status = models.CharField(max_length=20, choices=COURIER_STATUS_CHOICES, default='pending')
+    payment_status = models.CharField(max_length=20, choices=PAYMENT_STATUS_CHOICES, default='pending')
     
     # Financial Information
     subtotal = models.DecimalField(max_digits=10, decimal_places=2, default=0)
@@ -88,8 +138,8 @@ class Order(models.Model):
     discount_amount = models.DecimalField(max_digits=10, decimal_places=2, default=0)
     total = models.DecimalField(max_digits=10, decimal_places=2, default=0)
     
-    # Customer Information
-    customer_name =  models.ForeignKey(Customer,on_delete=models.CASCADE, null=True, blank=True,related_name='customer_orders')
+    # Customer Information (keep as CharField for direct storage)
+    customer_name = models.CharField(max_length=100)
     phone_number = models.CharField(max_length=15, blank=True, null=True)
     email = models.EmailField(blank=True, null=True)
     shipping_address = models.TextField(blank=True, null=True)
@@ -98,34 +148,28 @@ class Order(models.Model):
     # Additional Fields
     order_note = models.TextField(blank=True, null=True, help_text="Customer's order note")
     admin_comment = models.TextField(blank=True, null=True, help_text="Internal admin comments")
- 
-    payment_method = models.CharField(  max_length=50, choices=PAYMENT_METHOD_CHOICES, blank=True, null=True   )
+    payment_method = models.CharField(max_length=50, choices=PAYMENT_METHOD_CHOICES, blank=True, null=True)
+    
     # Area/Region Filtering
     delivery_area = models.CharField(max_length=100, blank=True, null=True)
     city = models.CharField(max_length=50, blank=True, null=True)
     zip_code = models.CharField(max_length=10, blank=True, null=True)
     
     # Courier Information
-    courier_name = models.CharField(
-        max_length=100, 
-        blank=True, 
-        null=True, 
-        help_text="Name of the courier service"
-    )
+    courier_name = models.CharField(max_length=100, blank=True, null=True, help_text="Name of the courier service")
     courier_choice = models.CharField(
         max_length=50,
         choices=[
             ('pathao', 'Pathao'),
             ('red_x', 'Red X'),
-            ('steadfast', 'Steadfast'),],blank=True, null=True,help_text="Select courier service"
-    )
-    tracking_number = models.CharField( max_length=100,   blank=True,  null=True, help_text="Tracking number provided by courier"
-    )
-    estimated_delivery = models.DateField(
+            ('steadfast', 'Steadfast'),
+        ],
         blank=True, 
-        null=True, 
-        help_text="Estimated delivery date"
+        null=True,
+        help_text="Select courier service"
     )
+    tracking_number = models.CharField(max_length=100, blank=True, null=True, help_text="Tracking number provided by courier")
+    estimated_delivery = models.DateField(blank=True, null=True, help_text="Estimated delivery date")
     
     # Timestamps
     created_at = models.DateTimeField(auto_now_add=True)
@@ -133,8 +177,9 @@ class Order(models.Model):
     processed_at = models.DateTimeField(blank=True, null=True)
     delivered_at = models.DateTimeField(blank=True, null=True)
     cancelled_at = models.DateTimeField(blank=True, null=True)
+    
     # Attach the custom manager
-    objects = OrderManager()  # This is the key change
+    objects = OrderManager()
 
     class Meta:
         ordering = ['-created_at']
@@ -145,19 +190,26 @@ class Order(models.Model):
             models.Index(fields=['created_at']),
             models.Index(fields=['delivery_area']),
             models.Index(fields=['assigned_staff']),
+            models.Index(fields=['customer']),  # Add index for customer
         ]
 
     def save(self, *args, **kwargs):
         if not self.order_number:
             import uuid
             self.order_number = f"ORD-{uuid.uuid4().hex[:5].upper()}"
+        
         if not self.total and self.subtotal:
             self.total = self.subtotal + self.tax_amount + self.shipping_cost - self.discount_amount
+        
+        # Auto-populate customer_name, email, phone from Customer if available
+        if self.customer and not self.customer_name:
+            self.customer_name = self.customer.name
+        if self.customer and not self.email:
+            self.email = self.customer.email
+        if self.customer and not self.phone_number:
+            self.phone_number = self.customer.phone
+        
         super().save(*args, **kwargs)
-
-        if self.subtotal is not None:
-            self.total = self.subtotal + self.tax_amount + self.shipping_cost - self.discount_amount
-
 
     def calculate_totals(self):
         """Calculate and update all financial totals based on order items."""
@@ -167,24 +219,8 @@ class Order(models.Model):
         self.save()
         return self.total
 
-    def get_status_display_color(self):
-        """Return color code for status display in admin"""
-        status_colors = {
-            'pending': 'orange',
-            'processed': 'blue',
-            'on_delivery': 'purple',
-            'partial_delivery': 'teal',
-            'delivered': 'green',
-            'cancelled': 'red',
-            'returned': 'pink',
-        }
-        return status_colors.get(self.order_status, 'gray')
-    
     def __str__(self):
-        user_name = self.user.username if self.user else "Guest"
-        customer = str(self.customer_name) if self.customer_name else "Unknown Customer"
-        return f"Order {self.order_number} - {user_name} {customer} ({self.get_order_status_display()})"
-
+        return f"Order {self.order_number} - {self.customer_name} ({self.get_order_status_display()})"
 
 
 class OrderItem(models.Model):

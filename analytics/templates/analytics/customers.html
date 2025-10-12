@@ -1,159 +1,277 @@
 {% extends 'base.html' %}
+{% load static %}
+
+{% block title %}Customer Analytics - {{ block.super }}{% endblock %}
 
 {% block content %}
-<div class="container-fluid">
-    <!-- Customer Statistics -->
+<div class="container-fluid py-4">
+    <!-- Page Header -->
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <div>
+            <h1 class="h3 mb-0">Customer Management</h1>
+            <p class="text-muted mb-0">Manage and analyze your customer base</p>
+        </div>
+        <div>
+            <button class="btn btn-outline-primary">
+                <i class="fas fa-download me-2"></i>Export
+            </button>
+        </div>
+    </div>
+
+    <!-- Customer Statistics Cards -->
     <div class="row mb-4">
-        <div class="col-md-3">
-            <div class="card bg-primary text-white">
+        <div class="col-xl-3 col-md-6 mb-4">
+            <div class="card border-left-primary shadow h-100 py-2">
                 <div class="card-body">
-                    <h5 class="card-title">New Customers</h5>
-                    <h2>{{ customer_stats.new_customers }}</h2>
+                    <div class="row no-gutters align-items-center">
+                        <div class="col mr-2">
+                            <div class="text-xs font-weight-bold text-primary text-uppercase mb-1">
+                                New Customers
+                            </div>
+                            <div class="h5 mb-0 font-weight-bold text-gray-800">{{ customer_stats.new_customers }}</div>
+                        </div>
+                        <div class="col-auto">
+                            <i class="fas fa-user-plus fa-2x text-gray-300"></i>
+                        </div>
+                    </div>
                 </div>
             </div>
         </div>
-        <div class="col-md-3">
-            <div class="card bg-success text-white">
+
+        <div class="col-xl-3 col-md-6 mb-4">
+            <div class="card border-left-success shadow h-100 py-2">
                 <div class="card-body">
-                    <h5 class="card-title">Regular Customers</h5>
-                    <h2>{{ customer_stats.regular_customers }}</h2>
+                    <div class="row no-gutters align-items-center">
+                        <div class="col mr-2">
+                            <div class="text-xs font-weight-bold text-success text-uppercase mb-1">
+                                Regular Customers
+                            </div>
+                            <div class="h5 mb-0 font-weight-bold text-gray-800">{{ customer_stats.regular_customers }}</div>
+                        </div>
+                        <div class="col-auto">
+                            <i class="fas fa-users fa-2x text-gray-300"></i>
+                        </div>
+                    </div>
                 </div>
             </div>
         </div>
-        <div class="col-md-3">
-            <div class="card bg-warning text-white">
+
+        <div class="col-xl-3 col-md-6 mb-4">
+            <div class="card border-left-warning shadow h-100 py-2">
                 <div class="card-body">
-                    <h5 class="card-title">VIP Customers</h5>
-                    <h2>{{ customer_stats.vip_customers }}</h2>
+                    <div class="row no-gutters align-items-center">
+                        <div class="col mr-2">
+                            <div class="text-xs font-weight-bold text-warning text-uppercase mb-1">
+                                VIP Customers
+                            </div>
+                            <div class="h5 mb-0 font-weight-bold text-gray-800">{{ customer_stats.vip_customers }}</div>
+                        </div>
+                        <div class="col-auto">
+                            <i class="fas fa-crown fa-2x text-gray-300"></i>
+                        </div>
+                    </div>
                 </div>
             </div>
         </div>
-        <div class="col-md-3">
-            <div class="card bg-danger text-white">
+
+        <div class="col-xl-3 col-md-6 mb-4">
+            <div class="card border-left-danger shadow h-100 py-2">
                 <div class="card-body">
-                    <h5 class="card-title">Fraud Customers</h5>
-                    <h2>{{ customer_stats.fraud_customers }}</h2>
+                    <div class="row no-gutters align-items-center">
+                        <div class="col mr-2">
+                            <div class="text-xs font-weight-bold text-danger text-uppercase mb-1">
+                                Fraud Customers
+                            </div>
+                            <div class="h5 mb-0 font-weight-bold text-gray-800">{{ customer_stats.fraud_customers }}</div>
+                        </div>
+                        <div class="col-auto">
+                            <i class="fas fa-ban fa-2x text-gray-300"></i>
+                        </div>
+                    </div>
                 </div>
             </div>
         </div>
     </div>
 
-    <!-- Search and Filters -->
-    <div class="row mb-3">
-        <div class="col-md-6">
-            <div class="card">
-                <div class="card-body">
-                    <h6 class="card-title">👤 All Available Users: {{ total_customers }}</h6>
+    <!-- Search and Filter Section -->
+    <div class="card mb-4">
+        <div class="card-body">
+            <div class="row align-items-center">
+                <div class="col-md-6">
+                    <div class="d-flex align-items-center">
+                        <i class="fas fa-users me-2 text-primary"></i>
+                        <h6 class="mb-0">👤 All Available Users: {{ total_customers }}</h6>
+                    </div>
+                </div>
+                <div class="col-md-6">
+                    <form method="get" class="row g-2">
+                        <div class="col-md-5">
+                            <input type="text" 
+                                   class="form-control" 
+                                   placeholder="Search by name/email/phone..." 
+                                   name="search" 
+                                   value="{{ search_query }}">
+                        </div>
+                        <div class="col-md-4">
+                            <select name="type" class="form-select">
+                                <option value="">All Types</option>
+                                <option value="new" {% if customer_type_filter == 'new' %}selected{% endif %}>New Customers</option>
+                                <option value="regular" {% if customer_type_filter == 'regular' %}selected{% endif %}>Regular Customers</option>
+                                <option value="vip" {% if customer_type_filter == 'vip' %}selected{% endif %}>VIP Customers</option>
+                                <option value="fraud" {% if customer_type_filter == 'fraud' %}selected{% endif %}>Fraud Customers</option>
+                            </select>
+                        </div>
+                        <div class="col-md-3">
+                            <button class="btn btn-primary w-100" type="submit">
+                                <i class="fas fa-search me-1"></i> Search
+                            </button>
+                        </div>
+                    </form>
                 </div>
             </div>
-        </div>
-        <div class="col-md-6">
-            <form method="get" class="row g-2">
-                <div class="col-md-6">
-                    <input type="text" class="form-control" placeholder="Search by name/email/phone..." 
-                           name="search" value="{{ search_query }}">
-                </div>
-                <div class="col-md-4">
-                    <select name="type" class="form-select">
-                        <option value="">All Types</option>
-                        <option value="new" {% if customer_type_filter == 'new' %}selected{% endif %}>New</option>
-                        <option value="regular" {% if customer_type_filter == 'regular' %}selected{% endif %}>Regular</option>
-                        <option value="vip" {% if customer_type_filter == 'vip' %}selected{% endif %}>VIP</option>
-                        <option value="fraud" {% if customer_type_filter == 'fraud' %}selected{% endif %}>Fraud</option>
-                    </select>
-                </div>
-                <div class="col-md-2">
-                    <button class="btn btn-primary w-100" type="submit">Filter</button>
-                </div>
-            </form>
         </div>
     </div>
 
     <!-- Customers Table -->
     <div class="card">
+        <div class="card-header">
+            <h5 class="card-title mb-0">All Customers</h5>
+        </div>
         <div class="card-body">
             <div class="table-responsive">
-                <table class="table table-striped">
-                    <thead>
+                <table class="table table-hover table-striped">
+                    <thead class="table-light">
                         <tr>
-                            <th>#</th>
-                            <th>Avatar</th>
+                            <th width="50">#</th>
+                            <th width="80">Avatar</th>
                             <th>Name</th>
                             <th>Email</th>
                             <th>Phone</th>
-                            <th>IP</th>
+                            <th>IP Address</th>
                             <th>Status</th>
                             <th>Total Orders</th>
                             <th>Total Spent</th>
                             <th>Type</th>
                             <th>User Type</th>
-                            <th>Actions</th>
+                            <th width="150">Actions</th>
                         </tr>
                     </thead>
                     <tbody>
                         {% for customer in page_obj %}
                         <tr>
-                            <td>{{ forloop.counter0|add:page_obj.start_index }}</td>
+                            <td class="text-muted">{{ forloop.counter0|add:page_obj.start_index }}</td>
                             <td>
                                 {% if customer.avatar %}
                                     <img src="{{ customer.avatar.url }}" alt="Avatar" class="rounded-circle" width="40" height="40">
                                 {% else %}
                                     <div class="bg-secondary rounded-circle d-flex align-items-center justify-content-center" style="width: 40px; height: 40px;">
-                                        <span class="text-white">{{ customer.name|first|upper }}</span>
+                                        <span class="text-white fw-bold">{{ customer.name|first|upper }}</span>
                                     </div>
                                 {% endif %}
                             </td>
                             <td>
-                                <a href="{% url 'customer_detail' customer.id %}">
-                                    {{ customer.name }}
+                                <a href="{% url 'analytics:customer_detail' customer.id %}" class="text-decoration-none">
+                                    <strong>{{ customer.name }}</strong>
                                 </a>
                             </td>
-                            <td>{{ customer.email }}</td>
-                            <td>{{ customer.phone }}</td>
-                            <td>{{ customer.ip_address|default:"N/A" }}</td>
+                            <td>
+                                <a href="mailto:{{ customer.email }}" class="text-decoration-none">
+                                    {{ customer.email }}
+                                </a>
+                            </td>
+                            <td>
+                                {% if customer.phone %}
+                                    <a href="tel:{{ customer.phone }}" class="text-decoration-none">
+                                        {{ customer.phone }}
+                                    </a>
+                                {% else %}
+                                    <span class="text-muted">N/A</span>
+                                {% endif %}
+                            </td>
+                            <td>
+                                <span class="text-muted">{{ customer.ip_address|default:"N/A" }}</span>
+                            </td>
                             <td>
                                 <span class="badge {% if customer.status == 'Active' %}bg-success{% else %}bg-danger{% endif %}">
+                                    <i class="fas {% if customer.status == 'Active' %}fa-check{% else %}fa-ban{% endif %} me-1"></i>
                                     {{ customer.status }}
                                 </span>
                             </td>
-                            <td>{{ customer.total_orders }}</td>
-                            <td>${{ customer.total_spent }}</td>
+                            <td>
+                                <strong>{{ customer.total_orders }}</strong>
+                            </td>
+                            <td>
+                                <strong class="text-success">${{ customer.total_spent }}</strong>
+                            </td>
                             <td>
                                 <span class="badge 
-                                    {% if customer.customer_type == 'vip' %}bg-warning
+                                    {% if customer.customer_type == 'vip' %}bg-warning text-dark
                                     {% elif customer.customer_type == 'regular' %}bg-success
                                     {% elif customer.customer_type == 'fraud' %}bg-danger
                                     {% else %}bg-primary{% endif %}">
+                                    {% if customer.customer_type == 'vip' %}
+                                        <i class="fas fa-crown me-1"></i>
+                                    {% elif customer.customer_type == 'regular' %}
+                                        <i class="fas fa-user me-1"></i>
+                                    {% elif customer.customer_type == 'fraud' %}
+                                        <i class="fas fa-ban me-1"></i>
+                                    {% else %}
+                                        <i class="fas fa-user-plus me-1"></i>
+                                    {% endif %}
                                     {{ customer.get_customer_type_display }}
                                 </span>
                             </td>
                             <td>
                                 <span class="badge {% if customer.is_guest %}bg-secondary{% else %}bg-info{% endif %}">
-                                    {{ "Guest" if customer.is_guest else "Registered" }}
+                                    <i class="fas {% if customer.is_guest %}fa-user-clock{% else %}fa-user-check{% endif %} me-1"></i>
+                                    {{ customer.is_guest|yesno:"Guest,Registered" }}
                                 </span>
                             </td>
                             <td>
-                                <div class="btn-group">
-                                    <a href="{% url 'customer_detail' customer.id %}" class="btn btn-sm btn-outline-primary">View</a>
+                                <div class="btn-group btn-group-sm">
+                                    <a href="{% url 'analytics:customer_detail' customer.id %}" 
+                                       class="btn btn-outline-primary" 
+                                       title="View Details">
+                                        <i class="fas fa-eye"></i>
+                                    </a>
                                     {% if customer.is_fraudulent %}
                                         <form method="post" action="{% url 'toggle_customer_status' customer.id %}" class="d-inline">
                                             {% csrf_token %}
                                             <input type="hidden" name="action" value="unblock">
-                                            <button type="submit" class="btn btn-sm btn-outline-success">Unblock</button>
+                                            <button type="submit" 
+                                                    class="btn btn-outline-success" 
+                                                    title="Unblock Customer"
+                                                    onclick="return confirm('Are you sure you want to unblock this customer?')">
+                                                <i class="fas fa-lock-open"></i>
+                                            </button>
                                         </form>
                                     {% else %}
-                                        <form method="post" action="{% url 'toggle_customer_status' customer.id %}" class="d-inline">
+                                        <form method="post" action="{% url 'analytics:toggle_customer_status' customer.id %}" class="d-inline">
                                             {% csrf_token %}
                                             <input type="hidden" name="action" value="block">
-                                            <button type="submit" class="btn btn-sm btn-outline-danger">Block</button>
+                                            <button type="submit" 
+                                                    class="btn btn-outline-danger" 
+                                                    title="Block Customer"
+                                                    onclick="return confirm('Are you sure you want to mark this customer as fraudulent?')">
+                                                <i class="fas fa-ban"></i>
+                                            </button>
                                         </form>
                                     {% endif %}
+                                    <button class="btn btn-outline-secondary" title="Send Email">
+                                        <i class="fas fa-envelope"></i>
+                                    </button>
                                 </div>
                             </td>
                         </tr>
                         {% empty %}
                         <tr>
-                            <td colspan="12" class="text-center">No customers found</td>
+                            <td colspan="12" class="text-center py-4">
+                                <div class="text-muted">
+                                    <i class="fas fa-users fa-3x mb-3"></i>
+                                    <h5>No customers found</h5>
+                                    <p>{% if search_query %}Try adjusting your search criteria{% else %}No customers in the system yet{% endif %}</p>
+                                </div>
+                            </td>
                         </tr>
                         {% endfor %}
                     </tbody>
@@ -162,29 +280,91 @@
             
             <!-- Pagination -->
             {% if page_obj.has_other_pages %}
-            <nav aria-label="Page navigation">
-                <ul class="pagination justify-content-center">
-                    {% if page_obj.has_previous %}
-                    <li class="page-item">
-                        <a class="page-link" href="?page={{ page_obj.previous_page_number }}{% if search_query %}&search={{ search_query }}{% endif %}{% if customer_type_filter %}&type={{ customer_type_filter }}{% endif %}">Previous</a>
-                    </li>
-                    {% endif %}
-                    
-                    {% for num in page_obj.paginator.page_range %}
-                    <li class="page-item {% if page_obj.number == num %}active{% endif %}">
-                        <a class="page-link" href="?page={{ num }}{% if search_query %}&search={{ search_query }}{% endif %}{% if customer_type_filter %}&type={{ customer_type_filter }}{% endif %}">{{ num }}</a>
-                    </li>
-                    {% endfor %}
-                    
-                    {% if page_obj.has_next %}
-                    <li class="page-item">
-                        <a class="page-link" href="?page={{ page_obj.next_page_number }}{% if search_query %}&search={{ search_query }}{% endif %}{% if customer_type_filter %}&type={{ customer_type_filter }}{% endif %}">Next</a>
-                    </li>
-                    {% endif %}
-                </ul>
-            </nav>
+            <div class="d-flex justify-content-between align-items-center mt-4">
+                <div class="text-muted">
+                    Showing {{ page_obj.start_index }} to {{ page_obj.end_index }} of {{ page_obj.paginator.count }} entries
+                </div>
+                <nav aria-label="Page navigation">
+                    <ul class="pagination mb-0">
+                        {% if page_obj.has_previous %}
+                        <li class="page-item">
+                            <a class="page-link" 
+                               href="?page={{ page_obj.previous_page_number }}{% if search_query %}&search={{ search_query }}{% endif %}{% if customer_type_filter %}&type={{ customer_type_filter }}{% endif %}">
+                                <i class="fas fa-chevron-left"></i>
+                            </a>
+                        </li>
+                        {% else %}
+                        <li class="page-item disabled">
+                            <span class="page-link"><i class="fas fa-chevron-left"></i></span>
+                        </li>
+                        {% endif %}
+                        
+                        {% for num in page_obj.paginator.page_range %}
+                            {% if page_obj.number == num %}
+                            <li class="page-item active">
+                                <span class="page-link">{{ num }}</span>
+                            </li>
+                            {% elif num > page_obj.number|add:'-3' and num < page_obj.number|add:'3' %}
+                            <li class="page-item">
+                                <a class="page-link" 
+                                   href="?page={{ num }}{% if search_query %}&search={{ search_query }}{% endif %}{% if customer_type_filter %}&type={{ customer_type_filter }}{% endif %}">
+                                    {{ num }}
+                                </a>
+                            </li>
+                            {% endif %}
+                        {% endfor %}
+                        
+                        {% if page_obj.has_next %}
+                        <li class="page-item">
+                            <a class="page-link" 
+                               href="?page={{ page_obj.next_page_number }}{% if search_query %}&search={{ search_query }}{% endif %}{% if customer_type_filter %}&type={{ customer_type_filter }}{% endif %}">
+                                <i class="fas fa-chevron-right"></i>
+                            </a>
+                        </li>
+                        {% else %}
+                        <li class="page-item disabled">
+                            <span class="page-link"><i class="fas fa-chevron-right"></i></span>
+                        </li>
+                        {% endif %}
+                    </ul>
+                </nav>
+            </div>
             {% endif %}
         </div>
     </div>
 </div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+// Auto-submit form when filter changes
+document.addEventListener('DOMContentLoaded', function() {
+    const typeFilter = document.querySelector('select[name="type"]');
+    if (typeFilter) {
+        typeFilter.addEventListener('change', function() {
+            this.form.submit();
+        });
+    }
+    
+    // Clear search functionality
+    const searchInput = document.querySelector('input[name="search"]');
+    if (searchInput && searchInput.value) {
+        const clearButton = document.createElement('button');
+        clearButton.type = 'button';
+        clearButton.className = 'btn btn-sm btn-outline-secondary position-absolute';
+        clearButton.innerHTML = '<i class="fas fa-times"></i>';
+        clearButton.style.right = '10px';
+        clearButton.style.top = '50%';
+        clearButton.style.transform = 'translateY(-50%)';
+        clearButton.addEventListener('click', function() {
+            searchInput.value = '';
+            searchInput.form.submit();
+        });
+        
+        const searchContainer = searchInput.parentElement;
+        searchContainer.style.position = 'relative';
+        searchContainer.appendChild(clearButton);
+    }
+});
+</script>
 {% endblock %}

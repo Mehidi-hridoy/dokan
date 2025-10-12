@@ -1,0 +1,278 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block title %}{{ customer.name }} - Customer Details{% endblock %}
+
+{% block content %}
+<div class="container-fluid py-4">
+    <!-- Back Button -->
+    <div class="mb-4">
+        <a href="{% url 'analytics:customer_analytics' %}" class="btn btn-outline-secondary">
+            <i class="fas fa-arrow-left me-2"></i>Back to Customers
+        </a>
+    </div>
+
+    <!-- Customer Header -->
+    <div class="row mb-4">
+        <div class="col-lg-4">
+            <div class="card">
+                <div class="card-body text-center">
+                    {% if customer.avatar %}
+                        <img src="{{ customer.avatar.url }}" alt="Avatar" class="rounded-circle mb-3" width="120" height="120">
+                    {% else %}
+                        <div class="bg-secondary rounded-circle d-flex align-items-center justify-content-center mx-auto mb-3" style="width: 120px; height: 120px;">
+                            <span class="text-white fw-bold display-6">{{ customer.name|first|upper }}</span>
+                        </div>
+                    {% endif %}
+                    <h4 class="card-title">{{ customer.name }}</h4>
+                    <p class="text-muted">{{ customer.email }}</p>
+                    
+                    <div class="d-flex justify-content-center gap-2 mb-3">
+                        <span class="badge {% if customer.customer_type == 'vip' %}bg-warning text-dark
+                                          {% elif customer.customer_type == 'regular' %}bg-success
+                                          {% elif customer.customer_type == 'fraud' %}bg-danger
+                                          {% else %}bg-primary{% endif %}">
+                            {{ customer.get_customer_type_display }}
+                        </span>
+                        <span class="badge {% if customer.is_guest %}bg-secondary{% else %}bg-info{% endif %}">
+                            {{ customer.is_guest|yesno:"Guest,Registered" }}
+                        </span>
+                        <span class="badge {% if customer.status == 'Active' %}bg-success{% else %}bg-danger{% endif %}">
+                            {{ customer.status }}
+                        </span>
+                    </div>
+                    
+                    <div class="btn-group">
+                        {% if customer.is_fraudulent %}
+                            <form method="post" action="{% url 'analytics:toggle_customer_status' customer.id %}">
+                                {% csrf_token %}
+                                <input type="hidden" name="action" value="unblock">
+                                <button type="submit" class="btn btn-success btn-sm">
+                                    <i class="fas fa-lock-open me-1"></i>Unblock
+                                </button>
+                            </form>
+                        {% else %}
+                            <form method="post" action="{% url 'analytics:toggle_customer_status' customer.id %}">
+                                {% csrf_token %}
+                                <input type="hidden" name="action" value="block">
+                                <button type="submit" class="btn btn-danger btn-sm">
+                                    <i class="fas fa-ban me-1"></i>Block
+                                </button>
+                            </form>
+                        {% endif %}
+                        <button class="btn btn-primary btn-sm">
+                            <i class="fas fa-envelope me-1"></i>Message
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <div class="col-lg-8">
+            <div class="row">
+                <div class="col-md-6 mb-4">
+                    <div class="card border-left-primary shadow h-100">
+                        <div class="card-body">
+                            <div class="row no-gutters align-items-center">
+                                <div class="col mr-2">
+                                    <div class="text-xs font-weight-bold text-primary text-uppercase mb-1">
+                                        Total Orders
+                                    </div>
+                                    <div class="h5 mb-0 font-weight-bold text-gray-800">{{ order_stats.total_orders }}</div>
+                                </div>
+                                <div class="col-auto">
+                                    <i class="fas fa-shopping-bag fa-2x text-gray-300"></i>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="col-md-6 mb-4">
+                    <div class="card border-left-success shadow h-100">
+                        <div class="card-body">
+                            <div class="row no-gutters align-items-center">
+                                <div class="col mr-2">
+                                    <div class="text-xs font-weight-bold text-success text-uppercase mb-1">
+                                        Total Spent
+                                    </div>
+                                    <div class="h5 mb-0 font-weight-bold text-gray-800">${{ order_stats.total_spent }}</div>
+                                </div>
+                                <div class="col-auto">
+                                    <i class="fas fa-dollar-sign fa-2x text-gray-300"></i>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="col-md-4 mb-4">
+                    <div class="card border-left-info shadow h-100">
+                        <div class="card-body">
+                            <div class="row no-gutters align-items-center">
+                                <div class="col mr-2">
+                                    <div class="text-xs font-weight-bold text-info text-uppercase mb-1">
+                                        Confirmed
+                                    </div>
+                                    <div class="h5 mb-0 font-weight-bold text-gray-800">{{ order_stats.confirmed_orders }}</div>
+                                </div>
+                                <div class="col-auto">
+                                    <i class="fas fa-check-circle fa-2x text-gray-300"></i>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="col-md-4 mb-4">
+                    <div class="card border-left-warning shadow h-100">
+                        <div class="card-body">
+                            <div class="row no-gutters align-items-center">
+                                <div class="col mr-2">
+                                    <div class="text-xs font-weight-bold text-warning text-uppercase mb-1">
+                                        Pending
+                                    </div>
+                                    <div class="h5 mb-0 font-weight-bold text-gray-800">{{ order_stats.pending_orders }}</div>
+                                </div>
+                                <div class="col-auto">
+                                    <i class="fas fa-clock fa-2x text-gray-300"></i>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="col-md-4 mb-4">
+                    <div class="card border-left-danger shadow h-100">
+                        <div class="card-body">
+                            <div class="row no-gutters align-items-center">
+                                <div class="col mr-2">
+                                    <div class="text-xs font-weight-bold text-danger text-uppercase mb-1">
+                                        Rejected
+                                    </div>
+                                    <div class="h5 mb-0 font-weight-bold text-gray-800">{{ order_stats.rejected_orders }}</div>
+                                </div>
+                                <div class="col-auto">
+                                    <i class="fas fa-times-circle fa-2x text-gray-300"></i>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Customer Info -->
+            <div class="card">
+                <div class="card-header">
+                    <h5 class="card-title mb-0">Customer Information</h5>
+                </div>
+                <div class="card-body">
+                    <div class="row">
+                        <div class="col-md-6">
+                            <table class="table table-sm">
+                                <tr>
+                                    <th width="40%">Email:</th>
+                                    <td>{{ customer.email }}</td>
+                                </tr>
+                                <tr>
+                                    <th>Phone:</th>
+                                    <td>{{ customer.phone|default:"N/A" }}</td>
+                                </tr>
+                                <tr>
+                                    <th>IP Address:</th>
+                                    <td>{{ customer.ip_address|default:"N/A" }}</td>
+                                </tr>
+                            </table>
+                        </div>
+                        <div class="col-md-6">
+                            <table class="table table-sm">
+                                <tr>
+                                    <th width="40%">First Order:</th>
+                                    <td>{{ customer.first_order_date|date:"M d, Y"|default:"N/A" }}</td>
+                                </tr>
+                                <tr>
+                                    <th>Last Order:</th>
+                                    <td>{{ customer.last_order_date|date:"M d, Y"|default:"N/A" }}</td>
+                                </tr>
+                                <tr>
+                                    <th>Member Since:</th>
+                                    <td>{{ customer.created_at|date:"M d, Y" }}</td>
+                                </tr>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Orders History -->
+    <div class="card">
+        <div class="card-header d-flex justify-content-between align-items-center">
+            <h5 class="card-title mb-0">Order History</h5>
+            <span class="badge bg-primary">{{ orders.count }} orders</span>
+        </div>
+        <div class="card-body">
+            {% if orders %}
+            <div class="table-responsive">
+                <table class="table table-hover">
+                    <thead>
+                        <tr>
+                            <th>Order #</th>
+                            <th>Date</th>
+                            <th>Status</th>
+                            <th>Payment</th>
+                            <th>Items</th>
+                            <th>Total</th>
+                            <th>Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for order in orders %}
+                        <tr>
+                            <td>
+                                <strong>{{ order.order_number }}</strong>
+                            </td>
+                            <td>{{ order.created_at|date:"M d, Y" }}</td>
+                            <td>
+                                <span class="badge 
+                                    {% if order.order_status == 'confirmed' %}bg-success
+                                    {% elif order.order_status == 'pending' %}bg-warning
+                                    {% elif order.order_status == 'rejected' %}bg-danger
+                                    {% else %}bg-secondary{% endif %}">
+                                    {{ order.get_order_status_display }}
+                                </span>
+                            </td>
+                            <td>
+                                <span class="badge 
+                                    {% if order.payment_status == 'paid' %}bg-success
+                                    {% elif order.payment_status == 'pending' %}bg-warning
+                                    {% else %}bg-danger{% endif %}">
+                                    {{ order.get_payment_status_display }}
+                                </span>
+                            </td>
+                            <td>{{ order.order_items.count }} items</td>
+                            <td>
+                                <strong>${{ order.total }}</strong>
+                            </td>
+                            <td>
+                                <a href="{% url 'admin:orders_order_change' order.id %}" class="btn btn-sm btn-outline-primary">
+                                    <i class="fas fa-edit"></i>
+                                </a>
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+            {% else %}
+            <div class="text-center py-4">
+                <i class="fas fa-shopping-bag fa-3x text-muted mb-3"></i>
+                <h5>No orders found</h5>
+                <p class="text-muted">This customer hasn't placed any orders yet.</p>
+            </div>
+            {% endif %}
+        </div>
+    </div>
+</div>
+{% endblock %}
