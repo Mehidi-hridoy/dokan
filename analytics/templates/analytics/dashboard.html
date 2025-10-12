@@ -1,0 +1,240 @@
+{% extends 'base.html' %}
+{% block title %}Analytics Dashboard - Dokan{% endblock %}
+
+{% block extra_css %}
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/chart.js@4.3.0/dist/chart.min.css">
+<style>
+    .card { transition: transform 0.2s; }
+    .card:hover { transform: translateY(-5px); }
+    .chart-container { max-width: 400px; margin: 0 auto; }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container mx-auto px-4 py-8">
+    <h1 class="text-3xl font-bold mb-6 text-gray-800">Analytics Dashboard</h1>
+
+    <!-- Date Filter Form -->
+    <form method="GET" class="mb-8 bg-white p-6 rounded-lg shadow-md">
+        <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+            <div>
+                <label class="block text-sm font-medium text-gray-700">Period</label>
+                {{ form.period }}
+            </div>
+            <div>
+                <label class="block text-sm font-medium text-gray-700">Start Date</label>
+                {{ form.start_date }}
+            </div>
+            <div>
+                <label class="block text-sm font-medium text-gray-700">End Date</label>
+                {{ form.end_date }}
+            </div>
+        </div>
+        <button type="submit" class="mt-4 bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700">Apply Filter</button>
+    </form>
+
+    <!-- Orders Section -->
+    <h2 class="text-2xl font-semibold mb-4">Order Overview ({{ start_date }} to {{ end_date }})</h2>
+    <div class="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-4 gap-6 mb-8">
+        <div class="card bg-white p-6 rounded-lg shadow-md">
+            <h3 class="text-lg font-semibold text-gray-700">Total Orders</h3>
+            <p class="text-3xl font-bold text-blue-600">{{ order_stats.total }}</p>
+            <p class="text-sm text-gray-500">{{ order_changes.total }}</p>
+        </div>
+        <div class="card bg-white p-6 rounded-lg shadow-md">
+            <h3 class="text-lg font-semibold text-gray-700">Confirmed Orders</h3>
+            <p class="text-3xl font-bold text-blue-600">{{ order_stats.confirmed }}</p>
+            <p class="text-sm text-gray-500">{{ order_changes.confirmed }}</p>
+        </div>
+        <div class="card bg-white p-6 rounded-lg shadow-md">
+            <h3 class="text-lg font-semibold text-gray-700">Rejected Orders</h3>
+            <p class="text-3xl font-bold text-blue-600">{{ order_stats.rejected }}</p>
+            <p class="text-sm text-gray-500">{{ order_changes.rejected }}</p>
+        </div>
+        <div class="card bg-white p-6 rounded-lg shadow-md">
+            <h3 class="text-lg font-semibold text-gray-700">On Hold Orders</h3>
+            <p class="text-3xl font-bold text-blue-600">{{ order_stats.hold }}</p>
+            <p class="text-sm text-gray-500">{{ order_changes.hold }}</p>
+        </div>
+        <div class="card bg-white p-6 rounded-lg shadow-md">
+            <h3 class="text-lg font-semibold text-gray-700">Pending Orders</h3>
+            <p class="text-3xl font-bold text-blue-600">{{ order_stats.pending }}</p>
+            <p class="text-sm text-gray-500">{{ order_changes.pending }}</p>
+        </div>
+        <div class="card bg-white p-6 rounded-lg shadow-md">
+            <h3 class="text-lg font-semibold text-gray-700">Processed Orders</h3>
+            <p class="text-3xl font-bold text-blue-600">{{ order_stats.processed }}</p>
+            <p class="text-sm text-gray-500">{{ order_changes.processed }}</p>
+        </div>
+        <div class="card bg-white p-6 rounded-lg shadow-md">
+            <h3 class="text-lg font-semibold text-gray-700">Revenue</h3>
+            <p class="text-3xl font-bold text-blue-600">${{ order_stats.revenue|floatformat:2 }}</p>
+            <p class="text-sm text-gray-500">{{ order_changes.revenue }}</p>
+        </div>
+    </div>
+    <div class="bg-white p-6 rounded-lg shadow-md mb-8">
+        <h3 class="text-lg font-semibold mb-4">Order & Item Analytics</h3>
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+            <div class="chart-container">
+                <h4 class="text-md font-medium mb-2">Order Status Distribution</h4>
+                <canvas id="orderStatusChart"></canvas>
+            </div>
+            <div class="chart-container">
+                <h4 class="text-md font-medium mb-2">Top Selling Items</h4>
+                <canvas id="topItemsChart"></canvas>
+            </div>
+        </div>
+        <div class="mt-6">
+            <h4 class="text-md font-medium mb-2">Item Delivery Status</h4>
+            <table class="w-full border-collapse">
+                <thead>
+                    <tr class="bg-gray-100">
+                        <th class="border p-2 text-left">Status</th>
+                        <th class="border p-2 text-left">Count</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for status in items_stats.delivery_status %}
+                        <tr>
+                            <td class="border p-2">{{ status.delivery_status|title }}</td>
+                            <td class="border p-2">{{ status.count }}</td>
+                        </tr>
+                    {% empty %}
+                        <tr>
+                            <td class="border p-2" colspan="2">No data available</td>
+                        </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+    <!-- Order Items Section -->
+    <h2 class="text-2xl font-semibold mb-4">Order Items Analytics</h2>
+    <div class="grid grid-cols-1 md:grid-cols-2 gap-6 mb-8">
+        <div class="card bg-white p-6 rounded-lg shadow-md">
+            <h3 class="text-lg font-semibold text-gray-700">Total Items Sold</h3>
+            <p class="text-3xl font-bold text-blue-600">{{ items_stats.total_items }}</p>
+            <p class="text-sm text-gray-500">{{ items_changes.total_items }}</p>
+        </div>
+        <div class="card bg-white p-6 rounded-lg shadow-md">
+            <h3 class="text-lg font-semibold mb-4">Top Products</h3>
+            <ul class="list-disc pl-5">
+                {% for product in items_stats.top_products %}
+                    <li>{{ product.product__name }}: {{ product.total_qty }} units</li>
+                {% empty %}
+                    <li>No data available</li>
+                {% endfor %}
+            </ul>
+        </div>
+    </div>
+
+    <!-- Products Section -->
+    <h2 class="text-2xl font-semibold mb-4">Products Analytics</h2>
+    <div class="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
+        <div class="card bg-white p-6 rounded-lg shadow-md">
+            <h3 class="text-lg font-semibold text-gray-700">Total Products</h3>
+            <p class="text-3xl font-bold text-blue-600">{{ products_stats.total }}</p>
+        </div>
+        <div class="card bg-white p-6 rounded-lg shadow-md">
+            <h3 class="text-lg font-semibold text-gray-700">Active Products</h3>
+            <p class="text-3xl font-bold text-blue-600">{{ products_stats.active }}</p>
+        </div>
+        <div class="card bg-white p-6 rounded-lg shadow-md">
+            <h3 class="text-lg font-semibold text-gray-700">Inactive Products</h3>
+            <p class="text-3xl font-bold text-blue-600">{{ products_stats.inactive }}</p>
+        </div>
+    </div>
+    <div class="bg-white p-6 rounded-lg shadow-md mb-8">
+        <h3 class="text-lg font-semibold mb-4">Top Categories</h3>
+        <ul class="list-disc pl-5">
+            {% for category in products_stats.top_categories %}
+                <li>{{ category.category__name }}: {{ category.count }} products</li>
+            {% empty %}
+                <li>No data available</li>
+            {% endfor %}
+        </ul>
+    </div>
+
+    <!-- Inventory Section -->
+    <h2 class="text-2xl font-semibold mb-4">Inventory Analytics</h2>
+    <div class="grid grid-cols-1 md:grid-cols-2 gap-6 mb-8">
+        <div class="card bg-white p-6 rounded-lg shadow-md">
+            <h3 class="text-lg font-semibold text-gray-700">Low Stock Items</h3>
+            <p class="text-3xl font-bold text-blue-600">{{ inventory_stats.low_stock }}</p>
+        </div>
+        <div class="card bg-white p-6 rounded-lg shadow-md">
+            <h3 class="text-lg font-semibold text-gray-700">Total Stock Value</h3>
+            <p class="text-3xl font-bold text-blue-600">${{ inventory_stats.total_value|floatformat:2 }}</p>
+        </div>
+    </div>
+
+    <!-- Promotions Section -->
+    <h2 class="text-2xl font-semibold mb-4">Promotions Analytics</h2>
+    <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+        <div class="card bg-white p-6 rounded-lg shadow-md">
+            <h3 class="text-lg font-semibold text-gray-700">Active Promotions</h3>
+            <p class="text-3xl font-bold text-blue-600">{{ promotions_stats.active }}</p>
+        </div>
+        <div class="card bg-white p-6 rounded-lg shadow-md">
+            <h3 class="text-lg font-semibold text-gray-700">Total Discount Applied</h3>
+            <p class="text-3xl font-bold text-blue-600">${{ promotions_stats.total_discount|floatformat:2 }}</p>
+        </div>
+        <div class="card bg-white p-6 rounded-lg shadow-md">
+            <h3 class="text-lg font-semibold text-gray-700">Promotion Usage Count</h3>
+            <p class="text-3xl font-bold text-blue-600">{{ promotions_stats.usage_count }}</p>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.3.0/dist/chart.min.js"></script>
+<script>
+    // Order Status Chart
+    const orderStatusCtx = document.getElementById('orderStatusChart').getContext('2d');
+    new Chart(orderStatusCtx, {
+        type: 'bar',
+        data: {
+            labels: ['Confirmed', 'Rejected', 'On Hold', 'Pending', 'Processed'],
+            datasets: [{
+                label: 'Order Status',
+                data: [
+                    {{ order_stats.confirmed }},
+                    {{ order_stats.rejected }},
+                    {{ order_stats.hold }},
+                    {{ order_stats.pending }},
+                    {{ order_stats.processed }}
+                ],
+                backgroundColor: ['#2563eb', '#dc2626', '#facc15', '#6b7280', '#16a34a'],
+                borderColor: ['#1e40af', '#b91c1c', '#ca8a04', '#4b5563', '#15803d'],
+                borderWidth: 1
+            }]
+        },
+        options: {
+            scales: { y: { beginAtZero: true } },
+            plugins: { legend: { display: false } }
+        }
+    });
+
+    // Top Items Chart
+    const topItemsCtx = document.getElementById('topItemsChart').getContext('2d');
+    new Chart(topItemsCtx, {
+        type: 'bar',
+        data: {
+            labels: [{% for product in items_stats.top_products %}"{{ product.product__name|escapejs }}"{% if not forloop.last %},{% endif %}{% endfor %}],
+            datasets: [{
+                label: 'Items Sold',
+                data: [{% for product in items_stats.top_products %}{{ product.total_qty }}{% if not forloop.last %},{% endif %}{% endfor %}],
+                backgroundColor: ['#2563eb', '#dc2626', '#facc15', '#6b7280', '#16a34a'],
+                borderColor: ['#1e40af', '#b91c1c', '#ca8a04', '#4b5563', '#15803d'],
+                borderWidth: 1
+            }]
+        },
+        options: {
+            scales: { y: { beginAtZero: true } },
+            plugins: { legend: { display: false } }
+        }
+    });
+</script>
+{% endblock %}

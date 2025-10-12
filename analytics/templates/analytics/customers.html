@@ -1,0 +1,190 @@
+{% extends 'base.html' %}
+
+{% block content %}
+<div class="container-fluid">
+    <!-- Customer Statistics -->
+    <div class="row mb-4">
+        <div class="col-md-3">
+            <div class="card bg-primary text-white">
+                <div class="card-body">
+                    <h5 class="card-title">New Customers</h5>
+                    <h2>{{ customer_stats.new_customers }}</h2>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card bg-success text-white">
+                <div class="card-body">
+                    <h5 class="card-title">Regular Customers</h5>
+                    <h2>{{ customer_stats.regular_customers }}</h2>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card bg-warning text-white">
+                <div class="card-body">
+                    <h5 class="card-title">VIP Customers</h5>
+                    <h2>{{ customer_stats.vip_customers }}</h2>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card bg-danger text-white">
+                <div class="card-body">
+                    <h5 class="card-title">Fraud Customers</h5>
+                    <h2>{{ customer_stats.fraud_customers }}</h2>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Search and Filters -->
+    <div class="row mb-3">
+        <div class="col-md-6">
+            <div class="card">
+                <div class="card-body">
+                    <h6 class="card-title">👤 All Available Users: {{ total_customers }}</h6>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-6">
+            <form method="get" class="row g-2">
+                <div class="col-md-6">
+                    <input type="text" class="form-control" placeholder="Search by name/email/phone..." 
+                           name="search" value="{{ search_query }}">
+                </div>
+                <div class="col-md-4">
+                    <select name="type" class="form-select">
+                        <option value="">All Types</option>
+                        <option value="new" {% if customer_type_filter == 'new' %}selected{% endif %}>New</option>
+                        <option value="regular" {% if customer_type_filter == 'regular' %}selected{% endif %}>Regular</option>
+                        <option value="vip" {% if customer_type_filter == 'vip' %}selected{% endif %}>VIP</option>
+                        <option value="fraud" {% if customer_type_filter == 'fraud' %}selected{% endif %}>Fraud</option>
+                    </select>
+                </div>
+                <div class="col-md-2">
+                    <button class="btn btn-primary w-100" type="submit">Filter</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Customers Table -->
+    <div class="card">
+        <div class="card-body">
+            <div class="table-responsive">
+                <table class="table table-striped">
+                    <thead>
+                        <tr>
+                            <th>#</th>
+                            <th>Avatar</th>
+                            <th>Name</th>
+                            <th>Email</th>
+                            <th>Phone</th>
+                            <th>IP</th>
+                            <th>Status</th>
+                            <th>Total Orders</th>
+                            <th>Total Spent</th>
+                            <th>Type</th>
+                            <th>User Type</th>
+                            <th>Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for customer in page_obj %}
+                        <tr>
+                            <td>{{ forloop.counter0|add:page_obj.start_index }}</td>
+                            <td>
+                                {% if customer.avatar %}
+                                    <img src="{{ customer.avatar.url }}" alt="Avatar" class="rounded-circle" width="40" height="40">
+                                {% else %}
+                                    <div class="bg-secondary rounded-circle d-flex align-items-center justify-content-center" style="width: 40px; height: 40px;">
+                                        <span class="text-white">{{ customer.name|first|upper }}</span>
+                                    </div>
+                                {% endif %}
+                            </td>
+                            <td>
+                                <a href="{% url 'customer_detail' customer.id %}">
+                                    {{ customer.name }}
+                                </a>
+                            </td>
+                            <td>{{ customer.email }}</td>
+                            <td>{{ customer.phone }}</td>
+                            <td>{{ customer.ip_address|default:"N/A" }}</td>
+                            <td>
+                                <span class="badge {% if customer.status == 'Active' %}bg-success{% else %}bg-danger{% endif %}">
+                                    {{ customer.status }}
+                                </span>
+                            </td>
+                            <td>{{ customer.total_orders }}</td>
+                            <td>${{ customer.total_spent }}</td>
+                            <td>
+                                <span class="badge 
+                                    {% if customer.customer_type == 'vip' %}bg-warning
+                                    {% elif customer.customer_type == 'regular' %}bg-success
+                                    {% elif customer.customer_type == 'fraud' %}bg-danger
+                                    {% else %}bg-primary{% endif %}">
+                                    {{ customer.get_customer_type_display }}
+                                </span>
+                            </td>
+                            <td>
+                                <span class="badge {% if customer.is_guest %}bg-secondary{% else %}bg-info{% endif %}">
+                                    {{ "Guest" if customer.is_guest else "Registered" }}
+                                </span>
+                            </td>
+                            <td>
+                                <div class="btn-group">
+                                    <a href="{% url 'customer_detail' customer.id %}" class="btn btn-sm btn-outline-primary">View</a>
+                                    {% if customer.is_fraudulent %}
+                                        <form method="post" action="{% url 'toggle_customer_status' customer.id %}" class="d-inline">
+                                            {% csrf_token %}
+                                            <input type="hidden" name="action" value="unblock">
+                                            <button type="submit" class="btn btn-sm btn-outline-success">Unblock</button>
+                                        </form>
+                                    {% else %}
+                                        <form method="post" action="{% url 'toggle_customer_status' customer.id %}" class="d-inline">
+                                            {% csrf_token %}
+                                            <input type="hidden" name="action" value="block">
+                                            <button type="submit" class="btn btn-sm btn-outline-danger">Block</button>
+                                        </form>
+                                    {% endif %}
+                                </div>
+                            </td>
+                        </tr>
+                        {% empty %}
+                        <tr>
+                            <td colspan="12" class="text-center">No customers found</td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+            
+            <!-- Pagination -->
+            {% if page_obj.has_other_pages %}
+            <nav aria-label="Page navigation">
+                <ul class="pagination justify-content-center">
+                    {% if page_obj.has_previous %}
+                    <li class="page-item">
+                        <a class="page-link" href="?page={{ page_obj.previous_page_number }}{% if search_query %}&search={{ search_query }}{% endif %}{% if customer_type_filter %}&type={{ customer_type_filter }}{% endif %}">Previous</a>
+                    </li>
+                    {% endif %}
+                    
+                    {% for num in page_obj.paginator.page_range %}
+                    <li class="page-item {% if page_obj.number == num %}active{% endif %}">
+                        <a class="page-link" href="?page={{ num }}{% if search_query %}&search={{ search_query }}{% endif %}{% if customer_type_filter %}&type={{ customer_type_filter }}{% endif %}">{{ num }}</a>
+                    </li>
+                    {% endfor %}
+                    
+                    {% if page_obj.has_next %}
+                    <li class="page-item">
+                        <a class="page-link" href="?page={{ page_obj.next_page_number }}{% if search_query %}&search={{ search_query }}{% endif %}{% if customer_type_filter %}&type={{ customer_type_filter }}{% endif %}">Next</a>
+                    </li>
+                    {% endif %}
+                </ul>
+            </nav>
+            {% endif %}
+        </div>
+    </div>
+</div>
+{% endblock %}

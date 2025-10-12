@@ -1,11 +1,11 @@
 from django.test import TestCase
 """
-python manage.py makemigrations orders
+python manage.py makemigrations 
 python manage.py migrate
 python manage.py runserver
 
 git add .
-git commit -m "Wokred in login and Dashboard  "
+git commit -m "Customer list Added  "
 git push -u origin main
 python manage.py runserver
 
@@ -22,3 +22,5 @@ pip install -r requirements.txt
 python manage.py createsuperuser
 
 """
+
+

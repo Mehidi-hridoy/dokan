@@ -1,41 +1,74 @@
-from django.core.management.base import BaseCommand
-from orders.models import Order
-from django.db.models import Count
+import random, uuid
+from decimal import Decimal
+from datetime import timedelta
+from django.utils import timezone
+from orders.models import Order, OrderItem
+from products.models import Product
+from analytics.models import Customer
+from django.contrib.auth import get_user_model
 
-class Command(BaseCommand):
-    help = 'Clean up duplicate pending orders'
+User = get_user_model()
 
-    def handle(self, *args, **options):
-        # Find users with multiple pending orders
-        duplicate_orders = Order.objects.filter(
-            order_status='pending'
-        ).values('user').annotate(
-            count=Count('id')
-        ).filter(count__gt=1)
+user_obj = User.objects.first() or User.objects.create_user(username='demo_user', email='demo@test.com', password='1234')
+customer_obj = Customer.objects.first() or Customer.objects.create(name='Demo Customer')
+products = list(Product.objects.all())
 
-        for item in duplicate_orders:
-            user_id = item['user']
-            if user_id:  # Only for authenticated users
-                # Get all pending orders for this user, ordered by creation date
-                orders = Order.objects.filter(
-                    user_id=user_id,
-                    order_status='pending'
-                ).order_by('-created_at')
-                
-                # Keep the most recent one, delete others
-                latest_order = orders.first()
-                orders_to_delete = orders.exclude(id=latest_order.id)
-                
-                deleted_count = orders_to_delete.count()
-                orders_to_delete.delete()
-                
-                self.stdout.write(
-                    self.style.SUCCESS(
-                        f'Cleaned up {deleted_count} duplicate orders for user {user_id}. '
-                        f'Kept order #{latest_order.order_number}'
-                    )
-                )
+if not products:
+    print("⚠️ No products found! Please create products first.")
+else:
+    order_statuses = ['pending', 'confirmed', 'processed', 'hold', 'rejected']
+    courier_statuses = ['pending', 'in_transit', 'delivered', 'returned']
+    payment_statuses = ['pending', 'paid', 'failed']
+    payment_methods = ['cod', 'card', 'mobile_money']
+    couriers = ['Pathao', 'RedX', 'Steadfast']
+    delivery_status_choices = [choice[0] for choice in OrderItem.DELIVERY_STATUS_CHOICES]
+    areas = ['Dhaka', 'Chattogram', 'Sylhet', 'Rajshahi']
+    cities = ['Gulshan', 'Mirpur', 'Banani', 'Agrabad', 'Zindabazar']
 
-        self.stdout.write(
-            self.style.SUCCESS('Duplicate order cleanup completed!')
+    for i in range(50):
+        product = random.choice(products)
+        qty = random.randint(1, 5)
+        price = product.price
+        subtotal = price * qty
+        tax = (subtotal * Decimal('0.05')).quantize(Decimal('0.01'))
+        shipping = Decimal(random.randint(40, 120))
+        discount = Decimal(random.randint(0, 50))
+        total = subtotal + tax + shipping - discount
+
+        order = Order.objects.create(
+            user=user_obj,
+            customer_name=customer_obj,
+            order_number=f"ORD-{uuid.uuid4().hex[:5].upper()}",
+            order_status=random.choice(order_statuses),
+            courier_status=random.choice(courier_statuses),
+            payment_status=random.choice(payment_statuses),
+            payment_method=random.choice(payment_methods),
+            courier_name=random.choice(couriers),
+            courier_choice=random.choice(['pathao', 'red_x', 'steadfast']),
+            subtotal=subtotal,
+            tax_amount=tax,
+            shipping_cost=shipping,
+            discount_amount=discount,
+            total=total,
+            phone_number=f"017{random.randint(10000000,99999999)}",
+            email=f"demo{i}@example.com",
+            shipping_address=f"House {i}, Road {random.randint(1,50)}, {random.choice(areas)}",
+            billing_address=f"Billing Address {i}",
+            delivery_area=random.choice(areas),
+            city=random.choice(cities),
+            zip_code=str(random.randint(1200, 6000)),
+            estimated_delivery=timezone.now().date() + timedelta(days=random.randint(1,5)),
+            created_at=timezone.now() - timedelta(hours=random.randint(1,24)),
         )
+
+        OrderItem.objects.create(
+            order=order,
+            product=product,
+            quantity=qty,
+            price=price,
+            delivery_status=random.choice(delivery_status_choices)
+        )
+
+        print(f"✅ Created order {order.order_number} | Total: {total} | Status: {order.order_status}")
+
+    print("\n🎉 Done! 50 demo orders successfully created.")

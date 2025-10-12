@@ -3,18 +3,44 @@ from django.core.validators import MinValueValidator, MaxValueValidator
 from users.models import User
 from products.models import Product
 from decimal import Decimal
+from analytics.models import Customer
 from products.models import COLOR_CHOICES, SIZE_CHOICES, WEIGHT_CHOICES
+
+# Custom manager for Order model with useful querysets
+class OrderManager(models.Manager):
+    def confirmed_orders(self):
+        return self.filter(order_status='confirmed')
+    
+    def rejected_orders(self):
+        return self.filter(order_status='rejected')
+    
+    def hold_orders(self):
+        return self.filter(order_status='hold')
+    
+    def pending_orders(self):
+        return self.filter(order_status='pending')
+    
+    def processed_orders(self):
+        return self.filter(order_status='processed')
+    
+    def by_area(self, area):
+        return self.filter(delivery_area=area)
+    
+    def recent_orders(self, days=30):
+        from django.utils import timezone
+        from datetime import timedelta
+        return self.filter(created_at__gte=timezone.now()-timedelta(days=days))
+
 
 class Order(models.Model):
     # Order Status Choices
     ORDER_STATUS_CHOICES = [
+        ('confirmed', 'Confirmed'),
+        ('rejected', 'Rejected'),
+        ('hold', 'On Hold'),
         ('pending', 'Pending'),
         ('processed', 'Processed'),
-        ('on_delivery', 'On Delivery'),
-        ('partial_delivery', 'Partial Delivery'),
-        ('delivered', 'Delivered'),
-        ('cancelled', 'Cancelled'),
-        ('returned', 'Returned'),
+    
     ]
     
     # Courier Status Choices
@@ -46,11 +72,12 @@ class Order(models.Model):
     ]
 
     # Basic Information
-    user = models.ForeignKey(User, on_delete=models.CASCADE, blank= True,related_name='orders')
+    user = models.ForeignKey(User, on_delete=models.CASCADE, blank=True, null=True, related_name='orders')
+    assigned_staff = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, blank=True, related_name='assigned_orders')
     order_number = models.CharField(max_length=20, unique=True, blank=True)
-    
-    # Status Fields
-    order_status = models.CharField( max_length=20,  choices=ORDER_STATUS_CHOICES,  default='pending' )
+    order_status = models.CharField(max_length=20, choices=ORDER_STATUS_CHOICES, default='pending')
+
+
     courier_status = models.CharField(  max_length=20,  choices=COURIER_STATUS_CHOICES,  default='pending' )
     payment_status = models.CharField(  max_length=20,choices=PAYMENT_STATUS_CHOICES, default='pending' )
     
@@ -62,7 +89,7 @@ class Order(models.Model):
     total = models.DecimalField(max_digits=10, decimal_places=2, default=0)
     
     # Customer Information
-    customer_name = models.CharField(max_length=100)
+    customer_name =  models.ForeignKey(Customer,on_delete=models.CASCADE, null=True, blank=True,related_name='customer_orders')
     phone_number = models.CharField(max_length=15, blank=True, null=True)
     email = models.EmailField(blank=True, null=True)
     shipping_address = models.TextField(blank=True, null=True)
@@ -106,6 +133,8 @@ class Order(models.Model):
     processed_at = models.DateTimeField(blank=True, null=True)
     delivered_at = models.DateTimeField(blank=True, null=True)
     cancelled_at = models.DateTimeField(blank=True, null=True)
+    # Attach the custom manager
+    objects = OrderManager()  # This is the key change
 
     class Meta:
         ordering = ['-created_at']
@@ -115,19 +144,20 @@ class Order(models.Model):
             models.Index(fields=['payment_status']),
             models.Index(fields=['created_at']),
             models.Index(fields=['delivery_area']),
+            models.Index(fields=['assigned_staff']),
         ]
 
     def save(self, *args, **kwargs):
         if not self.order_number:
-            # Generate unique order number
             import uuid
             self.order_number = f"ORD-{uuid.uuid4().hex[:5].upper()}"
-        
-        # Calculate total if not set
         if not self.total and self.subtotal:
             self.total = self.subtotal + self.tax_amount + self.shipping_cost - self.discount_amount
-        
         super().save(*args, **kwargs)
+
+        if self.subtotal is not None:
+            self.total = self.subtotal + self.tax_amount + self.shipping_cost - self.discount_amount
+
 
     def calculate_totals(self):
         """Calculate and update all financial totals based on order items."""
@@ -149,10 +179,12 @@ class Order(models.Model):
             'returned': 'pink',
         }
         return status_colors.get(self.order_status, 'gray')
-
-    def __str__(self):
-        return f"Order {self.order_number} - {self.user.username} {self.customer_name} ({self.get_order_status_display()})"
     
+    def __str__(self):
+        user_name = self.user.username if self.user else "Guest"
+        customer = str(self.customer_name) if self.customer_name else "Unknown Customer"
+        return f"Order {self.order_number} - {user_name} {customer} ({self.get_order_status_display()})"
+
 
 
 class OrderItem(models.Model):
@@ -216,37 +248,3 @@ class BulkOrderOperation(models.Model):
         return f"Bulk {self.get_operation_type_display()} - {self.name}"
 
 
-# Custom manager for Order model with useful querysets
-class OrderManager(models.Manager):
-    def pending_orders(self):
-        return self.filter(order_status='pending')
-    
-    def processed_orders(self):
-        return self.filter(order_status='processed')
-    
-    def on_delivery_orders(self):
-        return self.filter(order_status='on_delivery')
-    
-    def partial_delivery_orders(self):
-        return self.filter(order_status='partial_delivery')
-    
-    def delivered_orders(self):
-        return self.filter(order_status='delivered')
-    
-    def cancelled_orders(self):
-        return self.filter(order_status='cancelled')
-    
-    def returned_orders(self):
-        return self.filter(order_status='returned')
-    
-    def by_area(self, area):
-        return self.filter(delivery_area=area)
-    
-    def recent_orders(self, days=30):
-        from django.utils import timezone
-        from datetime import timedelta
-        return self.filter(created_at__gte=timezone.now()-timedelta(days=days))
-
-
-# Add custom manager to Order model
-Order.add_to_class('objects', OrderManager())
