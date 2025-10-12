@@ -46,7 +46,7 @@ class Order(models.Model):
     ]
 
     # Basic Information
-    user = models.ForeignKey(User, on_delete=models.CASCADE, related_name='orders')
+    user = models.ForeignKey(User, on_delete=models.CASCADE, blank= True,related_name='orders')
     order_number = models.CharField(max_length=20, unique=True, blank=True)
     
     # Status Fields
@@ -73,7 +73,6 @@ class Order(models.Model):
     admin_comment = models.TextField(blank=True, null=True, help_text="Internal admin comments")
  
     payment_method = models.CharField(  max_length=50, choices=PAYMENT_METHOD_CHOICES, blank=True, null=True   )
-    
     # Area/Region Filtering
     delivery_area = models.CharField(max_length=100, blank=True, null=True)
     city = models.CharField(max_length=50, blank=True, null=True)
@@ -155,12 +154,6 @@ class Order(models.Model):
         return f"Order {self.order_number} - {self.user.username} {self.customer_name} ({self.get_order_status_display()})"
     
 
-    @property
-    def subtotal(self):
-        # Prevent ValueError if order not saved yet
-        if not self.pk:
-            return Decimal('0')
-        return sum((item.product.price * item.quantity for item in self.order_items.all()), Decimal('0'))
 
 class OrderItem(models.Model):
     DELIVERY_STATUS_CHOICES = [

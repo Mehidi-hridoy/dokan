@@ -10,15 +10,9 @@ urlpatterns = [
     path('users/', include('users.urls', namespace='users')),
     path('orders/', include('orders.urls', namespace='orders')),
     path('ckeditor5/', include('django_ckeditor_5.urls')),
-        # Authentication URLs
-    path('login/', auth_views.LoginView.as_view(
-        template_name='users/login.html',
-        redirect_authenticated_user=True  # Redirect if already logged in
-    ), name='login'),
-    
-    path('logout/', auth_views.LogoutView.as_view(
-        next_page='products:home'  # Redirect to home after logout
-    ), name='logout'),
+    path('analytics/', include('analytics.urls', namespace='analytics')),
+    path('login/', auth_views.LoginView.as_view( template_name='users/login.html', redirect_authenticated_user=True ), name='login'),
+    path('logout/', auth_views.LogoutView.as_view( next_page='products:home' ), name='logout'),
 ]
 
 if settings.DEBUG:

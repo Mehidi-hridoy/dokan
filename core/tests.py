@@ -1,11 +1,11 @@
 from django.test import TestCase
 """
-python manage.py makemigrations
+python manage.py makemigrations orders
 python manage.py migrate
 python manage.py runserver
 
 git add .
-git commit -m "Fixed Admin  "
+git commit -m "Wokred in login and Dashboard  "
 git push -u origin main
 python manage.py runserver
 

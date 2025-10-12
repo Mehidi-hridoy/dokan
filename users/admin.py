@@ -2,26 +2,39 @@ from django.contrib import admin
 from django.contrib.auth.admin import UserAdmin as BaseUserAdmin
 from .models import User
 
-class UserAdmin(BaseUserAdmin):
-    list_display = ('username', 'email', 'user_type', 'is_staff', 'is_active')
-    list_filter = ('user_type', 'is_staff', 'is_active')
-    search_fields = ('username', 'email')
-    fieldsets = (
-        (None, {'fields': ('username', 'password')}),
-        ('Personal info', {'fields': ('first_name', 'last_name', 'email', 'user_type', 'phone_number', 'address')}),
-        ('Permissions', {'fields': ('is_active', 'is_staff', 'is_superuser', 'groups', 'user_permissions')}),
-        ('Important dates', {'fields': ('last_login', 'date_joined')}),
-    )
-    add_fieldsets = (
-        (None, {
-            'classes': ('wide',),
-            'fields': ('username', 'email', 'user_type', 'password1', 'password2'),
-        }),
-    )
+
+@admin.register(User)
+class CustomUserAdmin(BaseUserAdmin):
+    list_display = ('username', 'email', 'user_type', 'is_staff', 'is_superuser')
+    list_filter = ('user_type', 'is_staff', 'is_superuser')
+
+    # ✅ 1. Allow staff to edit/add, but not delete
+    def has_delete_permission(self, request, obj=None):
+        # Only superusers can delete
+        return request.user.is_superuser
+
+    def has_add_permission(self, request):
+        # Staff and superusers can add
+        return request.user.is_staff or request.user.is_superuser
 
     def has_change_permission(self, request, obj=None):
-        if request.user.is_superuser or (hasattr(request.user, 'user_type') and request.user.user_type == 'admin'):
-            return True
-        return False
+        # Prevent staff from editing superuser accounts
+        if obj and obj.is_superuser and not request.user.is_superuser:
+            return False
+        return request.user.is_staff or request.user.is_superuser
 
-admin.site.register(User, UserAdmin)
+    # ✅ 2. Remove the bulk delete action for non-superusers
+    def get_actions(self, request):
+        actions = super().get_actions(request)
+        if not request.user.is_superuser:
+            if 'delete_selected' in actions:
+                del actions['delete_selected']
+        return actions
+
+    # ✅ 3. (Optional) Hide “Delete” button in the change form for staff
+    def get_readonly_fields(self, request, obj=None):
+        readonly_fields = super().get_readonly_fields(request, obj)
+        if obj and obj.is_superuser and not request.user.is_superuser:
+            # Prevent staff from editing superuser fields
+            return [f.name for f in self.model._meta.fields]
+        return readonly_fields
