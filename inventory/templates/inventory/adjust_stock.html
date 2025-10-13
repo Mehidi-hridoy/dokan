@@ -1,0 +1,35 @@
+{% extends "admin/base_site.html" %}
+{% load i18n %}
+
+{% block content %}
+<div id="content-main">
+    <h1>{{ title }}</h1>
+    
+    <div class="module">
+        <div class="form-row">
+            <div class="field-box">
+                <label>Current Stock:</label>
+                <div class="readonly">{{ inventory.quantity }} units</div>
+            </div>
+        </div>
+        
+        <form method="post">
+            {% csrf_token %}
+            <div class="form-row">
+                <label for="quantity">New Quantity:</label>
+                <input type="number" name="quantity" id="quantity" min="0" value="{{ inventory.quantity }}" required>
+            </div>
+            
+            <div class="form-row">
+                <label for="note">Adjustment Note:</label>
+                <textarea name="note" id="note" rows="3" placeholder="Reason for adjustment..."></textarea>
+            </div>
+            
+            <div class="submit-row">
+                <input type="submit" value="Update Stock" class="default" style="background: #f39c12;">
+                <a href="{% url 'admin:inventory_inventory_changelist' %}" class="button">Cancel</a>
+            </div>
+        </form>
+    </div>
+</div>
+{% endblock %}

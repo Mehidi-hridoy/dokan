@@ -1,8 +1,10 @@
+
 from django.contrib import admin
 from django.utils.html import format_html
 from django.contrib import messages
-from django.http import HttpResponseRedirect
-from django.urls import reverse
+from django.http import HttpResponseRedirect, JsonResponse
+from django.urls import path, reverse
+from django.shortcuts import render, redirect
 from django.db.models import Sum, Q
 from django.utils import timezone
 from .models import Inventory, StockMovement, StockAlert
@@ -106,6 +108,24 @@ class InventoryAdmin(admin.ModelAdmin):
     def get_queryset(self, request):
         return super().get_queryset(request).select_related('product')
     
+    def get_urls(self):
+        urls = super().get_urls()
+        custom_urls = [
+            path('<int:inventory_id>/add-stock/', 
+                 self.admin_site.admin_view(self.add_stock_view),
+                 name='inventory_add_stock'),
+            path('<int:inventory_id>/adjust-stock/', 
+                 self.admin_site.admin_view(self.adjust_stock_view),
+                 name='inventory_adjust_stock'),
+            path('<int:inventory_id>/quick-restock/', 
+                 self.admin_site.admin_view(self.quick_restock),
+                 name='inventory_quick_restock'),
+            path('bulk-add-stock/', 
+                 self.admin_site.admin_view(self.bulk_add_stock_view),
+                 name='inventory_bulk_add_stock'),
+        ]
+        return custom_urls + urls
+    
     def get_readonly_fields(self, request, obj=None):
         """Make quantity fields read-only for out of stock items for non-superusers"""
         readonly_fields = list(super().get_readonly_fields(request, obj))
@@ -144,9 +164,6 @@ class InventoryAdmin(admin.ModelAdmin):
         product = obj.product
         image_url = product.products_image.url if product.products_image else '/static/admin/img/icon-image.svg'
         
-        # Add superuser badge if applicable
-        superuser_badge = ""
-        
         return format_html(
             '''
             <div class="inventory-card" style="display: flex; align-items: center; gap: 12px; padding: 8px 0;">
@@ -157,9 +174,8 @@ class InventoryAdmin(admin.ModelAdmin):
                 <div style="flex-grow: 1; min-width: 0;">
                     <div style="display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 4px;">
                         <strong style="font-size: 14px; color: #333; margin: 0; line-height: 1.3;">
-                            <a href="{edit_url}" style="text-decoration: none; color: white;">{name}</a>
+                            <a href="{edit_url}" style="text-decoration: none; color: inherit;">{name}</a>
                         </strong>
-                        {superuser_badge}
                     </div>
                     <div style="font-size: 12px; color: #666; margin-bottom: 2px;">
                         <strong>Code:</strong> {code}
@@ -174,8 +190,7 @@ class InventoryAdmin(admin.ModelAdmin):
             name=product.products_name,
             edit_url=f'{obj.id}/change/',
             code=product.product_code,
-            category=product.category.name if product.category else 'No Category',
-            superuser_badge=superuser_badge
+            category=product.category.name if product.category else 'No Category'
         )
     product_card.short_description = 'Product'
     
@@ -316,19 +331,32 @@ class InventoryAdmin(admin.ModelAdmin):
                     '''
                     <div class="quick-actions" style="display: flex; flex-direction: column; gap: 4px;">
                         <a href="{edit_url}" class="button" style="padding: 4px 8px; background: #3498db; color: white; 
-                           text-decoration: none; border-radius: 4px; font-size: 11px; text-align: center;">View</a>
+                           text-decoration: none; border-radius: 4px; font-size: 11px; text-align: center; display: block;">
+                            ✏️ Edit
+                        </a>
                         
                         <div style="padding: 4px 8px; background: #95a5a6; color: white; 
-                             border-radius: 4px; font-size: 9px; text-align: center; cursor: not-allowed;">
-                            ❌ Restricted
+                             border-radius: 4px; font-size: 9px; text-align: center; cursor: not-allowed; opacity: 0.6;">
+                            📥 Add Stock
                         </div>
                         
-                        <div style="font-size: 8px; color: #e74c3c; text-align: center; font-weight: bold;">
+                        <div style="padding: 4px 8px; background: #95a5a6; color: white; 
+                             border-radius: 4px; font-size: 9px; text-align: center; cursor: not-allowed; opacity: 0.6;">
+                            🔧 Adjust
+                        </div>
+                        
+                        <a href="{movements_url}" class="button" style="padding: 4px 8px; background: #9b59b6; color: white; 
+                           text-decoration: none; border-radius: 4px; font-size: 11px; text-align: center; display: block;">
+                            📊 Movements
+                        </a>
+                        
+                        <div style="font-size: 8px; color: #e74c3c; text-align: center; font-weight: bold; margin-top: 2px;">
                             SUPERUSER ONLY
                         </div>
                     </div>
                     ''',
-                    edit_url=f'{obj.id}/change/'
+                    edit_url=f'{obj.id}/change/',
+                    movements_url=f'/admin/inventory/stockmovement/?inventory__id__exact={obj.id}'
                 )
             else:
                 # Superusers can restock out of stock items
@@ -336,28 +364,40 @@ class InventoryAdmin(admin.ModelAdmin):
                     '''
                     <div class="quick-actions" style="display: flex; flex-direction: column; gap: 4px;">
                         <a href="{edit_url}" class="button" style="padding: 4px 8px; background: #3498db; color: white; 
-                           text-decoration: none; border-radius: 4px; font-size: 11px; text-align: center;">Edit</a>
+                           text-decoration: none; border-radius: 4px; font-size: 11px; text-align: center; display: block;">
+                            ✏️ Edit
+                        </a>
                         
-                        <button type="button" onclick="handleInventoryAction({inventory_id}, 'restock')" 
-                                style="padding: 4px 8px; background: #27ae60; color: white; border: none; 
-                                border-radius: 4px; font-size: 11px; cursor: pointer;">
-                            🔧 Restock
+                        <a href="{add_stock_url}" class="button" style="padding: 4px 8px; background: #27ae60; color: white; 
+                           text-decoration: none; border-radius: 4px; font-size: 11px; text-align: center; display: block;">
+                            📥 Add Stock
+                        </a>
+                        
+                        <a href="{adjust_stock_url}" class="button" style="padding: 4px 8px; background: #f39c12; color: white; 
+                           text-decoration: none; border-radius: 4px; font-size: 11px; text-align: center; display: block;">
+                            🔧 Adjust
+                        </a>
+                        
+                        <a href="{movements_url}" class="button" style="padding: 4px 8px; background: #9b59b6; color: white; 
+                           text-decoration: none; border-radius: 4px; font-size: 11px; text-align: center; display: block;">
+                            📊 Movements
+                        </a>
+                        
+                        <button type="button" onclick="quickRestock({inventory_id})" 
+                                style="padding: 4px 8px; background: #e67e22; color: white; border: none; 
+                                border-radius: 4px; font-size: 11px; cursor: pointer; margin-top: 2px;">
+                            🚀 Quick Restock
                         </button>
                         
-                        <div style="font-size: 8px; color: #f39c12; text-align: center; font-weight: bold;">
+                        <div style="font-size: 8px; color: #f39c12; text-align: center; font-weight: bold; margin-top: 2px;">
                             SUPERUSER MODE
                         </div>
                     </div>
-                    
-                    <script>
-                    function handleInventoryAction(inventoryId, action) {{
-                        if (action === 'restock') {{
-                            window.location.href = `/admin/inventory/inventory/${{inventoryId}}/restock/`;
-                        }}
-                    }}
-                    </script>
                     ''',
                     edit_url=f'{obj.id}/change/',
+                    add_stock_url=f'/admin/inventory/inventory/{obj.id}/add-stock/',
+                    adjust_stock_url=f'/admin/inventory/inventory/{obj.id}/adjust-stock/',
+                    movements_url=f'/admin/inventory/stockmovement/?inventory__id__exact={obj.id}',
                     inventory_id=obj.id
                 )
         else:
@@ -366,49 +406,65 @@ class InventoryAdmin(admin.ModelAdmin):
                 '''
                 <div class="quick-actions" style="display: flex; flex-direction: column; gap: 4px;">
                     <a href="{edit_url}" class="button" style="padding: 4px 8px; background: #3498db; color: white; 
-                       text-decoration: none; border-radius: 4px; font-size: 11px; text-align: center;">Edit</a>
+                       text-decoration: none; border-radius: 4px; font-size: 11px; text-align: center; display: block;">
+                        ✏️ Edit
+                    </a>
                     
-                    <button type="button" onclick="handleInventoryAction({inventory_id}, 'add_stock')" 
-                            style="padding: 4px 8px; background: #27ae60; color: white; border: none; 
-                            border-radius: 4px; font-size: 11px; cursor: pointer;">
-                        Add Stock
-                    </button>
+                    <a href="{add_stock_url}" class="button" style="padding: 4px 8px; background: #27ae60; color: white; 
+                       text-decoration: none; border-radius: 4px; font-size: 11px; text-align: center; display: block;">
+                        📥 Add Stock
+                    </a>
                     
-                    <button type="button" onclick="handleInventoryAction({inventory_id}, 'adjust_stock')" 
-                            style="padding: 4px 8px; background: #f39c12; color: white; border: none; 
-                            border-radius: 4px; font-size: 11px; cursor: pointer;">
-                        Adjust
-                    </button>
+                    <a href="{adjust_stock_url}" class="button" style="padding: 4px 8px; background: #f39c12; color: white; 
+                       text-decoration: none; border-radius: 4px; font-size: 11px; text-align: center; display: block;">
+                        🔧 Adjust
+                    </a>
                     
-                    <button type="button" onclick="handleInventoryAction({inventory_id}, 'view_movements')" 
-                            style="padding: 4px 8px; background: #9b59b6; color: white; border: none; 
-                            border-radius: 4px; font-size: 11px; cursor: pointer;">
-                        Movements
+                    <a href="{movements_url}" class="button" style="padding: 4px 8px; background: #9b59b6; color: white; 
+                       text-decoration: none; border-radius: 4px; font-size: 11px; text-align: center; display: block;">
+                        📊 Movements
+                    </a>
+                    
+                    <button type="button" onclick="quickRestock({inventory_id})" 
+                            style="padding: 4px 8px; background: #e67e22; color: white; border: none; 
+                            border-radius: 4px; font-size: 11px; cursor: pointer; margin-top: 2px;">
+                        🚀 Quick Restock +10
                     </button>
                 </div>
                 
                 <script>
-                function handleInventoryAction(inventoryId, action) {{
-                    if (action === 'add_stock') {{
-                        window.location.href = `/admin/inventory/inventory/${{inventoryId}}/add-stock/`;
-                    }} else if (action === 'adjust_stock') {{
-                        window.location.href = `/admin/inventory/inventory/${{inventoryId}}/adjust-stock/`;
-                    }} else if (action === 'view_movements') {{
-                        window.location.href = `/admin/inventory/stockmovement/?inventory__id__exact=${{inventoryId}}`;
+                function quickRestock(inventoryId) {{
+                    if (confirm('Quick restock: Add 10 units to this inventory?')) {{
+                        fetch(`/admin/inventory/inventory/${{inventoryId}}/quick-restock/`, {{
+                            method: 'POST',
+                            headers: {{
+                                'X-CSRFToken': document.querySelector('[name=csrfmiddlewaretoken]').value,
+                                'Content-Type': 'application/json',
+                            }},
+                        }})
+                        .then(response => response.json())
+                        .then(data => {{
+                            if (data.success) {{
+                                window.location.reload();
+                            }} else {{
+                                alert('Error: ' + data.error);
+                            }}
+                        }});
                     }}
                 }}
                 </script>
                 ''',
                 edit_url=f'{obj.id}/change/',
+                add_stock_url=f'/admin/inventory/inventory/{obj.id}/add-stock/',
+                adjust_stock_url=f'/admin/inventory/inventory/{obj.id}/adjust-stock/',
+                movements_url=f'/admin/inventory/stockmovement/?inventory__id__exact={obj.id}',
                 inventory_id=obj.id
             )
     quick_actions.short_description = 'Actions'
     
     def user_is_superuser(self):
         """Check if current user is superuser"""
-        from django.contrib.auth import get_user_model
-        User = get_user_model()
-        return self.request.user.is_superuser
+        return hasattr(self, 'request') and self.request.user.is_superuser
     
     def changelist_view(self, request, extra_context=None):
         """Store request in instance for use in other methods"""
@@ -419,6 +475,125 @@ class InventoryAdmin(admin.ModelAdmin):
         """Store request in instance for use in other methods"""
         self.request = request
         return super().changeform_view(request, object_id, form_url, extra_context=extra_context)
+    
+    # Custom URL handlers for button actions
+    def add_stock_view(self, request, inventory_id):
+        """Handle Add Stock button click"""
+        inventory = self.get_object(request, inventory_id)
+        
+        if request.method == 'POST':
+            quantity = int(request.POST.get('quantity', 0))
+            if quantity > 0:
+                inventory.add_stock(quantity)
+                StockMovement.objects.create(
+                    inventory=inventory,
+                    movement_type='in',
+                    quantity=quantity,
+                    previous_quantity=inventory.quantity - quantity,
+                    new_quantity=inventory.quantity,
+                    reference='Manual Stock Add',
+                    note=f'Added {quantity} units via Add Stock button',
+                    created_by=request.user
+                )
+                messages.success(request, f'✅ Added {quantity} units to {inventory.product.products_name}')
+                return redirect(reverse('admin:inventory_inventory_changelist'))
+        
+        return render(request, 'inventory/add_stock.html', {
+            'inventory': inventory,
+            'title': f'Add Stock - {inventory.product.products_name}'
+        })
+    
+    def adjust_stock_view(self, request, inventory_id):
+        """Handle Adjust Stock button click"""
+        inventory = self.get_object(request, inventory_id)
+        
+        if request.method == 'POST':
+            new_quantity = int(request.POST.get('quantity', inventory.quantity))
+            adjustment_note = request.POST.get('note', '')
+            
+            if new_quantity >= 0:
+                old_quantity = inventory.quantity
+                inventory.quantity = new_quantity
+                inventory.save()
+                
+                quantity_change = new_quantity - old_quantity
+                StockMovement.objects.create(
+                    inventory=inventory,
+                    movement_type='adjustment',
+                    quantity=quantity_change,
+                    previous_quantity=old_quantity,
+                    new_quantity=new_quantity,
+                    reference='Manual Adjustment',
+                    note=f'Stock adjusted from {old_quantity} to {new_quantity}. {adjustment_note}',
+                    created_by=request.user
+                )
+                messages.success(request, f'✅ Stock adjusted to {new_quantity} units for {inventory.product.products_name}')
+                return redirect(reverse('admin:inventory_inventory_changelist'))
+        
+        return render(request, 'inventory/adjust_stock.html', {
+            'inventory': inventory,
+            'title': f'Adjust Stock - {inventory.product.products_name}'
+        })
+    
+    def quick_restock(self, request, inventory_id):
+        """Handle Quick Restock button click (AJAX)"""
+        if request.method == 'POST':
+            try:
+                inventory = Inventory.objects.get(id=inventory_id)
+                restock_quantity = 10  # Default quick restock quantity
+
+                # ✅ DO NOT call inventory.add_stock() here
+                stock_movement = StockMovement.objects.create(
+                    inventory=inventory,
+                    movement_type='in',
+                    quantity=restock_quantity,
+                    reference='Quick Restock',
+                    note=f'Quick restock: Added {restock_quantity} units via button',
+                    created_by=request.user
+                )
+
+                return JsonResponse({
+                    'success': True,
+                    'message': f'Quick restock: Added {restock_quantity} units',
+                    'new_quantity': stock_movement.new_quantity
+                })
+            except Inventory.DoesNotExist:
+                return JsonResponse({'success': False, 'error': 'Inventory not found'})
+            except Exception as e:
+                return JsonResponse({'success': False, 'error': str(e)})
+
+    def bulk_add_stock_view(self, request):
+        """Handle bulk add stock for multiple items"""
+        if request.method == 'POST':
+            inventory_ids = request.POST.getlist('inventory_ids')
+            quantity = int(request.POST.get('quantity', 0))
+            
+            if inventory_ids and quantity > 0:
+                inventories = Inventory.objects.filter(id__in=inventory_ids)
+                for inventory in inventories:
+                    inventory.add_stock(quantity)
+                    StockMovement.objects.create(
+                        inventory=inventory,
+                        movement_type='in',
+                        quantity=quantity,
+                        previous_quantity=inventory.quantity - quantity,
+                        new_quantity=inventory.quantity,
+                        reference='Bulk Stock Add',
+                        note=f'Added {quantity} units via bulk action',
+                        created_by=request.user
+                    )
+                
+                messages.success(request, f'✅ Added {quantity} units to {inventories.count()} items')
+                return redirect(reverse('admin:inventory_inventory_changelist'))
+        
+        # Get selected inventory items from GET parameters
+        inventory_ids = request.GET.get('ids', '').split(',')
+        inventories = Inventory.objects.filter(id__in=[id for id in inventory_ids if id])
+        
+        return render(request, 'admin/inventory/bulk_add_stock.html', {
+            'inventories': inventories,
+            'title': 'Bulk Add Stock'
+        })
     
     # Custom methods for calculations
     def total_stock_in(self, obj):
@@ -434,181 +609,10 @@ class InventoryAdmin(admin.ModelAdmin):
         ).aggregate(total=Sum('quantity'))['total'] or 0
         return abs(result)  # Return positive value for display
     total_stock_out.short_description = "Total Stock Out"
-    
-    # Custom Actions with Stock Validation and User Permissions
-    def restock_inventory(self, request, queryset):
-        """Restock selected inventory items - superuser only for out of stock"""
-        # Check if user is superuser when dealing with out of stock items
-        out_of_stock_items = queryset.filter(is_stock_out=True)
-        in_stock_items = queryset.filter(is_stock_out=False)
-        
-        if out_of_stock_items.exists() and not request.user.is_superuser:
-            self.message_user(
-                request, 
-                "❌ Permission denied: Only superusers can restock out of stock items.", 
-                messages.ERROR
-            )
-            # Only proceed with in-stock items for non-superusers
-            queryset = in_stock_items
-        
-        if not queryset.exists():
-            self.message_user(
-                request, 
-                "No items available for restocking with your permissions.", 
-                messages.WARNING
-            )
-            return
-        
-        if 'apply' in request.POST:
-            restock_quantity = int(request.POST.get('restock_quantity', 0))
-            if restock_quantity > 0:
-                for inventory in queryset:
-                    inventory.add_stock(restock_quantity)
-                    # Create stock movement
-                    StockMovement.objects.create(
-                        inventory=inventory,
-                        movement_type='in',
-                        quantity=restock_quantity,
-                        previous_quantity=inventory.quantity - restock_quantity,
-                        new_quantity=inventory.quantity,
-                        reference='Bulk Restock',
-                        note=f'Restocked {restock_quantity} units via admin by {request.user}',
-                        created_by=request.user
-                    )
-                
-                self.message_user(
-                    request, 
-                    f'✅ Restocked {queryset.count()} items with {restock_quantity} units each.', 
-                    messages.SUCCESS
-                )
-                return redirect(request.get_full_path())
-        
-        return render(request, 'admin/inventory/restock_inventory.html', {
-            'inventories': queryset,
-            'is_superuser': request.user.is_superuser,
-            'action': 'restock_inventory'
-        })
-    restock_inventory.short_description = "Restock inventory items"
-    
-    def adjust_low_stock_threshold(self, request, queryset):
-        """Adjust low stock threshold for selected items"""
-        if 'apply' in request.POST:
-            new_threshold = int(request.POST.get('threshold', 5))
-            if new_threshold >= 0:
-                updated = queryset.update(low_stock_threshold=new_threshold)
-                self.message_user(
-                    request, 
-                    f'✅ Updated low stock threshold to {new_threshold} for {updated} items.', 
-                    messages.SUCCESS
-                )
-                return redirect(request.get_full_path())
-        
-        return render(request, 'admin/inventory/adjust_threshold.html', {
-            'inventories': queryset,
-            'action': 'adjust_low_stock_threshold'
-        })
-    adjust_low_stock_threshold.short_description = "Adjust low stock threshold"
-    
-    def clear_reserved_quantities(self, request, queryset):
-        """Clear reserved quantities for selected items"""
-        # Only allow for items that are not out of stock for non-superusers
-        if not request.user.is_superuser:
-            valid_items = queryset.filter(quantity__gt=0)
-            if valid_items.count() != queryset.count():
-                self.message_user(
-                    request,
-                    "⚠️ Some items skipped: Only superusers can clear reservations for out of stock items.",
-                    messages.WARNING
-                )
-        else:
-            valid_items = queryset
-        
-        updated = valid_items.update(reserved_quantity=0)
-        self.message_user(
-            request,
-            f'✅ Cleared reserved quantities for {updated} items.',
-            messages.SUCCESS
-        )
-    clear_reserved_quantities.short_description = "Clear reserved quantities"
-    
-    def generate_stock_alerts(self, request, queryset):
-        """Generate stock alerts for selected items"""
-        alerts_created = 0
-        
-        for inventory in queryset:
-            if inventory.is_stock_out and not inventory.stockalert_set.filter(
-                alert_type='out_of_stock', status='active'
-            ).exists():
-                StockAlert.objects.create(
-                    inventory=inventory,
-                    alert_type='out_of_stock',
-                    message=f'{inventory.product.products_name} is out of stock.',
-                    status='active'
-                )
-                alerts_created += 1
-            elif inventory.is_low_stock and not inventory.stockalert_set.filter(
-                alert_type='low_stock', status='active'
-            ).exists():
-                StockAlert.objects.create(
-                    inventory=inventory,
-                    alert_type='low_stock',
-                    message=f'{inventory.product.products_name} is low on stock ({inventory.quantity} units).',
-                    status='active'
-                )
-                alerts_created += 1
-        
-        self.message_user(
-            request,
-            f'✅ Generated {alerts_created} stock alerts.',
-            messages.SUCCESS
-        )
-    generate_stock_alerts.short_description = "Generate stock alerts"
-    
-    # Override save method to enforce superuser restrictions
-    def save_model(self, request, obj, form, change):
-        """Prevent saving invalid inventory states and enforce superuser restrictions"""
-        if change:
-            original = Inventory.objects.get(pk=obj.pk)
-            
-            # Check if trying to modify out of stock item as non-superuser
-            if original.is_stock_out and not request.user.is_superuser:
-                self.message_user(
-                    request,
-                    "❌ Permission denied: Only superusers can modify out of stock items.",
-                    messages.ERROR
-                )
-                return
-            
-            # Prevent reducing quantity below reserved
-            if obj.quantity < original.reserved_quantity:
-                self.message_user(
-                    request,
-                    f"❌ Cannot set quantity below reserved quantity ({original.reserved_quantity}).",
-                    messages.ERROR
-                )
-                return
-        
-        super().save_model(request, obj, form, change)
-        
-        # Create stock movement if quantity changed
-        if change and 'quantity' in form.changed_data:
-            original = Inventory.objects.get(pk=obj.pk)
-            quantity_change = obj.quantity - original.quantity
-            
-            if quantity_change != 0:
-                movement_type = 'adjustment'
-                StockMovement.objects.create(
-                    inventory=obj,
-                    movement_type=movement_type,
-                    quantity=quantity_change,
-                    previous_quantity=original.quantity,
-                    new_quantity=obj.quantity,
-                    reference='Manual Adjustment',
-                    note=f'Quantity adjusted via admin by {request.user}',
-                    created_by=request.user
-                )
 
 # ... (Keep the StockMovementAdmin and StockAlertAdmin classes from previous implementation)
+
+
 
 @admin.register(StockMovement)
 class StockMovementAdmin(admin.ModelAdmin):
