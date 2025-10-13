@@ -19,6 +19,9 @@ from django.http import JsonResponse
 from django.db.models.signals import post_save
 from django.dispatch import receiver
 
+# analytics/views.py
+from django.db.models import Sum, Count, Q
+from .models import Customer, FinancialRecord, Expense, DamageReport
 
 class DateFilterForm(forms.Form):
     period = forms.ChoiceField(
@@ -273,24 +276,31 @@ def handle_guest_checkout(order_data):
         return customer
     return None
 
+
+
 @receiver(post_save, sender=Order)
 def update_customer_on_order_save(sender, instance, **kwargs):
     """
-    Update customer statistics when an order is saved
+    Update customer statistics when an order is saved.
+    If no linked customer exists, try to find or create a guest customer.
     """
     if instance.customer:
+        # Update existing customer's stats
         instance.customer.update_customer_stats()
-    
-    # If no customer linked but we have customer info, try to find/create one
-    elif not instance.customer and instance.email and instance.phone_number:
-        customer, created = Customer.objects.get_or_create_guest_customer(
+    elif instance.email and instance.phone_number:
+        # Try to get or create a guest customer
+        customer, created = Customer.objects.get_or_create(
             email=instance.email,
-            phone=instance.phone_number,
-            name=instance.customer_name
+            defaults={
+                'phone': instance.phone_number,
+                'name': instance.customer_name or "Guest Customer",
+                'is_guest': True
+            }
         )
         instance.customer = customer
         instance.save(update_fields=['customer'])
-        
+
+
 # API view for customer search (for AJAX requests)
 @login_required
 def customer_search_api(request):
@@ -318,3 +328,70 @@ def customer_search_api(request):
         return JsonResponse({'results': results})
     
     return JsonResponse({'results': []})
+
+
+
+@login_required
+def financial_dashboard(request):
+    """Comprehensive financial dashboard"""
+    # Get time period from request or default to 30 days
+    period_days = int(request.GET.get('period', 30))
+    
+    # Get financial overview
+    financial_overview = Customer.objects.get_financial_overview(period_days)
+    
+    # Get additional analytics
+    sales_analytics = Customer.objects.get_sales_analytics(period_days)
+    expense_analytics = Customer.objects.get_expense_analytics(period_days)
+    
+    # Recent transactions
+    recent_transactions = FinancialRecord.objects.all().order_by('-date')[:10]
+    
+    # Recent damages
+    recent_damages = DamageReport.objects.filter(resolved=False).order_by('-date_reported')[:5]
+    
+    # Top expenses
+    top_expenses = Expense.objects.all().order_by('-date')[:5]
+    
+    context = {
+        'financial_overview': financial_overview,
+        'sales_analytics': sales_analytics,
+        'expense_analytics': expense_analytics,
+        'recent_transactions': recent_transactions,
+        'recent_damages': recent_damages,
+        'top_expenses': top_expenses,
+        'period_days': period_days,
+        'period_options': [7, 30, 90, 365],
+    }
+    
+    return render(request, 'analytics/financial_dashboard.html', context)
+
+@login_required
+def sales_analytics_detail(request):
+    """Detailed sales analytics view"""
+    period_days = int(request.GET.get('period', 30))
+    
+    sales_data = Customer.objects.get_sales_analytics(period_days)
+    
+    context = {
+        'sales_data': sales_data,
+        'period_days': period_days,
+        'period_options': [7, 30, 90, 365],
+    }
+    
+    return render(request, 'analytics/sales_analytics.html', context)
+
+@login_required
+def expense_analytics_detail(request):
+    """Detailed expense analytics view"""
+    period_days = int(request.GET.get('period', 30))
+    
+    expense_data = Customer.objects.get_expense_analytics(period_days)
+    
+    context = {
+        'expense_data': expense_data,
+        'period_days': period_days,
+        'period_options': [7, 30, 90, 365],
+    }
+    
+    return render(request, 'analytics/expense_analytics.html', context)

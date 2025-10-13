@@ -5,7 +5,7 @@ python manage.py migrate
 python manage.py runserver
 
 git add .
-git commit -m "Admin dasbaord updated  with adjust "
+git commit -m "Dasbaord updated  with adjust "
 git push -u origin main
 python manage.py runserver
 

@@ -1,0 +1,313 @@
+<!-- templates/analytics/financial_dashboard.html -->
+{% extends 'base.html' %}
+{% load static %}
+
+{% block title %}Financial Analytics - {{ block.super }}{% endblock %}
+
+{% block content %}
+<div class="container-fluid py-4">
+    <!-- Header -->
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <div>
+            <h1 class="h3 mb-0">Financial Overview</h1>
+            <p class="text-muted mb-0">Track your financial health at a glance</p>
+        </div>
+        <div class="d-flex gap-2">
+            <select class="form-select" id="periodSelect" onchange="updatePeriod(this.value)">
+                {% for option in period_options %}
+                <option value="{{ option }}" {% if option == period_days %}selected{% endif %}>
+                    Last {{ option }} days
+                </option>
+                {% endfor %}
+            </select>
+            <button class="btn btn-outline-primary">
+                <i class="fas fa-download me-2"></i>Export
+            </button>
+        </div>
+    </div>
+
+    <!-- Financial Overview Cards -->
+    <div class="row mb-4">
+        <!-- Total Income -->
+        <div class="col-xl-3 col-md-6 mb-4">
+            <div class="card border-left-primary shadow h-100 py-2">
+                <div class="card-body">
+                    <div class="row no-gutters align-items-center">
+                        <div class="col mr-2">
+                            <div class="text-xs font-weight-bold text-primary text-uppercase mb-1">
+                                Total Income
+                            </div>
+                            <div class="h5 mb-0 font-weight-bold text-gray-800">
+                                ৳{{ financial_overview.total_income.amount|floatformat:2 }}
+                            </div>
+                            <div class="mt-2 mb-0 text-muted text-xs">
+                                <span class="{% if financial_overview.total_income.change >= 0 %}text-success{% else %}text-danger{% endif %}">
+                                    <i class="fas fa-chevron-{% if financial_overview.total_income.change >= 0 %}up{% else %}down{% endif %} me-1"></i>
+                                    {{ financial_overview.total_income.change|floatformat:2 }}% vs previous period
+                                </span>
+                            </div>
+                        </div>
+                        <div class="col-auto">
+                            <i class="fas fa-dollar-sign fa-2x text-gray-300"></i>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Total Expenses -->
+        <div class="col-xl-3 col-md-6 mb-4">
+            <div class="card border-left-danger shadow h-100 py-2">
+                <div class="card-body">
+                    <div class="row no-gutters align-items-center">
+                        <div class="col mr-2">
+                            <div class="text-xs font-weight-bold text-danger text-uppercase mb-1">
+                                Total Expenses
+                            </div>
+                            <div class="h5 mb-0 font-weight-bold text-gray-800">
+                                ৳{{ financial_overview.total_expenses.amount|floatformat:2 }}
+                            </div>
+                            <div class="mt-2 mb-0 text-muted text-xs">
+                                <span class="{% if financial_overview.total_expenses.change <= 0 %}text-success{% else %}text-danger{% endif %}">
+                                    <i class="fas fa-chevron-{% if financial_overview.total_expenses.change <= 0 %}down{% else %}up{% endif %} me-1"></i>
+                                    {{ financial_overview.total_expenses.change|floatformat:2 }}% vs previous period
+                                </span>
+                            </div>
+                            <div class="text-xs text-muted">
+                                Operational: ৳{{ financial_overview.total_expenses.breakdown.operational|floatformat:2 }} | 
+                                Damages: ৳{{ financial_overview.total_expenses.breakdown.damages|floatformat:2 }}
+                            </div>
+                        </div>
+                        <div class="col-auto">
+                            <i class="fas fa-receipt fa-2x text-gray-300"></i>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Net Balance -->
+        <div class="col-xl-3 col-md-6 mb-4">
+            <div class="card border-left-success shadow h-100 py-2">
+                <div class="card-body">
+                    <div class="row no-gutters align-items-center">
+                        <div class="col mr-2">
+                            <div class="text-xs font-weight-bold text-success text-uppercase mb-1">
+                                Net Balance
+                            </div>
+                            <div class="h5 mb-0 font-weight-bold text-gray-800">
+                                ৳{{ financial_overview.net_balance.amount|floatformat:2 }}
+                            </div>
+                            <div class="mt-2 mb-0 text-muted text-xs">
+                                <span class="{% if financial_overview.net_balance.change >= 0 %}text-success{% else %}text-danger{% endif %}">
+                                    <i class="fas fa-chevron-{% if financial_overview.net_balance.change >= 0 %}up{% else %}down{% endif %} me-1"></i>
+                                    {{ financial_overview.net_balance.change|floatformat:2 }}% vs previous period
+                                </span>
+                            </div>
+                        </div>
+                        <div class="col-auto">
+                            <i class="fas fa-balance-scale fa-2x text-gray-300"></i>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Savings Rate -->
+        <div class="col-xl-3 col-md-6 mb-4">
+            <div class="card border-left-info shadow h-100 py-2">
+                <div class="card-body">
+                    <div class="row no-gutters align-items-center">
+                        <div class="col mr-2">
+                            <div class="text-xs font-weight-bold text-info text-uppercase mb-1">
+                                Savings Rate
+                            </div>
+                            <div class="h5 mb-0 font-weight-bold text-gray-800">
+                                {{ financial_overview.savings_rate.amount|floatformat:1 }}%
+                            </div>
+                            <div class="mt-2 mb-0 text-muted text-xs">
+                                <span class="{% if financial_overview.savings_rate.change >= 0 %}text-success{% else %}text-danger{% endif %}">
+                                    <i class="fas fa-chevron-{% if financial_overview.savings_rate.change >= 0 %}up{% else %}down{% endif %} me-1"></i>
+                                    {{ financial_overview.savings_rate.change|floatformat:2 }}% vs previous period
+                                </span>
+                            </div>
+                        </div>
+                        <div class="col-auto">
+                            <i class="fas fa-percentage fa-2x text-gray-300"></i>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Charts and Detailed Analytics -->
+    <div class="row">
+        <!-- Sales Overview -->
+        <div class="col-xl-8 col-lg-7">
+            <div class="card shadow mb-4">
+                <div class="card-header py-3 d-flex flex-row align-items-center justify-content-between">
+                    <h6 class="m-0 font-weight-bold text-primary">Sales Overview</h6>
+                    <a href="{% url 'analytics:sales_analytics' %}?period={{ period_days }}" class="btn btn-sm btn-primary">View Details</a>
+                </div>
+                <div class="card-body">
+                    <div class="row">
+                        <div class="col-md-3">
+                            <div class="text-center">
+                                <div class="h5 text-primary">{{ sales_analytics.orders.total_orders }}</div>
+                                <div class="text-xs text-muted">Total Orders</div>
+                            </div>
+                        </div>
+                        <div class="col-md-3">
+                            <div class="text-center">
+                                <div class="h5 text-success">{{ sales_analytics.orders.completed_orders }}</div>
+                                <div class="text-xs text-muted">Completed Orders</div>
+                            </div>
+                        </div>
+                        <div class="col-md-3">
+                            <div class="text-center">
+                                <div class="h5 text-info">৳{{ sales_analytics.orders.avg_order_value|default:0|floatformat:2 }}</div>
+                                <div class="text-xs text-muted">Avg Order Value</div>
+                            </div>
+                        </div>
+                        <div class="col-md-3">
+                            <div class="text-center">
+                                <div class="h5 text-warning">{{ sales_analytics.orders.total_revenue|default:0|floatformat:2 }}</div>
+                                <div class="text-xs text-muted">Total Revenue</div>
+                            </div>
+                        </div>
+                    </div>
+                    <!-- Simple chart placeholder -->
+                    <div class="mt-4 text-center text-muted">
+                        <i class="fas fa-chart-line fa-3x mb-2"></i>
+                        <p>Sales trend chart would be displayed here</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Expense Breakdown -->
+        <div class="col-xl-4 col-lg-5">
+            <div class="card shadow mb-4">
+                <div class="card-header py-3 d-flex flex-row align-items-center justify-content-between">
+                    <h6 class="m-0 font-weight-bold text-danger">Expense Breakdown</h6>
+                    <a href="{% url 'analytics:expense_analytics' %}?period={{ period_days }}" class="btn btn-sm btn-danger">View Details</a>
+                </div>
+                <div class="card-body">
+                    {% for category in expense_analytics.expenses_by_category %}
+                    <div class="mb-3">
+                        <div class="d-flex justify-content-between">
+                            <span class="text-xs">{{ category.category__name }}</span>
+                            <span class="text-xs font-weight-bold">৳{{ category.total|floatformat:2 }}</span>
+                        </div>
+                        <div class="progress progress-sm">
+                            <div class="progress-bar" style="width: {{ category.total|divisibleby:financial_overview.total_expenses.amount|multiply:100 }}%; background-color: {{ category.category__color }}"></div>
+                        </div>
+                    </div>
+                    {% empty %}
+                    <p class="text-muted text-center">No expenses recorded</p>
+                    {% endfor %}
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Recent Activity -->
+    <div class="row">
+        <!-- Recent Transactions -->
+        <div class="col-lg-6">
+            <div class="card shadow mb-4">
+                <div class="card-header py-3">
+                    <h6 class="m-0 font-weight-bold text-primary">Recent Transactions</h6>
+                </div>
+                <div class="card-body">
+                    <div class="table-responsive">
+                        <table class="table table-sm table-hover">
+                            <thead>
+                                <tr>
+                                    <th>Type</th>
+                                    <th>Amount</th>
+                                    <th>Description</th>
+                                    <th>Date</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for transaction in recent_transactions %}
+                                <tr>
+                                    <td>
+                                        <span class="badge badge-{% if transaction.record_type == 'sale' %}success{% elif transaction.record_type == 'expense' %}danger{% else %}warning{% endif %}">
+                                            {{ transaction.get_record_type_display }}
+                                        </span>
+                                    </td>
+                                    <td class="{% if transaction.record_type == 'sale' %}text-success{% else %}text-danger{% endif %}">
+                                        ৳{{ transaction.amount|floatformat:2 }}
+                                    </td>
+                                    <td class="text-truncate" style="max-width: 150px;" title="{{ transaction.description }}">
+                                        {{ transaction.description }}
+                                    </td>
+                                    <td class="text-muted">{{ transaction.date|date:"M d, Y" }}</td>
+                                </tr>
+                                {% empty %}
+                                <tr>
+                                    <td colspan="4" class="text-center text-muted">No recent transactions</td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Recent Damages & Expenses -->
+        <div class="col-lg-6">
+            <div class="card shadow mb-4">
+                <div class="card-header py-3">
+                    <h6 class="m-0 font-weight-bold text-warning">Recent Damages & Expenses</h6>
+                </div>
+                <div class="card-body">
+                    <div class="list-group list-group-flush">
+                        {% for damage in recent_damages %}
+                        <div class="list-group-item">
+                            <div class="d-flex w-100 justify-content-between">
+                                <h6 class="mb-1">{{ damage.product.products_name }}</h6>
+                                <small class="text-danger">-৳{{ damage.cost_amount|floatformat:2 }}</small>
+                            </div>
+                            <p class="mb-1 text-muted">{{ damage.get_damage_type_display }} - {{ damage.quantity }} units</p>
+                            <small>{{ damage.date_reported|date:"M d, Y" }}</small>
+                        </div>
+                        {% endfor %}
+                        
+                        {% for expense in top_expenses %}
+                        <div class="list-group-item">
+                            <div class="d-flex w-100 justify-content-between">
+                                <h6 class="mb-1">{{ expense.category.name }}</h6>
+                                <small class="text-danger">-৳{{ expense.amount|floatformat:2 }}</small>
+                            </div>
+                            <p class="mb-1 text-muted">{{ expense.description }}</p>
+                            <small>{{ expense.date|date:"M d, Y" }}</small>
+                        </div>
+                        {% endfor %}
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+function updatePeriod(days) {
+    const url = new URL(window.location.href);
+    url.searchParams.set('period', days);
+    window.location.href = url.toString();
+}
+
+// Add any chart initialization code here
+document.addEventListener('DOMContentLoaded', function() {
+    // Chart.js initialization would go here
+    console.log('Financial dashboard loaded');
+});
+</script>
+{% endblock %}

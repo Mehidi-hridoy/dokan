@@ -263,7 +263,7 @@ class OrderItem(models.Model):
     def save(self, *args, **kwargs):
         # Capture product information at time of creation
         if not self.pk and self.product:
-            self.product_name = self.product.name
+            self.product_name = self.product.products_name
             self.product_code = self.product.product_code
             self.original_unit_price = self.product.current_price
             

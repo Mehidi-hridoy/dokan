@@ -77,11 +77,6 @@ class Inventory(models.Model):
             return True
         return False
 
-    def release_stock(self, quantity):
-        """Release reserved stock"""
-        self.reserved_quantity = max(0, self.reserved_quantity - quantity)
-        self.save()
-
     def consume_stock(self, quantity):
         """Consume stock (for completed orders)"""
         if self.reserved_quantity >= quantity:
@@ -100,15 +95,13 @@ class StockMovement(models.Model):
     MOVEMENT_TYPES = [
         ('in', 'Stock In'),
         ('out', 'Stock Out'),
-        ('adjustment', 'Adjustment'),
         ('return', 'Return'),
-        ('reserved', 'Reserved'),
-        ('released', 'Released'),
+        ('damged', 'Damaged'),
     ]
     
     inventory = models.ForeignKey(Inventory, on_delete=models.CASCADE, related_name='movements')
     movement_type = models.CharField(max_length=20, choices=MOVEMENT_TYPES)
-    quantity = models.IntegerField(help_text="Positive for in, negative for out")
+    quantity = models.IntegerField(help_text="Positive for in, negative for out or damage")
     reference = models.CharField(max_length=100, blank=True, null=True, help_text="Order number, adjustment reason, etc.")
     note = models.TextField(blank=True, null=True)
     
@@ -128,14 +121,12 @@ class StockMovement(models.Model):
             self.previous_quantity = self.inventory.available_quantity
 
             # Apply stock changes
-            if self.movement_type in ['in', 'return', 'adjustment']:
+            if self.movement_type in ['in', 'return',]:
                 self.inventory.quantity += self.quantity
             elif self.movement_type in ['out']:
                 self.inventory.quantity = max(0, self.inventory.quantity - self.quantity)
-            elif self.movement_type == 'reserved':
-                self.inventory.reserved_quantity += self.quantity
-            elif self.movement_type == 'released':
-                self.inventory.reserved_quantity = max(0, self.inventory.reserved_quantity - self.quantity)
+            elif self.movement_type in ['damged']:
+                self.inventory.quantity = max(0, self.inventory.quantity - self.quantity)
 
             # Save inventory changes
             self.inventory.save()
@@ -147,7 +138,6 @@ class StockMovement(models.Model):
 
     def __str__(self):
         return f"{self.get_movement_type_display()} - {self.quantity} units - {self.inventory.product.products_name}"
-
 
 
 class StockAlert(models.Model):
@@ -186,7 +176,6 @@ class StockAlert(models.Model):
         self.status = 'resolved'
         self.resolved_at = timezone.now()
         self.save()
-
 
 # Signals
 @receiver(post_save, sender='products.Product')
