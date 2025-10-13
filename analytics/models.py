@@ -1,5 +1,5 @@
 from django.db import models
-from django.conf import settings  # Import settings to get AUTH_USER_MODEL
+from django.conf import settings
 from django.db.models import Count, Sum, F, Q, Min
 from datetime import timedelta
 from django.utils import timezone
@@ -13,21 +13,32 @@ class CustomerManager(models.Manager):
         # Total customers (both registered and guest)
         total_customers = self.all().count()
         
-        # New customers (first order in last 30 days)
+        # Get customer type counts based on order ranges
         new_customers = self.filter(
-            first_order_date__gte=thirty_days_ago
-        ).count()
-        
-        # Regular customers (2-5 orders)
-        regular_customers = self.filter(
-            total_orders__gte=2,
+            total_orders__gte=0,
             total_orders__lte=5
         ).count()
         
-        # VIP customers (6+ orders or high spending)
-        vip_customers = self.filter(
-            Q(total_orders__gte=6) | Q(total_spent__gte=1000)
+        regular_customers = self.filter(
+            total_orders__gte=6,
+            total_orders__lte=15
         ).count()
+        
+        vip_customers = self.filter(
+            total_orders__gte=10,
+            total_orders__lte=20
+        ).count()
+        
+        # Customers who qualify for multiple categories (overlap handling)
+        overlap_vip_regular = self.filter(
+            total_orders__gte=10,
+            total_orders__lte=15
+        ).count()
+        
+        # Adjust counts to avoid double counting
+        if overlap_vip_regular > 0:
+            # In case of overlap, prioritize VIP
+            regular_customers -= overlap_vip_regular
         
         # Fraud customers
         fraud_customers = self.filter(is_fraudulent=True).count()
@@ -39,6 +50,18 @@ class CustomerManager(models.Manager):
             'fraud_customers': fraud_customers,
             'total_customers': total_customers
         }
+    
+    def get_customer_type_by_orders(self, order_count):
+        """Determine customer type based on order count"""
+        if 0 <= order_count <= 5:
+            return 'new'
+        elif 6 <= order_count <= 15:
+            return 'regular'
+        elif 10 <= order_count <= 20:
+            return 'vip'
+        else:
+            # For orders above 20, keep as VIP
+            return 'vip'
     
     def get_or_create_guest_customer(self, email, phone, name):
         """Get or create a customer for guest checkout"""
@@ -60,16 +83,17 @@ class CustomerManager(models.Manager):
         return customer, True
 
 class Customer(models.Model):
+    
     CUSTOMER_TYPES = (
-        ('new', 'New Customer'),
-        ('regular', 'Regular Customer'),
-        ('vip', 'VIP Customer'),
+        ('new', 'New Customer (0-5 orders)'),
+        ('regular', 'Regular Customer (6-15 orders)'),
+        ('vip', 'VIP Customer (10-20 orders)'),
         ('fraud', 'Fraud Customer'),
     )
     
-    # Link to User model (optional - for registered users) - FIXED
+    # Link to User model (optional - for registered users)
     user = models.OneToOneField(
-        settings.AUTH_USER_MODEL,  # Use settings.AUTH_USER_MODEL instead of direct User
+        settings.AUTH_USER_MODEL,
         on_delete=models.CASCADE, 
         related_name='customer_profile',
         null=True,
@@ -109,6 +133,8 @@ class Customer(models.Model):
     objects = CustomerManager()
     
     class Meta:
+        verbose_name = "Customers"
+        verbose_name_plural = "Customers List"
         ordering = ['-created_at']
         indexes = [
             models.Index(fields=['email']),
@@ -142,13 +168,8 @@ class Customer(models.Model):
         if last_order:
             self.last_order_date = last_order.created_at
         
-        # Update customer type based on order count and spending
-        if self.total_orders >= 6 or self.total_spent >= 1000:
-            self.customer_type = 'vip'
-        elif self.total_orders >= 2:
-            self.customer_type = 'regular'
-        else:
-            self.customer_type = 'new'
+        # Update customer type based on the new order ranges
+        self.customer_type = Customer.objects.get_customer_type_by_orders(self.total_orders)
             
         self.save()
     
@@ -161,3 +182,16 @@ class Customer(models.Model):
     @property
     def display_name(self):
         return self.name or "Walking Customer"
+    
+    @property
+    def order_range(self):
+        """Return the order range for the customer type"""
+        if self.customer_type == 'new':
+            return "0-5 orders"
+        elif self.customer_type == 'regular':
+            return "6-15 orders"
+        elif self.customer_type == 'vip':
+            return "10-20 orders"
+        else:
+            return "N/A"
+        

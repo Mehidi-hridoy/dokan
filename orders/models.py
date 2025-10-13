@@ -5,37 +5,10 @@ from products.models import Product
 from decimal import Decimal
 from analytics.models import Customer
 from products.models import COLOR_CHOICES, SIZE_CHOICES, WEIGHT_CHOICES
-
-# Custom manager for Order model with useful querysets
-class OrderManager(models.Manager):
-    def confirmed_orders(self):
-        return self.filter(order_status='confirmed')
-    
-    def rejected_orders(self):
-        return self.filter(order_status='rejected')
-    
-    def hold_orders(self):
-        return self.filter(order_status='hold')
-    
-    def pending_orders(self):
-        return self.filter(order_status='pending')
-    
-    def processed_orders(self):
-        return self.filter(order_status='processed')
-    
-    def by_area(self, area):
-        return self.filter(delivery_area=area)
-    
-    def recent_orders(self, days=30):
-        from django.utils import timezone
-        from datetime import timedelta
-        return self.filter(created_at__gte=timezone.now()-timedelta(days=days))
-
-
-from django.db import models
-from django.conf import settings  # Import settings for AUTH_USER_MODEL
+from django.conf import settings
 from django.core.validators import MinValueValidator, MaxValueValidator
-from decimal import Decimal
+from django.db.models.signals import post_save
+from django.dispatch import receiver
 
 class OrderManager(models.Manager):
     def confirmed_orders(self):
@@ -60,10 +33,11 @@ class OrderManager(models.Manager):
         from django.utils import timezone
         from datetime import timedelta
         return self.filter(created_at__gte=timezone.now()-timedelta(days=days))
+    
 
-class Order(models.Model):
     # Order Status Choices
-    ORDER_STATUS_CHOICES = [
+
+ORDER_STATUS_CHOICES = [
         ('confirmed', 'Confirmed'),
         ('rejected', 'Rejected'),
         ('hold', 'On Hold'),
@@ -72,7 +46,7 @@ class Order(models.Model):
     ]
     
     # Courier Status Choices
-    COURIER_STATUS_CHOICES = [
+COURIER_STATUS_CHOICES = [
         ('pending', 'Pending'),
         ('picked_up', 'Picked Up'),
         ('in_transit', 'In Transit'),
@@ -83,7 +57,7 @@ class Order(models.Model):
     ]
     
     # Payment Status Choices
-    PAYMENT_STATUS_CHOICES = [
+PAYMENT_STATUS_CHOICES = [
         ('pending', 'Pending'),
         ('paid', 'Paid'),
         ('failed', 'Failed'),
@@ -91,7 +65,7 @@ class Order(models.Model):
         ('partially_refunded', 'Partially Refunded'),
     ]
     
-    PAYMENT_METHOD_CHOICES = [
+PAYMENT_METHOD_CHOICES = [
         ('cod', 'Cash on Delivery'),
         ('card', 'Credit/Debit Card'),
         ('bank_transfer', 'Bank Transfer'),
@@ -100,7 +74,9 @@ class Order(models.Model):
         ('other', 'Other'),
     ]
 
-    # Basic Information - FIXED: Use settings.AUTH_USER_MODEL
+
+class Order(models.Model):
+    # Basic Information
     user = models.ForeignKey(
         settings.AUTH_USER_MODEL, 
         on_delete=models.CASCADE, 
@@ -109,10 +85,10 @@ class Order(models.Model):
         related_name='orders'
     )
     
-    # Customer relationship - FIXED
+    # Customer relationship - This is the main customer link
     customer = models.ForeignKey(
-        'analytics.Customer',  # Replace 'analytics' with your actual app name
-        on_delete=models.SET_NULL,
+        'analytics.Customer',
+        on_delete=models.CASCADE,  # Changed to CASCADE to maintain data integrity
         null=True,
         blank=True,
         related_name='orders'
@@ -138,8 +114,8 @@ class Order(models.Model):
     discount_amount = models.DecimalField(max_digits=10, decimal_places=2, default=0)
     total = models.DecimalField(max_digits=10, decimal_places=2, default=0)
     
-    # Customer Information (keep as CharField for direct storage)
-    customer_name = models.CharField(max_length=100)
+    # Customer Information (keep as backup if customer is deleted)
+    customer_name = models.CharField(max_length=100, blank=True)
     phone_number = models.CharField(max_length=15, blank=True, null=True)
     email = models.EmailField(blank=True, null=True)
     shipping_address = models.TextField(blank=True, null=True)
@@ -178,7 +154,6 @@ class Order(models.Model):
     delivered_at = models.DateTimeField(blank=True, null=True)
     cancelled_at = models.DateTimeField(blank=True, null=True)
     
-    # Attach the custom manager
     objects = OrderManager()
 
     class Meta:
@@ -190,26 +165,38 @@ class Order(models.Model):
             models.Index(fields=['created_at']),
             models.Index(fields=['delivery_area']),
             models.Index(fields=['assigned_staff']),
-            models.Index(fields=['customer']),  # Add index for customer
+            models.Index(fields=['customer']),
         ]
 
     def save(self, *args, **kwargs):
         if not self.order_number:
             import uuid
-            self.order_number = f"ORD-{uuid.uuid4().hex[:5].upper()}"
+            self.order_number = f"ORD-{uuid.uuid4().hex[:8].upper()}"
         
         if not self.total and self.subtotal:
             self.total = self.subtotal + self.tax_amount + self.shipping_cost - self.discount_amount
         
-        # Auto-populate customer_name, email, phone from Customer if available
-        if self.customer and not self.customer_name:
-            self.customer_name = self.customer.name
-        if self.customer and not self.email:
-            self.email = self.customer.email
-        if self.customer and not self.phone_number:
-            self.phone_number = self.customer.phone
+        # Auto-populate customer information from Customer model if available
+        if self.customer:
+            if not self.customer_name:
+                self.customer_name = self.customer.name
+            if not self.email:
+                self.email = self.customer.email
+            if not self.phone_number:
+                self.phone_number = self.customer.phone
         
         super().save(*args, **kwargs)
+        
+        # Sync order items status when order status changes
+        if 'update_fields' not in kwargs or 'order_status' in kwargs.get('update_fields', []):
+            self.sync_order_items_status()
+
+    def sync_order_items_status(self):
+        """Sync order status to all order items"""
+        self.order_items.all().update(
+            order_status=self.order_status,
+            courier_status=self.courier_status
+        )
 
     def calculate_totals(self):
         """Calculate and update all financial totals based on order items."""
@@ -219,31 +206,51 @@ class Order(models.Model):
         self.save()
         return self.total
 
-    def __str__(self):
-        return f"Order {self.order_number} - {self.customer_name} ({self.get_order_status_display()})"
+    def get_customer_display(self):
+        """Get customer display name with fallback"""
+        if self.customer:
+            return self.customer.display_name
+        return self.customer_name or "Unknown Customer"
 
+    def __str__(self):
+        return f"Order {self.order_number} - {self.get_customer_display()} ({self.get_order_status_display()})"
 
 class OrderItem(models.Model):
-    DELIVERY_STATUS_CHOICES = [
-        ('pending', 'Pending'),
-        ('picked_up', 'Picked Up'),
-        ('in_transit', 'In Transit'),
-        ('out_for_delivery', 'Out for Delivery'),
-        ('delivered', 'Delivered'),
-        ('failed', 'Delivery Failed'),
-        ('returned', 'Returned to Seller'),
-    ]
     order = models.ForeignKey(Order, on_delete=models.CASCADE, related_name='order_items')
-    product = models.ForeignKey(Product, on_delete=models.CASCADE)
+    customer = models.ForeignKey(
+        'analytics.Customer', 
+        on_delete=models.CASCADE, 
+        related_name='order_items',
+        null=True, 
+        blank=True
+    )
+    
+    # Product information (immutable after order creation)
+    product = models.ForeignKey('products.Product', on_delete=models.PROTECT)  # PROTECT to prevent deletion if ordered
+    product_name = models.CharField(max_length=255, blank=True)  # Store product name at time of order
+    product_code = models.CharField(max_length=20, blank=True)  # Store product code at time of order
+    
+    # Pricing (immutable - captured at time of order)
+    unit_price = models.DecimalField(max_digits=10, decimal_places=2, help_text="Price at time of order")
+    original_unit_price = models.DecimalField(max_digits=10, decimal_places=2, help_text="Original product price without promotions")
+    
     quantity = models.PositiveIntegerField(default=1, validators=[MinValueValidator(1)])
-    price = models.DecimalField(max_digits=10, decimal_places=2, default=0)
-
-    # Product variants
-    color = models.CharField(max_length=10,choices=COLOR_CHOICES, blank=True, null=True)
+    
+    # Product variants (captured at time of order)
+    color = models.CharField(max_length=10, choices=COLOR_CHOICES, blank=True, null=True)
     size = models.CharField(max_length=10, choices=SIZE_CHOICES, blank=True, null=True)
     weight = models.CharField(max_length=10, choices=WEIGHT_CHOICES, blank=True, null=True)
-    delivery_status = models.CharField( max_length=20,choices=DELIVERY_STATUS_CHOICES,default='pending')
-    # Additional item info
+    
+    # Promotion information
+    promotion_applied = models.BooleanField(default=False)
+    discount_amount = models.DecimalField(max_digits=10, decimal_places=2, default=0)
+    coupon_code = models.CharField(max_length=50, blank=True, null=True)
+    
+    # Status fields
+    order_status = models.CharField(max_length=20, choices=ORDER_STATUS_CHOICES, default='pending')
+    courier_status = models.CharField(max_length=20, choices=COURIER_STATUS_CHOICES, default='pending')
+    
+    # Additional info
     item_note = models.TextField(blank=True, null=True)
     
     # Timestamps
@@ -253,13 +260,37 @@ class OrderItem(models.Model):
     class Meta:
         ordering = ['-created_at']
 
+    def save(self, *args, **kwargs):
+        # Capture product information at time of creation
+        if not self.pk and self.product:
+            self.product_name = self.product.name
+            self.product_code = self.product.product_code
+            self.original_unit_price = self.product.current_price
+            
+            # If unit_price is not set, use current product price
+            if not self.unit_price:
+                self.unit_price = self.product.current_price
+        
+        # Auto-populate customer from order
+        if not self.customer and self.order and self.order.customer:
+            self.customer = self.order.customer
+        
+        super().save(*args, **kwargs)
+
     def get_total(self):
-        price = self.price or 0
-        quantity = self.quantity or 0
-        return price * quantity
+        """Calculate total price for this order item (immutable)"""
+        return (self.unit_price or 0) * (self.quantity or 0)
+
+    def get_total_before_discount(self):
+        """Calculate total before any promotions"""
+        return (self.original_unit_price or 0) * (self.quantity or 0)
+
+    def get_discount_savings(self):
+        """Calculate discount savings"""
+        return self.get_total_before_discount() - self.get_total()
 
     def __str__(self):
-        return f"{self.quantity} x {self.product.name} in Order {self.order.order_number}"
+        return f"{self.quantity} x {self.product_name} @ ${self.unit_price}"
 
 
 class BulkOrderOperation(models.Model):
@@ -276,7 +307,7 @@ class BulkOrderOperation(models.Model):
     operation_type = models.CharField(max_length=20, choices=OPERATION_CHOICES)
     filters_applied = models.JSONField(default=dict, blank=True)
     orders_affected = models.ManyToManyField(Order, blank=True)
-    created_by = models.ForeignKey(User, on_delete=models.CASCADE)
+    created_by = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE)
     created_at = models.DateTimeField(auto_now_add=True)
     completed = models.BooleanField(default=False)
     
@@ -284,3 +315,19 @@ class BulkOrderOperation(models.Model):
         return f"Bulk {self.get_operation_type_display()} - {self.name}"
 
 
+# Signal handlers to maintain data consistency
+@receiver(post_save, sender=Order)
+def update_order_items_on_order_save(sender, instance, **kwargs):
+    """
+    Update all order items when order status changes
+    """
+    # This is handled in the Order.save() method now
+    pass
+
+@receiver(post_save, sender=OrderItem)
+def update_order_totals_on_item_save(sender, instance, **kwargs):
+    """
+    Update order totals when order items are saved
+    """
+    if instance.order:
+        instance.order.calculate_totals()

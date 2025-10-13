@@ -158,6 +158,15 @@ def analytics_dashboard(request):
     return render(request, 'analytics/dashboard.html', context)
 
 
+from django.contrib.auth.decorators import login_required
+from django.shortcuts import render, get_object_or_404, redirect
+from django.core.paginator import Paginator
+from django.db.models import Q, Sum
+from django.contrib import messages
+from django.db.models.signals import post_save
+from django.dispatch import receiver
+from .models import Customer
+from orders.models import Order
 
 @login_required
 def customer_analytics(request):
@@ -242,7 +251,7 @@ def toggle_customer_status(request, customer_id):
             # Convert guest to registered user logic
             pass
     
-    return redirect('customer_detail', customer_id=customer_id)
+    return redirect('analytics:customer_detail', customer_id=customer_id)
 
 # Guest Checkout Handler
 def handle_guest_checkout(order_data):
@@ -281,7 +290,7 @@ def update_customer_on_order_save(sender, instance, **kwargs):
         )
         instance.customer = customer
         instance.save(update_fields=['customer'])
-
+        
 # API view for customer search (for AJAX requests)
 @login_required
 def customer_search_api(request):

@@ -26,7 +26,7 @@
                     <div class="row no-gutters align-items-center">
                         <div class="col mr-2">
                             <div class="text-xs font-weight-bold text-primary text-uppercase mb-1">
-                                New Customers
+                                New Customers (0-5 orders)
                             </div>
                             <div class="h5 mb-0 font-weight-bold text-gray-800">{{ customer_stats.new_customers }}</div>
                         </div>
@@ -44,7 +44,7 @@
                     <div class="row no-gutters align-items-center">
                         <div class="col mr-2">
                             <div class="text-xs font-weight-bold text-success text-uppercase mb-1">
-                                Regular Customers
+                                Regular Customers (6-15 orders)
                             </div>
                             <div class="h5 mb-0 font-weight-bold text-gray-800">{{ customer_stats.regular_customers }}</div>
                         </div>
@@ -62,7 +62,7 @@
                     <div class="row no-gutters align-items-center">
                         <div class="col mr-2">
                             <div class="text-xs font-weight-bold text-warning text-uppercase mb-1">
-                                VIP Customers
+                                VIP Customers (10-20 orders)
                             </div>
                             <div class="h5 mb-0 font-weight-bold text-gray-800">{{ customer_stats.vip_customers }}</div>
                         </div>
@@ -93,6 +93,39 @@
         </div>
     </div>
 
+    <!-- Customer Type Legend -->
+    <div class="card mb-4">
+        <div class="card-body">
+            <h6 class="card-title mb-3">Customer Type Classification</h6>
+            <div class="row">
+                <div class="col-md-4">
+                    <div class="d-flex align-items-center mb-2">
+                        <span class="badge bg-primary me-2">New</span>
+                        <small class="text-muted">0-5 orders</small>
+                    </div>
+                </div>
+                <div class="col-md-4">
+                    <div class="d-flex align-items-center mb-2">
+                        <span class="badge bg-success me-2">Regular</span>
+                        <small class="text-muted">6-15 orders</small>
+                    </div>
+                </div>
+                <div class="col-md-4">
+                    <div class="d-flex align-items-center mb-2">
+                        <span class="badge bg-warning text-dark me-2">VIP</span>
+                        <small class="text-muted">10-20 orders</small>
+                    </div>
+                </div>
+            </div>
+            <div class="mt-2">
+                <small class="text-muted">
+                    <i class="fas fa-info-circle me-1"></i>
+                    Note: Customers with 10-15 orders are classified as VIP (priority given to higher tier)
+                </small>
+            </div>
+        </div>
+    </div>
+
     <!-- Search and Filter Section -->
     <div class="card mb-4">
         <div class="card-body">
@@ -115,9 +148,9 @@
                         <div class="col-md-4">
                             <select name="type" class="form-select">
                                 <option value="">All Types</option>
-                                <option value="new" {% if customer_type_filter == 'new' %}selected{% endif %}>New Customers</option>
-                                <option value="regular" {% if customer_type_filter == 'regular' %}selected{% endif %}>Regular Customers</option>
-                                <option value="vip" {% if customer_type_filter == 'vip' %}selected{% endif %}>VIP Customers</option>
+                                <option value="new" {% if customer_type_filter == 'new' %}selected{% endif %}>New Customers (0-5)</option>
+                                <option value="regular" {% if customer_type_filter == 'regular' %}selected{% endif %}>Regular Customers (6-15)</option>
+                                <option value="vip" {% if customer_type_filter == 'vip' %}selected{% endif %}>VIP Customers (10-20)</option>
                                 <option value="fraud" {% if customer_type_filter == 'fraud' %}selected{% endif %}>Fraud Customers</option>
                             </select>
                         </div>
@@ -152,6 +185,7 @@
                             <th>Total Orders</th>
                             <th>Total Spent</th>
                             <th>Type</th>
+                            <th>Order Range</th>
                             <th>User Type</th>
                             <th width="150">Actions</th>
                         </tr>
@@ -222,6 +256,9 @@
                                 </span>
                             </td>
                             <td>
+                                <small class="text-muted">{{ customer.order_range }}</small>
+                            </td>
+                            <td>
                                 <span class="badge {% if customer.is_guest %}bg-secondary{% else %}bg-info{% endif %}">
                                     <i class="fas {% if customer.is_guest %}fa-user-clock{% else %}fa-user-check{% endif %} me-1"></i>
                                     {{ customer.is_guest|yesno:"Guest,Registered" }}
@@ -235,7 +272,7 @@
                                         <i class="fas fa-eye"></i>
                                     </a>
                                     {% if customer.is_fraudulent %}
-                                        <form method="post" action="{% url 'toggle_customer_status' customer.id %}" class="d-inline">
+                                        <form method="post" action="{% url 'analytics:toggle_customer_status' customer.id %}" class="d-inline">
                                             {% csrf_token %}
                                             <input type="hidden" name="action" value="unblock">
                                             <button type="submit" 
@@ -265,7 +302,7 @@
                         </tr>
                         {% empty %}
                         <tr>
-                            <td colspan="12" class="text-center py-4">
+                            <td colspan="13" class="text-center py-4">
                                 <div class="text-muted">
                                     <i class="fas fa-users fa-3x mb-3"></i>
                                     <h5>No customers found</h5>
