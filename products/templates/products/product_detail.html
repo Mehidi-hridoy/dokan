@@ -10,15 +10,15 @@
 <script src="{% static 'js/cart.js' %}"></script>
 {% endblock %}
 
-{% block title %}Dokan - {{ product.name }}{% endblock %}
+{% block title %}Dokan - {{ product.products_name }}{% endblock %}
 
 {% block content %}
 <section class="container mx-auto px-4 py-12">
-    <div class="grid grid-cols-1 md:grid-cols-2 gap-8">
+    <div class="grid grid-cols-1 md:grid-cols-2 gap-8 relative">
         <!-- Product Image -->
-        <div>
-            {% if product.image %}
-            <img src="{{ product.image.url }}" alt="{{ product.name }}" class="w-full h-96 object-cover rounded-lg product-image" data-popup="popup-{{ product.id }}">
+        <div class="relative">
+            {% if product.products_image %}
+            <img src="{{ product.products_image.url }}" alt="{{ product.products_name }}" class="w-full h-96 object-cover rounded-lg product-image" data-popup="popup-{{ product.id }}">
             {% else %}
             <div class="w-full h-96 bg-gray-200 flex items-center justify-center rounded-lg">
                 <span class="text-gray-500">No Image</span>
@@ -31,9 +31,20 @@
 
         <!-- Product Details -->
         <div>
-            <h1 class="text-3xl font-bold mb-4">{{ product.name }}</h1>
+            <h1 class="text-3xl font-bold mb-4">{{ product.products_name }}</h1>
             <p class="text-gray-600 mb-4">{{ product.description|safe }}</p>
-            <p class="text-blue-600 font-bold text-2xl mb-4">${{ product.price }}</p>
+
+            <!-- Price -->
+            <div class="text-2xl font-bold mb-4">
+                {% if product.discounted_price %}
+                    <span class="text-blue-600">${{ product.discounted_price }}</span>
+                    <span class="line-through text-gray-400 text-lg ml-2">${{ product.sale_price }}</span>
+                {% else %}
+                    <span class="text-blue-600">${{ product.sale_price }}</span>
+                {% endif %}
+            </div>
+
+            <!-- Tags -->
             {% if product.tag_list %}
             <div class="mb-4 flex flex-wrap gap-2">
                 {% for tag in product.tag_list %}
@@ -45,6 +56,7 @@
             <!-- Add to Cart Form -->
             <form action="{% url 'products:add_to_cart' product.slug %}" method="POST" class="add-to-cart-form">
                 {% csrf_token %}
+
                 {% if product.colors %}
                 <select name="color" class="border rounded p-2 mb-4 w-full">
                     {% for color in product.colors %}
@@ -52,6 +64,7 @@
                     {% endfor %}
                 </select>
                 {% endif %}
+
                 {% if product.sizes %}
                 <select name="size" class="border rounded p-2 mb-4 w-full">
                     {% for size in product.sizes %}
@@ -59,6 +72,7 @@
                     {% endfor %}
                 </select>
                 {% endif %}
+
                 {% if product.weights %}
                 <select name="weight" class="border rounded p-2 mb-4 w-full">
                     {% for weight in product.weights %}
@@ -66,6 +80,7 @@
                     {% endfor %}
                 </select>
                 {% endif %}
+
                 <button type="submit" class="add-to-cart bg-blue-600 text-white px-6 py-3 rounded-lg hover:bg-blue-700 transition w-full">Add to Cart</button>
             </form>
 
@@ -85,18 +100,24 @@
         </div>
     </div>
 
-    <!-- Pop-up for Quick View -->
+    <!-- Quick View Pop-up -->
     <div id="popup-{{ product.id }}" class="product-popup hidden fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
         <div class="bg-white rounded-lg p-6 w-full max-w-md">
-            <h3 class="text-lg font-bold mb-4">{{ product.name }}</h3>
-            {% if product.image %}
-            <img src="{{ product.image.url }}" alt="{{ product.name }}" class="w-full h-32 object-cover mb-4 rounded">
+            <h3 class="text-lg font-bold mb-4">{{ product.products_name }}</h3>
+            {% if product.products_image %}
+            <img src="{{ product.products_image.url }}" alt="{{ product.products_name }}" class="w-full h-32 object-cover mb-4 rounded">
             {% else %}
             <div class="w-full h-32 bg-gray-200 flex items-center justify-center mb-4 rounded">
                 <span class="text-gray-500">No Image</span>
             </div>
             {% endif %}
-            <p class="text-gray-600 mb-4">${{ product.price }}</p>
+            <p class="text-gray-600 mb-4">
+                {% if product.discounted_price %}
+                    ${{ product.discounted_price }} <span class="line-through text-gray-400">${{ product.sale_price }}</span>
+                {% else %}
+                    ${{ product.sale_price }}
+                {% endif %}
+            </p>
             <form action="{% url 'products:add_to_cart' product.slug %}" method="POST" class="add-to-cart-form">
                 {% csrf_token %}
                 {% if product.colors %}
@@ -121,8 +142,8 @@
                 </select>
                 {% endif %}
                 <div class="flex justify-between gap-4">
-                    <button type="submit" class="add-to-cart flex-1 bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700">Add to Cart</button>
-                    <a href="{% url 'products:checkout' %}" class="flex-1 bg-green-600 text-white px-4 py-2 rounded hover:bg-green-700 text-center">Checkout</a>
+                    <button type="submit" class="flex-1 bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700">Add to Cart</button>
+                    <a href="{% url 'products:checkout' %}" class="flex-1 bg-green-600 text-white px-4 py-2 rounded text-center hover:bg-green-700">Checkout</a>
                 </div>
             </form>
             <button class="popup-close mt-4 text-gray-500 hover:text-gray-700 w-full text-center">Close</button>

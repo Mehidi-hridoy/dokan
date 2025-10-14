@@ -1,0 +1,87 @@
+<div class="p-4">
+    <h3 class="font-semibold text-lg border-b pb-2 mb-3">Shopping Cart</h3>
+    {% if cart_items or order and order.order_items.exists %}
+        <div class="max-h-64 overflow-y-auto">
+            {% if cart_items %}
+                <!-- Anonymous User Cart -->
+                {% for item in cart_items %}
+                <div class="flex items-center space-x-3 py-3 border-b border-gray-100 hover:bg-gray-50 transition duration-150">
+                    {% if item.product.products_image %}
+                        <img src="{{ item.product.products_image.url }}" alt="{{ item.product.products_name }}" 
+                             class="w-12 h-12 object-cover rounded">
+                    {% else %}
+                        <div class="w-12 h-12 bg-gray-200 rounded flex items-center justify-center">
+                            <i class="fas fa-image text-gray-400"></i>
+                        </div>
+                    {% endif %}
+                    <div class="flex-1">
+                        <p class="font-medium text-sm truncate">{{ item.product.products_name }}</p>
+                        <p class="text-xs text-gray-500">
+                            Qty: {{ item.quantity }}
+                            {% if item.color %} | Color: {{ item.color }}{% endif %}
+                            {% if item.size %} | Size: {{ item.size }}{% endif %}
+                            {% if item.weight %} | Weight: {{ item.weight }}{% endif %}
+                        </p>
+                        <p class="text-sm font-semibold text-blue-600">${{ item.total|floatformat:2 }}</p>
+                    </div>
+                </div>
+                {% endfor %}
+            {% elif order and order.order_items.exists %}
+                <!-- Authenticated User Cart -->
+                {% for item in order.order_items.all %}
+                <div class="flex items-center space-x-3 py-3 border-b border-gray-100 hover:bg-gray-50 transition duration-150">
+                    {% if item.product.products_image %}
+                        <img src="{{ item.product.products_image.url }}" alt="{{ item.product.products_name }}" 
+                             class="w-12 h-12 object-cover rounded">
+                    {% else %}
+                        <div class="w-12 h-12 bg-gray-200 rounded flex items-center justify-center">
+                            <i class="fas fa-image text-gray-400"></i>
+                        </div>
+                    {% endif %}
+                    <div class="flex-1">
+                        <p class="font-medium text-sm truncate">{{ item.product.products_name }}</p>
+                        <p class="text-xs text-gray-500">
+                            Qty: {{ item.quantity }}
+                            {% if item.color %} | Color: {{ item.color }}{% endif %}
+                            {% if item.size %} | Size: {{ item.size }}{% endif %}
+                            {% if item.weight %} | Weight: {{ item.weight }}{% endif %}
+                        </p>
+                        <p class="text-sm font-semibold text-blue-600">${{ item.get_total|floatformat:2 }}</p>
+                    </div>
+                </div>
+                {% endfor %}
+            {% endif %}
+        </div>
+        <div class="mt-4 pt-3 border-t border-gray-200">
+            <div class="flex justify-between items-center mb-3">
+                <span class="font-semibold">Total:</span>
+                <span class="font-bold text-lg text-blue-600">
+                    {% if cart_items %}
+                        ${{ cart_total|floatformat:2 }}
+                    {% elif order %}
+                        ${{ order.total|default:0|floatformat:2 }}
+                    {% endif %}
+                </span>
+            </div>
+            <div class="space-y-2">
+                <a href="{% url 'orders:view_cart' %}" 
+                   class="block w-full bg-blue-600 text-white text-center py-2 rounded-lg hover:bg-blue-700 transition duration-200 text-sm">
+                    View Cart Details
+                </a>
+                <a href="{% url 'products:checkout' %}" 
+                   class="block w-full bg-green-600 text-white text-center py-2 rounded-lg hover:bg-green-700 transition duration-200 text-sm">
+                    Proceed to Checkout
+                </a>
+            </div>
+        </div>
+    {% else %}
+        <div class="text-center py-8">
+            <i class="fas fa-shopping-cart text-4xl text-gray-300 mb-3"></i>
+            <p class="text-gray-500 mb-4">Your cart is empty</p>
+            <a href="{% url 'products:product_list' %}" 
+               class="inline-block bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 transition duration-200 text-sm">
+                Start Shopping
+            </a>
+        </div>
+    {% endif %}
+</div>

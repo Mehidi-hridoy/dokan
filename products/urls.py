@@ -16,6 +16,11 @@ urlpatterns = [
     path('orders/history/', views.order_history, name='order_history'),
     path('checkout/', views.checkout, name='checkout'),  # Remove @require_POST decorator from view
     path('thank-you/<int:order_id>/', views.thank_you, name='thank_you'),  # Add thank_you here
+    path('add-review/', views.add_review, name='add_review'),
+    path('search-suggestions/', views.search_suggestions, name='search_suggestions'),
+    path('cart/dropdown-content/', views.cart_dropdown_content, name='cart_dropdown_content'),
+
+
     
 
 ]+ static(settings.MEDIA_URL, document_root=settings.MEDIA_ROOT)

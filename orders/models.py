@@ -217,14 +217,7 @@ class Order(models.Model):
 
 class OrderItem(models.Model):
     order = models.ForeignKey(Order, on_delete=models.CASCADE, related_name='order_items')
-    customer = models.ForeignKey(
-        'analytics.Customer', 
-        on_delete=models.CASCADE, 
-        related_name='order_items',
-        null=True, 
-        blank=True
-    )
-    
+    customer = models.ForeignKey( 'analytics.Customer',on_delete=models.CASCADE,null=True,blank=True)
     # Product information (immutable after order creation)
     product = models.ForeignKey('products.Product', on_delete=models.PROTECT)  # PROTECT to prevent deletion if ordered
     product_name = models.CharField(max_length=255, blank=True)  # Store product name at time of order
