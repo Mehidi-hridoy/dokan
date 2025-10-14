@@ -320,7 +320,7 @@
                                 </a>
                                 <!-- In product_list.html and other product templates -->
                                 {% if product.is_in_stock %}
-                                <form action="{% url 'products:add_to_cart' product.slug %}" method="POST" class="flex-1">
+                                <form action="{% url 'orders:add_to_cart' product.slug %}" method="POST" class="flex-1">
                                     {% csrf_token %}
                                     <button type="submit" 
                                             class="w-full bg-blue-600 text-white py-2 rounded hover:bg-blue-700 transition duration-200 text-sm">

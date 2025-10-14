@@ -64,11 +64,11 @@
                 </span>
             </div>
             <div class="space-y-2">
-                <a href="{% url 'orders:view_cart' %}" 
+                <a href="/orders/cart/" 
                    class="block w-full bg-blue-600 text-white text-center py-2 rounded-lg hover:bg-blue-700 transition duration-200 text-sm">
                     View Cart Details
                 </a>
-                <a href="{% url 'products:checkout' %}" 
+                <a href="/orders/checkout/" 
                    class="block w-full bg-green-600 text-white text-center py-2 rounded-lg hover:bg-green-700 transition duration-200 text-sm">
                     Proceed to Checkout
                 </a>
@@ -78,7 +78,7 @@
         <div class="text-center py-8">
             <i class="fas fa-shopping-cart text-4xl text-gray-300 mb-3"></i>
             <p class="text-gray-500 mb-4">Your cart is empty</p>
-            <a href="{% url 'products:product_list' %}" 
+            <a href="/products/" 
                class="inline-block bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 transition duration-200 text-sm">
                 Start Shopping
             </a>

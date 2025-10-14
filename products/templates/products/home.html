@@ -117,7 +117,7 @@
                             View Details
                         </a>
                         {% if product.is_in_stock %}
-                        <form action="{% url 'products:add_to_cart' product.slug %}" method="POST" class="flex-1">
+                        <form action="{% url 'orders:add_to_cart' product.slug %}" method="POST" class="flex-1">
                             {% csrf_token %}
                             <input type="hidden" name="quantity" value="1">
                             <button type="submit" 
@@ -231,7 +231,7 @@
                             View Details
                         </a>
                         {% if product.is_in_stock %}
-                        <form action="{% url 'products:add_to_cart' product.slug %}" method="POST" class="flex-1">
+                        <form action="{% url 'orders:add_to_cart' product.slug %}" method="POST" class="flex-1">
                             {% csrf_token %}
                             <input type="hidden" name="quantity" value="1">
                             <button type="submit" 

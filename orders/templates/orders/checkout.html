@@ -18,7 +18,7 @@
             <h2 class="text-xl font-semibold mb-6">Shipping Information</h2>
             
             <!-- FIXED: Use products:checkout URL -->
-            <form id="checkoutForm" method="POST" action="{% url 'products:checkout' %}">
+            <form id="checkoutForm" method="POST" action="{% url 'orders:checkout' %}">
                 {% csrf_token %}
                 
                 <!-- Customer Information -->
@@ -186,7 +186,7 @@
             </div>
 
             <!-- FIXED: Use products namespace for view_cart if it's in products app -->
-            <a href="{% url 'products:view_cart' %}" 
+            <a href="{% url 'orders:view_cart' %}" 
                class="block w-full bg-gray-200 text-gray-700 text-center py-3 rounded-lg hover:bg-gray-300 transition duration-200">
                 Back to Cart
             </a>
