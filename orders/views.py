@@ -12,6 +12,7 @@ from django.utils import timezone
 from decimal import Decimal  # ✅ Keep only this one
 from .models import Product
 from django.urls import reverse
+from django.core.paginator import Paginator, EmptyPage, PageNotAnInteger
 
 
 
@@ -348,24 +349,6 @@ def checkout(request):
 
     return render(request, 'orders/checkout.html', context)
 
-
-@login_required
-def order_history(request):
-    completed_statuses = ['completed', 'delivered']
-    orders = Order.objects.filter(
-        user=request.user, 
-        order_status__in=completed_statuses
-    ).select_related('user').order_by('-created_at')
-    
-    cart_items, cart_total = _get_session_cart(request) if not request.user.is_authenticated else ([], 0)
-    
-    context = {
-        'orders': orders,
-        'cart_items': cart_items,
-        'cart_total': cart_total,
-    }
-    return render(request, 'products/order_history.html', context)
-
 def _calculate_discount(product):
     """Helper function to calculate discount percentage and tag list"""
     if product.base_price and product.base_price > product.sale_price:
@@ -498,6 +481,40 @@ def cart_dropdown_content(request):
     }
     
     return render(request, 'includes/cart_dropdown_content.html', context)
+
+@login_required
+def order_history(request):
+    """
+    Display order history for logged-in users
+    """
+    # Get orders for the current user
+    orders = Order.objects.filter(user=request.user).select_related('customer').prefetch_related('order_items__product')
+    
+    # Paginate orders (10 per page)
+    paginator = Paginator(orders, 10)
+    page_number = request.GET.get('page')
+    page_obj = paginator.get_page(page_number)
+    
+    context = {
+        'orders': page_obj,
+        'page_obj': page_obj,  # For pagination template tags
+    }
+    
+    return render(request, 'orders/order_history.html', context)
+
+@login_required
+def order_detail(request, order_id):
+    """
+    Display detailed view of a specific order
+    """
+    order = get_object_or_404(Order, id=order_id, user=request.user)
+    
+    context = {
+        'order': order,
+    }
+    
+    return render(request, 'orders/order_detail.html', context)
+
 
 def thank_you(request, order_id):
     order = get_object_or_404(Order, id=order_id)
