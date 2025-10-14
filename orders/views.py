@@ -14,38 +14,39 @@ from .models import Product
 from django.urls import reverse
 
 
+
 def view_cart(request):
     """Display cart details for both authenticated and guest users."""
-    
     cart_items = []
     subtotal = Decimal('0.00')
+    order = None
 
     if request.user.is_authenticated:
-        # Logged-in user cart
+        # Logged-in user cart (database-based)
         order = _get_user_order(request)
         if order:
             order_items = order.order_items.select_related('product').all()
             for item in order_items:
                 cart_items.append({
+                    'id': item.id,  # ✅ ensure id is passed for template
                     'product': item.product,
                     'quantity': item.quantity,
                     'unit_price': item.unit_price,
                     'color': item.color,
                     'size': item.size,
                     'weight': item.weight,
-                    'total': item.unit_price * item.quantity
+                    'total': item.unit_price * item.quantity,
+                    'is_guest': False,  # flag for template
                 })
             subtotal = sum(i['total'] for i in cart_items)
-        else:
-            order = None
     else:
         # Guest user cart (session-based)
-        order = None
         session_cart, cart_total = _get_session_cart(request)
         for item in session_cart:
             product = item['product']
             unit_price = product.sale_price or product.current_price
             cart_items.append({
+                'id': None,  # ⚠️ No DB id for guest
                 'product': product,
                 'quantity': item['quantity'],
                 'unit_price': unit_price,
@@ -53,10 +54,11 @@ def view_cart(request):
                 'size': item.get('size'),
                 'weight': item.get('weight'),
                 'total': item['total'],
+                'is_guest': True,
             })
         subtotal = cart_total
 
-    # Common totals for both cases
+    # Common totals
     shipping_cost = Decimal('0') if subtotal >= Decimal('1000') else Decimal('50')
     tax_amount = (subtotal * Decimal('0.05')).quantize(Decimal('0.01'))
     total = (subtotal + tax_amount + shipping_cost).quantize(Decimal('0.01'))
@@ -74,6 +76,7 @@ def view_cart(request):
     }
 
     return render(request, 'orders/cart.html', context)
+
 
 def update_cart(request, item_id=None):
     """Update cart item quantity for both authenticated and guest users."""
@@ -190,7 +193,7 @@ def add_to_cart(request, slug):
             'product_image': product.products_image.url if product.products_image else None,
             'quantity': order_item.quantity,
             'subtotal': str(order_item.get_total()),
-            'checkout_url': reverse('products:checkout')
+            'checkout_url': reverse('orders:checkout')
         })
     else:
         # Handle anonymous user cart in session
@@ -233,7 +236,7 @@ def _calculate_order_total(order):
 def checkout(request):
     """Checkout process for both authenticated and guest users"""
     
-    # --- Get or create order ---
+    # --- Determine cart/order ---
     if request.user.is_authenticated:
         order = _get_user_order(request)
         if not order or not order.order_items.exists():
@@ -245,26 +248,30 @@ def checkout(request):
         if not cart_items:
             messages.error(request, "Your cart is empty!")
             return redirect('orders:view_cart')
-        
-        # Create a temporary guest order
-        order = Order.objects.create(
-            order_status='pending',
-            customer_name="Guest User",
-            total=cart_total
-        )
-        for item in cart_items:
-            OrderItem.objects.create(
-                order=order,
-                product=item['product'],
-                quantity=item['quantity'],
-                unit_price=item['unit_price'],
-                original_unit_price=item['product'].current_price,
-                color=item.get('color'),
-                size=item.get('size'),
-                weight=item.get('weight')
+
+        # Create a guest order only if not already created
+        guest_order_id = request.session.get('guest_order_id')
+        if guest_order_id:
+            order = get_object_or_404(Order, id=guest_order_id)
+        else:
+            order = Order.objects.create(
+                order_status='pending',
+                customer_name="Guest User",
+                total=cart_total
             )
-        _calculate_order_total(order)
-        request.session['guest_order_id'] = order.id
+            for item in cart_items:
+                OrderItem.objects.create(
+                    order=order,
+                    product=item['product'],
+                    quantity=item['quantity'],
+                    unit_price=item['unit_price'],
+                    original_unit_price=item['product'].current_price,
+                    color=item.get('color'),
+                    size=item.get('size'),
+                    weight=item.get('weight')
+                )
+            _calculate_order_total(order)
+            request.session['guest_order_id'] = order.id
 
     # --- Handle POST (form submission) ---
     if request.method == 'POST':
@@ -301,33 +308,30 @@ def checkout(request):
                 
                 order.save()
 
-                # Clear guest session
+                # Clear guest session after order is processed
                 if not request.user.is_authenticated:
                     request.session.pop('cart', None)
-                    request.session.pop('guest_order_id', None)
 
                 messages.success(request, f"Order #{order.id} placed successfully!")
+                redirect_url = reverse('orders:thank_you', args=[order.id])
 
                 if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
                     return JsonResponse({
                         'success': True,
                         'message': f'Order #{order.id} placed successfully!',
-                        'redirect': f'/thank-you/{order.id}/',
+                        'redirect': redirect_url,
                         'order_id': order.id
                     })
                 else:
-                    return redirect('orders:thank_you', order_id=order.id)
+                    return redirect(redirect_url)
 
         except Exception as e:
             import traceback
             print("DEBUG TRACEBACK:", traceback.format_exc())
             messages.error(request, f"Error processing order: {str(e)}")
-            if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
-                return JsonResponse({'success': False, 'message': f'Error: {str(e)}'})
-            else:
-                return redirect('orders:checkout')
+            return redirect('orders:checkout')
 
-    # --- GET request: compute totals ---
+    # --- GET request: calculate totals ---
     subtotal = sum((item.unit_price * item.quantity for item in order.order_items.all()), Decimal('0'))
     shipping_cost = Decimal('0') if subtotal >= Decimal('1000') else Decimal('50')
     tax_amount = (subtotal * Decimal('0.05')).quantize(Decimal('0.01'))
@@ -495,21 +499,12 @@ def cart_dropdown_content(request):
     
     return render(request, 'includes/cart_dropdown_content.html', context)
 
-
 def thank_you(request, order_id):
-    """Order thank you page for both authenticated and guest users."""
-    if request.user.is_authenticated:
-        order = get_object_or_404(Order, id=order_id, user=request.user)
-    else:
-        order = get_object_or_404(Order, id=order_id)  # No user restriction
-        # Optionally: verify session if you want extra safety
-        guest_order_id = request.session.get('guest_order_id')
-        if guest_order_id != order_id:
-            messages.warning(request, "Viewing an order that is not yours!")
-    
-    order_items = order.order_items.select_related('product').all()
+    order = get_object_or_404(Order, id=order_id)
     context = {
         'order': order,
-        'order_items': order_items,
+        'is_guest': not request.user.is_authenticated,
     }
-    return render(request, 'products/thank_you.html', context)
+    return render(request, 'orders/thank_you.html', context)
+
+
