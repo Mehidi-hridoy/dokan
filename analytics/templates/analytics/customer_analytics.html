@@ -1,0 +1,82 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block title %}Customer Analytics - Dokan{% endblock %}
+
+{% block extra_css %}
+<style>
+    .chart-container {
+        position: relative;
+        height: 400px;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container-fluid px-4 py-6">
+    <h1 class="text-3xl font-bold text-gray-900 mb-6">Customer Analytics</h1>
+    
+    <!-- Customer Stats Cards -->
+    <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
+        <div class="bg-white rounded-xl border p-6">
+            <p class="text-sm font-medium text-gray-600">Total Customers</p>
+            <p class="text-2xl font-bold text-gray-900">{{ customer_stats.total_customers }}</p>
+        </div>
+        <div class="bg-white rounded-xl border p-6">
+            <p class="text-sm font-medium text-gray-600">New Customers (30d)</p>
+            <p class="text-2xl font-bold text-green-600">{{ customer_stats.new_customers }}</p>
+        </div>
+        <div class="bg-white rounded-xl border p-6">
+            <p class="text-sm font-medium text-gray-600">VIP Customers</p>
+            <p class="text-2xl font-bold text-purple-600">{{ customer_stats.vip_customers }}</p>
+        </div>
+        <div class="bg-white rounded-xl border p-6">
+            <p class="text-sm font-medium text-gray-600">Fraud Cases</p>
+            <p class="text-2xl font-bold text-red-600">{{ customer_stats.fraud_customers }}</p>
+        </div>
+    </div>
+
+    <!-- Customer Growth Chart -->
+    <div class="bg-white rounded-xl border p-6 mb-8">
+        <h3 class="text-lg font-semibold text-gray-900 mb-4">Customer Growth Over Time</h3>
+        <div class="chart-container">
+            <canvas id="customerGrowthChart"></canvas>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<script>
+    document.addEventListener('DOMContentLoaded', function() {
+        const ctx = document.getElementById('customerGrowthChart').getContext('2d');
+        const data = {{ customer_growth|safe }}; // Assuming list of {'month': '2023-01', 'new_customers': 10}
+        
+        const labels = data.map(item => item.month);
+        const values = data.map(item => item.new_customers);
+        
+        new Chart(ctx, {
+            type: 'line',
+            data: {
+                labels: labels,
+                datasets: [{
+                    label: 'New Customers',
+                    data: values,
+                    borderColor: '#3b82f6',
+                    backgroundColor: 'rgba(59, 130, 246, 0.1)',
+                    tension: 0.4,
+                    fill: true
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                scales: {
+                    y announcing: { beginAtZero: true }
+                }
+            }
+        });
+    });
+</script>
+{% endblock %}

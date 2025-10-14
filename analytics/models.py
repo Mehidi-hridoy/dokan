@@ -4,12 +4,12 @@ from datetime import timedelta
 from django.utils import timezone
 from django.core.validators import RegexValidator
 from django.db import models
-from django.utils import timezone
 from decimal import Decimal
+from django.db.models.functions import TruncMonth, TruncDate
+from django.db import connection
+from datetime import datetime, timedelta
+import datetime
 
-
-
-# Your existing CustomerManager class - UPDATE IT with financial methods
 class CustomerManager(models.Manager):
     def get_customer_stats(self):
         """Get customer statistics for dashboard"""
@@ -31,8 +31,8 @@ class CustomerManager(models.Manager):
     
     def get_financial_overview(self, period_days=30):
         """Get comprehensive financial overview for analytics"""
-        from django.db.models import Sum, Count, Q
         from orders.models import Order
+        from .models import Expense, DamageReport
         
         end_date = timezone.now()
         start_date = end_date - timedelta(days=period_days)
@@ -138,7 +138,6 @@ class CustomerManager(models.Manager):
     def get_sales_analytics(self, period_days=30):
         """Get detailed sales analytics"""
         from orders.models import Order, OrderItem
-        from django.db.models import Count, Sum, Avg
         
         end_date = timezone.now()
         start_date = end_date - timedelta(days=period_days)
@@ -149,7 +148,7 @@ class CustomerManager(models.Manager):
             created_at__lte=end_date
         ).aggregate(
             total_orders=Count('id'),
-            completed_orders=Count('id', filter=Q(order_status='delivered')),
+            completed_orders=Count('id', filter=Q(order_status='confirmed')),
             total_revenue=Sum('total', filter=Q(payment_status='paid')),
             avg_order_value=Avg('total', filter=Q(payment_status='paid'))
         )
@@ -164,25 +163,33 @@ class CustomerManager(models.Manager):
             'product__product_code'
         ).annotate(
             total_sold=Sum('quantity'),
-            total_revenue=Sum('unit_price') * Sum('quantity')
+            total_revenue=Sum(F('unit_price') * F('quantity'))
         ).order_by('-total_revenue')[:10]
         
-        # Daily sales trend
-        daily_sales = Order.objects.filter(
-            created_at__gte=start_date,
-            created_at__lte=end_date,
-            payment_status='paid'
-        ).extra({
-            'date': "DATE(created_at)"
-        }).values('date').annotate(
-            daily_revenue=Sum('total'),
-            order_count=Count('id')
-        ).order_by('date')
+        # Daily sales trend - Database agnostic approach
+        daily_sales = []
+        for i in range(period_days):
+            date = end_date - timedelta(days=i)
+            day_start = timezone.make_aware(datetime.combine(date.date(), datetime.min.time()))
+            day_end = timezone.make_aware(datetime.combine(date.date(), datetime.max.time()))
+            
+            daily_revenue = Order.objects.filter(
+                created_at__gte=day_start,
+                created_at__lte=day_end,
+                payment_status='paid'
+            ).aggregate(total=Sum('total'))['total'] or Decimal('0')
+            
+            daily_sales.append({
+                'date': date.date(),
+                'daily_revenue': daily_revenue
+            })
+        
+        daily_sales.reverse()  # Sort chronologically
         
         return {
             'orders': orders_data,
             'top_products': list(top_products),
-            'daily_sales': list(daily_sales),
+            'daily_sales': daily_sales,
             'period': {
                 'start': start_date,
                 'end': end_date
@@ -192,6 +199,7 @@ class CustomerManager(models.Manager):
     def get_expense_analytics(self, period_days=30):
         """Get detailed expense analytics"""
         from django.db.models import Sum
+        from datetime import datetime
         
         end_date = timezone.now()
         start_date = end_date - timedelta(days=period_days)
@@ -204,15 +212,27 @@ class CustomerManager(models.Manager):
             total=Sum('amount')
         ).order_by('-total')
         
-        # Monthly expense trend
-        monthly_expenses = Expense.objects.filter(
-            date__gte=start_date.date() - timedelta(days=365),
-            date__lte=end_date.date()
-        ).extra({
-            'month': "DATE_FORMAT(date, '%%Y-%%m')"
-        }).values('month').annotate(
-            monthly_total=Sum('amount')
-        ).order_by('month')
+        # Monthly expense trend - Database agnostic approach
+        monthly_expenses = []
+        for i in range(12):
+            month_date = end_date - timedelta(days=30*i)
+            month_start = timezone.make_aware(datetime(month_date.year, month_date.month, 1))
+            if month_date.month == 12:
+                month_end = timezone.make_aware(datetime(month_date.year + 1, 1, 1)) - timedelta(days=1)
+            else:
+                month_end = timezone.make_aware(datetime(month_date.year, month_date.month + 1, 1)) - timedelta(days=1)
+            
+            monthly_total = Expense.objects.filter(
+                date__gte=month_start.date(),
+                date__lte=month_end.date()
+            ).aggregate(total=Sum('amount'))['total'] or Decimal('0')
+            
+            monthly_expenses.append({
+                'month': month_start.strftime('%Y-%m'),
+                'monthly_total': monthly_total
+            })
+        
+        monthly_expenses.reverse()  # Sort chronologically
         
         # Damage analytics
         damage_analytics = DamageReport.objects.filter(
@@ -226,7 +246,7 @@ class CustomerManager(models.Manager):
         
         return {
             'expenses_by_category': list(expenses_by_category),
-            'monthly_expenses': list(monthly_expenses),
+            'monthly_expenses': monthly_expenses,
             'damage_analytics': damage_analytics,
             'period': {
                 'start': start_date,
@@ -299,7 +319,7 @@ class Customer(models.Model):
         self.total_orders = completed_orders.count()
         self.total_spent = completed_orders.aggregate(
             total=Sum('total')
-        )['total'] or 0
+        )['total'] or Decimal('0')
         
         first_order = orders.order_by('created_at').first()
         last_order = orders.order_by('-created_at').first()
@@ -327,7 +347,7 @@ class Customer(models.Model):
     @property
     def display_name(self):
         return self.name or "Walking Customer"
-    
+
 class FinancialRecord(models.Model):
     RECORD_TYPES = [
         ('sale', 'Sale'),
@@ -416,4 +436,3 @@ class DamageReport(models.Model):
     
     def __str__(self):
         return f"Damage - {self.product.products_name} - {self.quantity} units - ৳{self.cost_amount}"
-

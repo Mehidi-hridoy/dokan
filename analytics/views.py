@@ -1,27 +1,23 @@
 from django.shortcuts import render
-from django.contrib.auth.decorators import login_required
+from django.contrib.auth.decorators import login_required, user_passes_test
 from django.utils import timezone
-from datetime import timedelta, datetime
 from django.db.models import Count, Q, Sum, F
 from orders.models import Order, OrderItem
 from products.models import Product
-from inventory.models import Inventory
-from promotions.models import Promotion, PromotionUsage
 from django import forms
 from django.core.exceptions import ValidationError
-from .models import Customer
-from django.shortcuts import render, get_object_or_404, redirect
+from .models import Customer, FinancialRecord, Expense, DamageReport
+from django.shortcuts import get_object_or_404, redirect
 from django.core.paginator import Paginator
 from django.contrib import messages
 from django.http import JsonResponse
+from decimal import Decimal
+from datetime import datetime, timedelta
+
 
 # Signal to update customer stats when order is saved
 from django.db.models.signals import post_save
 from django.dispatch import receiver
-
-# analytics/views.py
-from django.db.models import Sum, Count, Q
-from .models import Customer, FinancialRecord, Expense, DamageReport
 
 class DateFilterForm(forms.Form):
     period = forms.ChoiceField(
@@ -54,126 +50,187 @@ class DateFilterForm(forms.Form):
             raise ValidationError("Start date cannot be after end date.")
         return cleaned_data
 
+def is_staff_or_admin(user):
+    return user.is_staff or user.is_superuser
+
 @login_required
+@user_passes_test(is_staff_or_admin)
 def analytics_dashboard(request):
-    form = DateFilterForm(request.GET or None)
-    today = timezone.now().date()
-    start_date = today
-    end_date = today
-
-    if form.is_valid():
-        period = form.cleaned_data['period']
-        if period == 'yesterday':
-            start_date = today - timedelta(days=1)
-            end_date = start_date
-        elif period == 'last_7_days':
-            start_date = today - timedelta(days=6)
-            end_date = today
-        elif period == 'custom':
-            start_date = form.cleaned_data['start_date']
-            end_date = form.cleaned_data['end_date']
+    """Main analytics dashboard for staff/admin users"""
     
-    start_datetime = timezone.make_aware(datetime.combine(start_date, datetime.min.time()))
-    end_datetime = timezone.make_aware(datetime.combine(end_date, datetime.max.time()))
-    prev_start = start_datetime - (end_datetime - start_datetime + timedelta(days=1))
-    prev_end = end_datetime - (end_datetime - start_datetime + timedelta(days=1))
-
-    # Staff filter
-    staff_filter = Q()
-    if request.user.user_type == 'admin' and not request.user.is_superuser:
-        staff_filter = Q(assigned_staff=request.user)
-
-    # Order analytics
-    order_stats = {
-        'total': Order.objects.filter(staff_filter & Q(created_at__range=(start_datetime, end_datetime))).count(),
-        'confirmed': Order.objects.confirmed_orders().filter(staff_filter & Q(created_at__range=(start_datetime, end_datetime))).count(),
-        'rejected': Order.objects.rejected_orders().filter(staff_filter & Q(created_at__range=(start_datetime, end_datetime))).count(),
-        'hold': Order.objects.hold_orders().filter(staff_filter & Q(created_at__range=(start_datetime, end_datetime))).count(),
-        'pending': Order.objects.pending_orders().filter(staff_filter & Q(created_at__range=(start_datetime, end_datetime))).count(),
-        'processed': Order.objects.processed_orders().filter(staff_filter & Q(created_at__range=(start_datetime, end_datetime))).count(),
-        'revenue': Order.objects.filter(staff_filter & Q(created_at__range=(start_datetime, end_datetime))).aggregate(total=Sum('total'))['total'] or 0,
-    }
-    prev_order_stats = {
-        'total': Order.objects.filter(staff_filter & Q(created_at__range=(prev_start, prev_end))).count(),
-        'confirmed': Order.objects.confirmed_orders().filter(staff_filter & Q(created_at__range=(prev_start, prev_end))).count(),
-        'rejected': Order.objects.rejected_orders().filter(staff_filter & Q(created_at__range=(prev_start, prev_end))).count(),
-        'hold': Order.objects.hold_orders().filter(staff_filter & Q(created_at__range=(prev_start, prev_end))).count(),
-        'pending': Order.objects.pending_orders().filter(staff_filter & Q(created_at__range=(prev_start, prev_end))).count(),
-        'processed': Order.objects.processed_orders().filter(staff_filter & Q(created_at__range=(prev_start, prev_end))).count(),
-        'revenue': Order.objects.filter(staff_filter & Q(created_at__range=(prev_start, prev_end))).aggregate(total=Sum('total'))['total'] or 0,
-    }
-
-    def get_change(current, previous):
-        if previous == 0:
-            return "No previous data"
-        change_pct = ((current - previous) / previous) * 100
-        return f"{change_pct:+.2f}%"
-
-    # Order items analytics
-    order_items = OrderItem.objects.filter(order__created_at__range=(start_datetime, end_datetime), order__in=Order.objects.filter(staff_filter))
-    items_stats = {
-        'total_items': order_items.aggregate(total=Sum('quantity'))['total'] or 0,
-        'top_products': order_items.values('product__name').annotate(total_qty=Sum('quantity')).order_by('-total_qty')[:5],
-        'delivery_status': order_items.values('delivery_status').annotate(count=Count('id')).order_by('-count'),
-    }
-    prev_items_stats = {
-        'total_items': OrderItem.objects.filter(order__created_at__range=(prev_start, prev_end), order__in=Order.objects.filter(staff_filter)).aggregate(total=Sum('quantity'))['total'] or 0,
-    }
-
-    # Products analytics
-    products_stats = {
-        'total': Product.objects.filter(staff_filter).count(),
-        'active': Product.objects.filter(staff_filter & Q(is_active=True)).count(),
-        'inactive': Product.objects.filter(staff_filter & Q(is_active=False)).count(),
-        'top_categories': Product.objects.filter(staff_filter).values('category__name').annotate(count=Count('id')).order_by('-count')[:5],
-    }
-
-    # Inventory analytics
-    inventory_stats = {
-        'low_stock': Inventory.objects.filter(staff_filter & Q(quantity__lte=F('low_stock_threshold'))).count(),
-        'total_value': Inventory.objects.filter(staff_filter).aggregate(total=Sum(F('quantity') * F('product__price')))['total'] or 0,
-    }
-
-    # Promotions analytics
-    promotions_stats = {
-        'active': Promotion.objects.filter(staff_filter & Q(is_active=True, start_date__lte=timezone.now(), end_date__gte=timezone.now())).count(),
-        'total_discount': Order.objects.filter(staff_filter & Q(created_at__range=(start_datetime, end_datetime))).aggregate(total=Sum('discount_amount'))['total'] or 0,
-        'usage_count': PromotionUsage.objects.filter(staff_filter & Q(used_at__range=(start_datetime, end_datetime))).count(),
-    }
-
-    # Add customer stats to dashboard
+    # Time periods
+    today = timezone.now()
+    
+    # Customer Statistics
     customer_stats = Customer.objects.get_customer_stats()
-
+    
+    # Financial Overview
+    financial_overview = Customer.objects.get_financial_overview(30)
+    
+    # Sales Analytics
+    sales_analytics = Customer.objects.get_sales_analytics(30)
+    
+    # Expense Analytics
+    expense_analytics = Customer.objects.get_expense_analytics(30)
+    
+    # Quick Stats
+    quick_stats = get_quick_stats()
+    
+    # Recent Activities
+    recent_activities = get_recent_activities()
+    
+    # Top Products
+    top_products = get_top_products(10)
+    
     context = {
-        'form': form,
-        'start_date': start_date,
-        'end_date': end_date,
-        'order_stats': order_stats,
-        'order_changes': {k: get_change(v, prev_order_stats[k]) for k, v in order_stats.items()},
-        'items_stats': items_stats,
-        'items_changes': {'total_items': get_change(items_stats['total_items'], prev_items_stats['total_items'])},
-        'products_stats': products_stats,
-        'inventory_stats': inventory_stats,
-        'promotions_stats': promotions_stats,
         'customer_stats': customer_stats,
+        'financial_overview': financial_overview,
+        'sales_analytics': sales_analytics,
+        'expense_analytics': expense_analytics,
+        'quick_stats': quick_stats,
+        'recent_activities': recent_activities,
+        'top_products': top_products,
+        'today': today.date(),
     }
-
+    
     return render(request, 'analytics/dashboard.html', context)
 
+@login_required
+@user_passes_test(is_staff_or_admin)
+def dashboard_data_api(request):
+    """API endpoint for dashboard data (for AJAX updates)"""
+    period_days = int(request.GET.get('period', 30))
+    
+    data = {
+        'customer_stats': Customer.objects.get_customer_stats(),
+        'financial_overview': Customer.objects.get_financial_overview(period_days),
+        'sales_analytics': Customer.objects.get_sales_analytics(period_days),
+        'expense_analytics': Customer.objects.get_expense_analytics(period_days),
+        'quick_stats': get_quick_stats(),
+        'timestamp': timezone.now().isoformat(),
+    }
+    
+    return JsonResponse(data)
 
-from django.contrib.auth.decorators import login_required
-from django.shortcuts import render, get_object_or_404, redirect
-from django.core.paginator import Paginator
-from django.db.models import Q, Sum
-from django.contrib import messages
-from django.db.models.signals import post_save
-from django.dispatch import receiver
-from .models import Customer
-from orders.models import Order
+def get_quick_stats():
+    """Get quick overview statistics"""
+    today = timezone.now().date()
+    yesterday = today - timedelta(days=1)
+    
+    # Today's stats
+    today_orders = Order.objects.filter(created_at__date=today)
+    today_sales = today_orders.filter(payment_status='paid').aggregate(
+        total=Sum('total')
+    )['total'] or Decimal('0')
+    
+    # Yesterday's stats for comparison
+    yesterday_orders = Order.objects.filter(created_at__date=yesterday)
+    yesterday_sales = yesterday_orders.filter(payment_status='paid').aggregate(
+        total=Sum('total')
+    )['total'] or Decimal('0')
+    
+    # Calculate changes
+    sales_change = calculate_percentage_change(today_sales, yesterday_sales)
+    orders_change = calculate_percentage_change(today_orders.count(), yesterday_orders.count())
+    
+    # Low stock products
+    low_stock_products = Product.objects.filter(stock_quantity__lte=10).count()
+    
+    # Pending orders
+    pending_orders = Order.objects.filter(order_status='pending').count()
+    
+    return {
+        'today_sales': today_sales,
+        'today_orders': today_orders.count(),
+        'sales_change': sales_change,
+        'orders_change': orders_change,
+        'low_stock_products': low_stock_products,
+        'pending_orders': pending_orders,
+        'today_date': today,
+    }
+
+def get_recent_activities():
+    """Get recent activities for dashboard"""
+    recent_orders = Order.objects.select_related('customer').order_by('-created_at')[:5]
+    recent_expenses = Expense.objects.select_related('category', 'created_by').order_by('-date')[:5]
+    recent_damages = DamageReport.objects.select_related('product', 'reported_by').filter(resolved=False).order_by('-date_reported')[:5]
+    
+    activities = []
+    
+    # Add orders
+    for order in recent_orders:
+        activities.append({
+            'type': 'order',
+            'title': f'New Order #{order.order_number}',
+            'description': f'{order.get_customer_display()} placed an order',
+            'amount': order.total,
+            'timestamp': order.created_at,
+            'status': order.order_status,
+            'icon': 'fas fa-shopping-cart',
+            'color': 'blue',
+        })
+    
+    # Add expenses
+    for expense in recent_expenses:
+        activities.append({
+            'type': 'expense',
+            'title': f'Expense: {expense.category.name}',
+            'description': expense.description,
+            'amount': -expense.amount,
+            'timestamp': expense.created_at,
+            'status': 'recorded',
+            'icon': 'fas fa-receipt',
+            'color': 'red',
+        })
+    
+    # Add damages
+    for damage in recent_damages:
+        activities.append({
+            'type': 'damage',
+            'title': f'Damage Report: {damage.product.products_name}',
+            'description': f'{damage.quantity} units damaged',
+            'amount': -damage.cost_amount,
+            'timestamp': damage.date_reported,
+            'status': damage.damage_type,
+            'icon': 'fas fa-exclamation-triangle',
+            'color': 'orange',
+        })
+    
+    # Sort by timestamp and return top 10
+    activities.sort(key=lambda x: x['timestamp'], reverse=True)
+    return activities[:10]
+
+def get_top_products(limit=10):
+    """Get top performing products"""
+    thirty_days_ago = timezone.now() - timedelta(days=30)
+    
+    top_products = OrderItem.objects.filter(
+        order__created_at__gte=thirty_days_ago,
+        order__payment_status='paid'
+    ).values(
+        'product__id',
+        'product__products_name',
+        'product__product_code',
+        'product__current_price',
+        'product__stock_quantity',
+    ).annotate(
+        total_sold=Sum('quantity'),
+        total_revenue=Sum(F('unit_price') * F('quantity')),
+        order_count=Count('order', distinct=True)
+    ).order_by('-total_revenue')[:limit]
+    
+    return list(top_products)
+
+def calculate_percentage_change(current, previous):
+    """Calculate percentage change between current and previous values"""
+    if previous == 0:
+        return Decimal('100.00') if current > 0 else Decimal('0.00')
+    return ((current - previous) / abs(previous) * 100).quantize(Decimal('0.01'))
 
 @login_required
+@user_passes_test(is_staff_or_admin)
 def customer_analytics(request):
-    # Get customer statistics
+    """Detailed customer analytics view"""
     customer_stats = Customer.objects.get_customer_stats()
     
     # Handle search
@@ -205,13 +262,27 @@ def customer_analytics(request):
         'total_customers': customers.count(),
     }
     
-    return render(request, 'analytics/customers.html', context)
+    return render(request, 'analytics/customer_analytics.html', context)
+
+@login_required
+@user_passes_test(is_staff_or_admin)
+def financial_analytics_view(request):
+    """Detailed financial analytics view"""
+    financial_overview = Customer.objects.get_financial_overview(30)
+    expense_analytics = Customer.objects.get_expense_analytics(30)
+    
+    context = {
+        'financial_overview': financial_overview,
+        'expense_analytics': expense_analytics,
+    }
+    
+    return render(request, 'analytics/financial_analytics.html', context)
 
 @login_required
 def customer_detail(request, customer_id):
     customer = get_object_or_404(Customer, id=customer_id)
     
-    # Get orders for this customer using the customer field in Order model
+    # Get orders for this customer
     orders = Order.objects.filter(customer=customer).order_by('-created_at')
     
     # Order statistics for this customer
@@ -247,36 +318,10 @@ def toggle_customer_status(request, customer_id):
             messages.warning(request, f'{customer.name} has been marked as fraudulent.')
         elif action == 'unblock':
             customer.is_fraudulent = False
-            # Recalculate customer type after unblocking
             customer.update_customer_stats()
             messages.success(request, f'{customer.name} has been unblocked.')
-        elif action == 'convert':
-            # Convert guest to registered user logic
-            pass
     
     return redirect('analytics:customer_detail', customer_id=customer_id)
-
-# Guest Checkout Handler
-def handle_guest_checkout(order_data):
-    """
-    Handle guest checkout - create or get customer and link to order
-    """
-    email = order_data.get('email')
-    phone = order_data.get('phone_number')
-    name = order_data.get('customer_name')
-    
-    if email and phone:
-        # Get or create customer
-        customer, created = Customer.objects.get_or_create_guest_customer(
-            email=email,
-            phone=phone,
-            name=name
-        )
-        
-        return customer
-    return None
-
-
 
 @receiver(post_save, sender=Order)
 def update_customer_on_order_save(sender, instance, **kwargs):
@@ -285,10 +330,8 @@ def update_customer_on_order_save(sender, instance, **kwargs):
     If no linked customer exists, try to find or create a guest customer.
     """
     if instance.customer:
-        # Update existing customer's stats
         instance.customer.update_customer_stats()
     elif instance.email and instance.phone_number:
-        # Try to get or create a guest customer
         customer, created = Customer.objects.get_or_create(
             email=instance.email,
             defaults={
@@ -300,8 +343,6 @@ def update_customer_on_order_save(sender, instance, **kwargs):
         instance.customer = customer
         instance.save(update_fields=['customer'])
 
-
-# API view for customer search (for AJAX requests)
 @login_required
 def customer_search_api(request):
     query = request.GET.get('q', '')
@@ -329,28 +370,18 @@ def customer_search_api(request):
     
     return JsonResponse({'results': []})
 
-
-
 @login_required
+@user_passes_test(is_staff_or_admin)
 def financial_dashboard(request):
     """Comprehensive financial dashboard"""
-    # Get time period from request or default to 30 days
     period_days = int(request.GET.get('period', 30))
     
-    # Get financial overview
     financial_overview = Customer.objects.get_financial_overview(period_days)
-    
-    # Get additional analytics
     sales_analytics = Customer.objects.get_sales_analytics(period_days)
     expense_analytics = Customer.objects.get_expense_analytics(period_days)
     
-    # Recent transactions
     recent_transactions = FinancialRecord.objects.all().order_by('-date')[:10]
-    
-    # Recent damages
     recent_damages = DamageReport.objects.filter(resolved=False).order_by('-date_reported')[:5]
-    
-    # Top expenses
     top_expenses = Expense.objects.all().order_by('-date')[:5]
     
     context = {
@@ -367,6 +398,7 @@ def financial_dashboard(request):
     return render(request, 'analytics/financial_dashboard.html', context)
 
 @login_required
+@user_passes_test(is_staff_or_admin)
 def sales_analytics_detail(request):
     """Detailed sales analytics view"""
     period_days = int(request.GET.get('period', 30))
@@ -382,6 +414,7 @@ def sales_analytics_detail(request):
     return render(request, 'analytics/sales_analytics.html', context)
 
 @login_required
+@user_passes_test(is_staff_or_admin)
 def expense_analytics_detail(request):
     """Detailed expense analytics view"""
     period_days = int(request.GET.get('period', 30))

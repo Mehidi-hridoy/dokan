@@ -1,407 +1,84 @@
 {% extends 'base.html' %}
 {% load static %}
 
-{% block title %}Customer Analytics - {{ block.super }}{% endblock %}
+{% block title %}Customers List - Dokan{% endblock %}
 
 {% block content %}
-<div class="container-fluid py-4">
-    <!-- Page Header -->
-    <div class="d-flex justify-content-between align-items-center mb-4">
-        <div>
-            <h1 class="h3 mb-0">Customer Management</h1>
-            <p class="text-muted mb-0">Manage and analyze your customer base</p>
+<div class="container-fluid px-4 py-6">
+    <h1 class="text-3xl font-bold text-gray-900 mb-6">Customers</h1>
+    
+    <!-- Stats -->
+    <div class="grid grid-cols-1 md:grid-cols-4 gap-6 mb-6">
+        <div class="bg-white rounded-xl border p-4">
+            <p class="text-sm text-gray-600">Total Customers</p>
+            <p class="text-xl font-bold">{{ total_customers }}</p>
         </div>
-        <div>
-            <button class="btn btn-outline-primary">
-                <i class="fas fa-download me-2"></i>Export
-            </button>
-        </div>
+        <!-- Add more stats from customer_stats if needed -->
     </div>
 
-    <!-- Customer Statistics Cards -->
-    <div class="row mb-4">
-        <div class="col-xl-3 col-md-6 mb-4">
-            <div class="card border-left-primary shadow h-100 py-2">
-                <div class="card-body">
-                    <div class="row no-gutters align-items-center">
-                        <div class="col mr-2">
-                            <div class="text-xs font-weight-bold text-primary text-uppercase mb-1">
-                                New Customers (0-5 orders)
-                            </div>
-                            <div class="h5 mb-0 font-weight-bold text-gray-800">{{ customer_stats.new_customers }}</div>
-                        </div>
-                        <div class="col-auto">
-                            <i class="fas fa-user-plus fa-2x text-gray-300"></i>
-                        </div>
-                    </div>
-                </div>
-            </div>
-        </div>
-
-        <div class="col-xl-3 col-md-6 mb-4">
-            <div class="card border-left-success shadow h-100 py-2">
-                <div class="card-body">
-                    <div class="row no-gutters align-items-center">
-                        <div class="col mr-2">
-                            <div class="text-xs font-weight-bold text-success text-uppercase mb-1">
-                                Regular Customers (6-15 orders)
-                            </div>
-                            <div class="h5 mb-0 font-weight-bold text-gray-800">{{ customer_stats.regular_customers }}</div>
-                        </div>
-                        <div class="col-auto">
-                            <i class="fas fa-users fa-2x text-gray-300"></i>
-                        </div>
-                    </div>
-                </div>
-            </div>
-        </div>
-
-        <div class="col-xl-3 col-md-6 mb-4">
-            <div class="card border-left-warning shadow h-100 py-2">
-                <div class="card-body">
-                    <div class="row no-gutters align-items-center">
-                        <div class="col mr-2">
-                            <div class="text-xs font-weight-bold text-warning text-uppercase mb-1">
-                                VIP Customers (10-20 orders)
-                            </div>
-                            <div class="h5 mb-0 font-weight-bold text-gray-800">{{ customer_stats.vip_customers }}</div>
-                        </div>
-                        <div class="col-auto">
-                            <i class="fas fa-crown fa-2x text-gray-300"></i>
-                        </div>
-                    </div>
-                </div>
-            </div>
-        </div>
-
-        <div class="col-xl-3 col-md-6 mb-4">
-            <div class="card border-left-danger shadow h-100 py-2">
-                <div class="card-body">
-                    <div class="row no-gutters align-items-center">
-                        <div class="col mr-2">
-                            <div class="text-xs font-weight-bold text-danger text-uppercase mb-1">
-                                Fraud Customers
-                            </div>
-                            <div class="h5 mb-0 font-weight-bold text-gray-800">{{ customer_stats.fraud_customers }}</div>
-                        </div>
-                        <div class="col-auto">
-                            <i class="fas fa-ban fa-2x text-gray-300"></i>
-                        </div>
-                    </div>
-                </div>
-            </div>
-        </div>
-    </div>
-
-    <!-- Customer Type Legend -->
-    <div class="card mb-4">
-        <div class="card-body">
-            <h6 class="card-title mb-3">Customer Type Classification</h6>
-            <div class="row">
-                <div class="col-md-4">
-                    <div class="d-flex align-items-center mb-2">
-                        <span class="badge bg-primary me-2">New</span>
-                        <small class="text-muted">0-5 orders</small>
-                    </div>
-                </div>
-                <div class="col-md-4">
-                    <div class="d-flex align-items-center mb-2">
-                        <span class="badge bg-success me-2">Regular</span>
-                        <small class="text-muted">6-15 orders</small>
-                    </div>
-                </div>
-                <div class="col-md-4">
-                    <div class="d-flex align-items-center mb-2">
-                        <span class="badge bg-warning text-dark me-2">VIP</span>
-                        <small class="text-muted">10-20 orders</small>
-                    </div>
-                </div>
-            </div>
-            <div class="mt-2">
-                <small class="text-muted">
-                    <i class="fas fa-info-circle me-1"></i>
-                    Note: Customers with 10-15 orders are classified as VIP (priority given to higher tier)
-                </small>
-            </div>
-        </div>
-    </div>
-
-    <!-- Search and Filter Section -->
-    <div class="card mb-4">
-        <div class="card-body">
-            <div class="row align-items-center">
-                <div class="col-md-6">
-                    <div class="d-flex align-items-center">
-                        <i class="fas fa-users me-2 text-primary"></i>
-                        <h6 class="mb-0">👤 All Available Users: {{ total_customers }}</h6>
-                    </div>
-                </div>
-                <div class="col-md-6">
-                    <form method="get" class="row g-2">
-                        <div class="col-md-5">
-                            <input type="text" 
-                                   class="form-control" 
-                                   placeholder="Search by name/email/phone..." 
-                                   name="search" 
-                                   value="{{ search_query }}">
-                        </div>
-                        <div class="col-md-4">
-                            <select name="type" class="form-select">
-                                <option value="">All Types</option>
-                                <option value="new" {% if customer_type_filter == 'new' %}selected{% endif %}>New Customers (0-5)</option>
-                                <option value="regular" {% if customer_type_filter == 'regular' %}selected{% endif %}>Regular Customers (6-15)</option>
-                                <option value="vip" {% if customer_type_filter == 'vip' %}selected{% endif %}>VIP Customers (10-20)</option>
-                                <option value="fraud" {% if customer_type_filter == 'fraud' %}selected{% endif %}>Fraud Customers</option>
-                            </select>
-                        </div>
-                        <div class="col-md-3">
-                            <button class="btn btn-primary w-100" type="submit">
-                                <i class="fas fa-search me-1"></i> Search
-                            </button>
-                        </div>
-                    </form>
-                </div>
-            </div>
-        </div>
+    <!-- Search and Filters -->
+    <div class="bg-white rounded-xl border p-6 mb-6">
+        <form method="get" class="grid grid-cols-1 md:grid-cols-3 gap-4">
+            <input type="text" name="search" value="{{ search_query }}" placeholder="Search by name, email, phone..." class="border rounded-lg px-3 py-2">
+            <select name="type" class="border rounded-lg px-3 py-2">
+                <option value="">All Types</option>
+                <option value="new" {% if customer_type_filter == 'new' %}selected{% endif %}>New</option>
+                <option value="regular" {% if customer_type_filter == 'regular' %}selected{% endif %}>Regular</option>
+                <option value="vip" {% if customer_type_filter == 'vip' %}selected{% endif %}>VIP</option>
+                <option value="fraud" {% if customer_type_filter == 'fraud' %}selected{% endif %}>Fraud</option>
+            </select>
+            <button type="submit" class="bg-blue-600 text-white px-4 py-2 rounded-lg">Search</button>
+        </form>
     </div>
 
     <!-- Customers Table -->
-    <div class="card">
-        <div class="card-header">
-            <h5 class="card-title mb-0">All Customers</h5>
-        </div>
-        <div class="card-body">
-            <div class="table-responsive">
-                <table class="table table-hover table-striped">
-                    <thead class="table-light">
-                        <tr>
-                            <th width="50">#</th>
-                            <th width="80">Avatar</th>
-                            <th>Name</th>
-                            <th>Email</th>
-                            <th>Phone</th>
-                            <th>IP Address</th>
-                            <th>Status</th>
-                            <th>Total Orders</th>
-                            <th>Total Spent</th>
-                            <th>Type</th>
-                            <th>Order Range</th>
-                            <th>User Type</th>
-                            <th width="150">Actions</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        {% for customer in page_obj %}
-                        <tr>
-                            <td class="text-muted">{{ forloop.counter0|add:page_obj.start_index }}</td>
-                            <td>
-                                {% if customer.avatar %}
-                                    <img src="{{ customer.avatar.url }}" alt="Avatar" class="rounded-circle" width="40" height="40">
-                                {% else %}
-                                    <div class="bg-secondary rounded-circle d-flex align-items-center justify-content-center" style="width: 40px; height: 40px;">
-                                        <span class="text-white fw-bold">{{ customer.name|first|upper }}</span>
-                                    </div>
-                                {% endif %}
-                            </td>
-                            <td>
-                                <a href="{% url 'analytics:customer_detail' customer.id %}" class="text-decoration-none">
-                                    <strong>{{ customer.name }}</strong>
-                                </a>
-                            </td>
-                            <td>
-                                <a href="mailto:{{ customer.email }}" class="text-decoration-none">
-                                    {{ customer.email }}
-                                </a>
-                            </td>
-                            <td>
-                                {% if customer.phone %}
-                                    <a href="tel:{{ customer.phone }}" class="text-decoration-none">
-                                        {{ customer.phone }}
-                                    </a>
-                                {% else %}
-                                    <span class="text-muted">N/A</span>
-                                {% endif %}
-                            </td>
-                            <td>
-                                <span class="text-muted">{{ customer.ip_address|default:"N/A" }}</span>
-                            </td>
-                            <td>
-                                <span class="badge {% if customer.status == 'Active' %}bg-success{% else %}bg-danger{% endif %}">
-                                    <i class="fas {% if customer.status == 'Active' %}fa-check{% else %}fa-ban{% endif %} me-1"></i>
-                                    {{ customer.status }}
-                                </span>
-                            </td>
-                            <td>
-                                <strong>{{ customer.total_orders }}</strong>
-                            </td>
-                            <td>
-                                <strong class="text-success">${{ customer.total_spent }}</strong>
-                            </td>
-                            <td>
-                                <span class="badge 
-                                    {% if customer.customer_type == 'vip' %}bg-warning text-dark
-                                    {% elif customer.customer_type == 'regular' %}bg-success
-                                    {% elif customer.customer_type == 'fraud' %}bg-danger
-                                    {% else %}bg-primary{% endif %}">
-                                    {% if customer.customer_type == 'vip' %}
-                                        <i class="fas fa-crown me-1"></i>
-                                    {% elif customer.customer_type == 'regular' %}
-                                        <i class="fas fa-user me-1"></i>
-                                    {% elif customer.customer_type == 'fraud' %}
-                                        <i class="fas fa-ban me-1"></i>
-                                    {% else %}
-                                        <i class="fas fa-user-plus me-1"></i>
-                                    {% endif %}
-                                    {{ customer.get_customer_type_display }}
-                                </span>
-                            </td>
-                            <td>
-                                <small class="text-muted">{{ customer.order_range }}</small>
-                            </td>
-                            <td>
-                                <span class="badge {% if customer.is_guest %}bg-secondary{% else %}bg-info{% endif %}">
-                                    <i class="fas {% if customer.is_guest %}fa-user-clock{% else %}fa-user-check{% endif %} me-1"></i>
-                                    {{ customer.is_guest|yesno:"Guest,Registered" }}
-                                </span>
-                            </td>
-                            <td>
-                                <div class="btn-group btn-group-sm">
-                                    <a href="{% url 'analytics:customer_detail' customer.id %}" 
-                                       class="btn btn-outline-primary" 
-                                       title="View Details">
-                                        <i class="fas fa-eye"></i>
-                                    </a>
-                                    {% if customer.is_fraudulent %}
-                                        <form method="post" action="{% url 'analytics:toggle_customer_status' customer.id %}" class="d-inline">
-                                            {% csrf_token %}
-                                            <input type="hidden" name="action" value="unblock">
-                                            <button type="submit" 
-                                                    class="btn btn-outline-success" 
-                                                    title="Unblock Customer"
-                                                    onclick="return confirm('Are you sure you want to unblock this customer?')">
-                                                <i class="fas fa-lock-open"></i>
-                                            </button>
-                                        </form>
-                                    {% else %}
-                                        <form method="post" action="{% url 'analytics:toggle_customer_status' customer.id %}" class="d-inline">
-                                            {% csrf_token %}
-                                            <input type="hidden" name="action" value="block">
-                                            <button type="submit" 
-                                                    class="btn btn-outline-danger" 
-                                                    title="Block Customer"
-                                                    onclick="return confirm('Are you sure you want to mark this customer as fraudulent?')">
-                                                <i class="fas fa-ban"></i>
-                                            </button>
-                                        </form>
-                                    {% endif %}
-                                    <button class="btn btn-outline-secondary" title="Send Email">
-                                        <i class="fas fa-envelope"></i>
-                                    </button>
-                                </div>
-                            </td>
-                        </tr>
-                        {% empty %}
-                        <tr>
-                            <td colspan="13" class="text-center py-4">
-                                <div class="text-muted">
-                                    <i class="fas fa-users fa-3x mb-3"></i>
-                                    <h5>No customers found</h5>
-                                    <p>{% if search_query %}Try adjusting your search criteria{% else %}No customers in the system yet{% endif %}</p>
-                                </div>
-                            </td>
-                        </tr>
-                        {% endfor %}
-                    </tbody>
-                </table>
+    <div class="bg-white rounded-xl border overflow-hidden">
+        <table class="min-w-full divide-y divide-gray-200">
+            <thead class="bg-gray-50">
+                <tr>
+                    <th class挙 class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Name</th>
+                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Email</th>
+                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Phone</th>
+                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Type</th>
+                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Actions</th>
+                </tr>
+            </thead>
+            <tbody class="bg-white divide-y divide-gray-200">
+                {% for customer in page_obj %}
+                <tr>
+                    <td class="px-6 py-4 whitespace-nowrap">{{ customer.name }}</td>
+                    <td class="px-6 py-4 whitespace-nowrap">{{ customer.email }}</td>
+                    <td class="px-6 py-4 whitespace-nowrap">{{ customer.phone }}</td>
+                    <td class="px-6 py-4 whitespace-nowrap">
+                        <span class="px-2 py-1 text-xs rounded-full 
+                        {% if customer.customer_type == 'new' %}bg-blue-100 text-blue-800
+                        {% elif customer.customer_type == 'regular' %}bg-green-100 text-green-800
+                        {% elif customer.customer_type == 'vip' %}bg-purple-100 text-purple-800
+                        {% else %}bg-red-100 text-red-800{% endif %}">
+                            {{ customer.get_customer_type_display }}
+                        </span>
+                    </td>
+                    <td class="px-6 py-4 whitespace-nowrap">
+                        <a href="{% url 'analytics:customer_detail' customer.id %}" class="text-blue-600 hover:underline">View</a>
+                    </td>
+                </tr>
+                {% empty %}
+                <tr><td colspan="5" class="text-center py-4 text-gray-500">No customers found</td></tr>
+                {% endfor %}
+            </tbody>
+        </table>
+        <!-- Pagination -->
+        <div class="bg-gray-50 px-6 py-3 flex justify-between">
+            <span class="text-sm text-gray-700">Page {{ page_obj.number }} of {{ paginator.num_pages }}</span>
+            <div>
+                {% if page_obj.has_previous %}
+                    <a href="?page={{ page_obj.previous_page_number }}&search={{ search_query }}&type={{ customer_type_filter }}" class="px-3 py-1 border rounded">Previous</a>
+                {% endif %}
+                {% if page_obj.has_next %}
+                    <a href="?page={{ page_obj.next_page_number }}&search={{ search_query }}&type={{ customer_type_filter }}" class="px-3 py-1 border rounded">Next</a>
+                {% endif %}
             </div>
-            
-            <!-- Pagination -->
-            {% if page_obj.has_other_pages %}
-            <div class="d-flex justify-content-between align-items-center mt-4">
-                <div class="text-muted">
-                    Showing {{ page_obj.start_index }} to {{ page_obj.end_index }} of {{ page_obj.paginator.count }} entries
-                </div>
-                <nav aria-label="Page navigation">
-                    <ul class="pagination mb-0">
-                        {% if page_obj.has_previous %}
-                        <li class="page-item">
-                            <a class="page-link" 
-                               href="?page={{ page_obj.previous_page_number }}{% if search_query %}&search={{ search_query }}{% endif %}{% if customer_type_filter %}&type={{ customer_type_filter }}{% endif %}">
-                                <i class="fas fa-chevron-left"></i>
-                            </a>
-                        </li>
-                        {% else %}
-                        <li class="page-item disabled">
-                            <span class="page-link"><i class="fas fa-chevron-left"></i></span>
-                        </li>
-                        {% endif %}
-                        
-                        {% for num in page_obj.paginator.page_range %}
-                            {% if page_obj.number == num %}
-                            <li class="page-item active">
-                                <span class="page-link">{{ num }}</span>
-                            </li>
-                            {% elif num > page_obj.number|add:'-3' and num < page_obj.number|add:'3' %}
-                            <li class="page-item">
-                                <a class="page-link" 
-                                   href="?page={{ num }}{% if search_query %}&search={{ search_query }}{% endif %}{% if customer_type_filter %}&type={{ customer_type_filter }}{% endif %}">
-                                    {{ num }}
-                                </a>
-                            </li>
-                            {% endif %}
-                        {% endfor %}
-                        
-                        {% if page_obj.has_next %}
-                        <li class="page-item">
-                            <a class="page-link" 
-                               href="?page={{ page_obj.next_page_number }}{% if search_query %}&search={{ search_query }}{% endif %}{% if customer_type_filter %}&type={{ customer_type_filter }}{% endif %}">
-                                <i class="fas fa-chevron-right"></i>
-                            </a>
-                        </li>
-                        {% else %}
-                        <li class="page-item disabled">
-                            <span class="page-link"><i class="fas fa-chevron-right"></i></span>
-                        </li>
-                        {% endif %}
-                    </ul>
-                </nav>
-            </div>
-            {% endif %}
         </div>
     </div>
 </div>
-{% endblock %}
-
-{% block extra_js %}
-<script>
-// Auto-submit form when filter changes
-document.addEventListener('DOMContentLoaded', function() {
-    const typeFilter = document.querySelector('select[name="type"]');
-    if (typeFilter) {
-        typeFilter.addEventListener('change', function() {
-            this.form.submit();
-        });
-    }
-    
-    // Clear search functionality
-    const searchInput = document.querySelector('input[name="search"]');
-    if (searchInput && searchInput.value) {
-        const clearButton = document.createElement('button');
-        clearButton.type = 'button';
-        clearButton.className = 'btn btn-sm btn-outline-secondary position-absolute';
-        clearButton.innerHTML = '<i class="fas fa-times"></i>';
-        clearButton.style.right = '10px';
-        clearButton.style.top = '50%';
-        clearButton.style.transform = 'translateY(-50%)';
-        clearButton.addEventListener('click', function() {
-            searchInput.value = '';
-            searchInput.form.submit();
-        });
-        
-        const searchContainer = searchInput.parentElement;
-        searchContainer.style.position = 'relative';
-        searchContainer.appendChild(clearButton);
-    }
-});
-</script>
 {% endblock %}

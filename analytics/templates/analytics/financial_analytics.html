@@ -1,0 +1,91 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block title %}Financial Dashboard - Dokan{% endblock %}
+
+{% block extra_css %}
+<style>
+    .period-option { @apply px-4 py-2 hover:bg-gray-100 cursor-pointer; }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container-fluid px-4 py-6">
+    <!-- Header -->
+    <div class="flex flex-col lg:flex-row lg:items-center lg:justify-between mb-6">
+        <div>
+            <h1 class="text-3xl font-bold text-gray-900">Financial Dashboard</h1>
+            <p class="text-gray-600">Track income, expenses, and profitability</p>
+        </div>
+        <div class="flex items-center space-x-4 mt-4 lg:mt-0">
+            <select id="periodSelect" class="border border-gray-300 rounded-lg px-3 py-2 text-sm">
+                {% for opt in period_options %}
+                <option value="{{ opt }}" {% if period_days == opt %}selected{% endif %}>Last {{ opt }} Days</option>
+                {% endfor %}
+            </select>
+            <button id="refreshBtn" class="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700">Refresh</button>
+        </div>
+    </div>
+
+    <!-- Overview -->
+    <div class="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
+        <div class="bg-white rounded-xl border p-6">
+            <p class="text-sm text-gray-600">Total Income</p>
+            <p class="text-2xl font-bold text-green-600">৳{{ financial_overview.total_income.amount }}</p>
+        </div>
+        <div class="bg-white rounded-xl border p-6">
+            <p class="text-sm text-gray-600">Total Expenses</p>
+            <p class="text-2xl font-bold text-red-600">৳{{ financial_overview.total_expenses.amount }}</p>
+        </div>
+        <div class="bg-white rounded-xl border p-6">
+            <p class="text-sm text-gray-600">Net Balance</p>
+            <p class="text-2xl font-bold text-blue-600">৳{{ financial_overview.net_balance.amount }}</p>
+        </div>
+    </div>
+
+    <!-- Recent Transactions -->
+    <div class="bg-white rounded-xl border p-6 mb-8">
+        <h3 class="text-lg font-semibold text-gray-900 mb-4">Recent Transactions</h3>
+        <table class="min-w-full">
+            <thead class="bg-gray-50">
+                <tr>
+                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Date</th>
+                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Description</th>
+                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Amount</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for trans in recent_transactions %}
+                <tr>
+                    <td class="px-6 py-4">{{ trans.date }}</td>
+                    <td class="px-6 py-4">{{ trans.description }}</td>
+                    <td class="px-6 py-4 {% if trans.amount > 0 %}text-green-600{% else %}text-red-600{% endif %}">৳{{ trans.amount }}</td>
+                </tr>
+                {% empty %}
+                <tr><td colspan="3" class="text-center py-4 text-gray-500">No transactions</td></tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+
+    <!-- Recent Damages and Top Expenses -->
+    <div class="grid grid-cols-1 lg:grid-cols-2 gap-8">
+        <div class="bg-white rounded-xl border p-6">
+            <h3 class="text-lg font-semibold text-gray-900 mb-4">Recent Damages</h3>
+            <!-- Similar table for recent_damages -->
+            <p class="text-gray-500">Implement table similar to above</p>
+        </div>
+        <div class="bg-white rounded-xl border p-6">
+            <h3 class="text-lg font-semibold text-gray-900 mb-4">Top Expenses</h3>
+            <!-- Similar table for top_expenses -->
+            <p class="text-gray-500">Implement table similar to above</p>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+    // Similar refresh script as dashboard, but update URL to financial_dashboard or use AJAX if needed
+</script>
+{% endblock %}
