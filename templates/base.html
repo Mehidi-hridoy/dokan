@@ -209,7 +209,7 @@
             <a href="{% url 'products:home' %}" class="block py-3 px-4 hover:bg-gray-100 border-b">Home</a>
             <a href="{% url 'products:product_list' %}" class="block py-3 px-4 hover:bg-gray-100 border-b">Shop</a>
             {% if request.user.is_authenticated %}
-                <a href="{% url 'products:order_history' %}" class="block py-3 px-4 hover:bg-gray-100 border-b">Orders</a>
+                <a href="{% url 'orders:order_history' %}" class="block py-3 px-4 hover:bg-gray-100 border-b">Orders</a>
                 <a href="{% url 'orders:view_cart' %}" class="block py-3 px-4 hover:bg-gray-100 border-b">Cart</a>
                 <a href="{% url 'logout' %}" class="block py-3 px-4 hover:bg-gray-100 text-red-600">Logout</a>
             {% else %}
@@ -419,6 +419,78 @@
                 });
             }
         });
+
+        // Add quantity control functionality for guest users
+document.addEventListener('DOMContentLoaded', function() {
+    // Existing add to cart code...
+    
+    // Handle quantity controls in cart dropdown
+    function setupCartDropdownControls() {
+        // Quantity decrease for guest users
+        document.querySelectorAll('.quantity-decrease').forEach(button => {
+            button.addEventListener('click', function() {
+                updateCartItemQuantity(this, -1);
+            });
+        });
+
+        // Quantity increase for guest users
+        document.querySelectorAll('.quantity-increase').forEach(button => {
+            button.addEventListener('click', function() {
+                updateCartItemQuantity(this, 1);
+            });
+        });
+    }
+
+    function updateCartItemQuantity(button, change) {
+        const slug = button.dataset.slug;
+        const color = button.dataset.color;
+        const size = button.dataset.size;
+        const weight = button.dataset.weight;
+        
+        const formData = new FormData();
+        formData.append('quantity', change);
+        formData.append('color', color);
+        formData.append('size', size);
+        formData.append('weight', weight);
+        formData.append('csrfmiddlewaretoken', '{{ csrf_token }}');
+
+        fetch(`/orders/add-to-cart/${slug}/`, {
+            method: 'POST',
+            body: formData,
+            headers: {
+                'X-Requested-With': 'XMLHttpRequest',
+            }
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                // Reload the cart dropdown to show updated quantities
+                loadCartDropdown();
+                // Update cart count in navbar
+                updateCartCount(data.cart_count);
+                // Show success message
+                showMessage('Quantity updated successfully!', 'success');
+            } else {
+                showMessage(data.message, 'error');
+            }
+        })
+        .catch(error => {
+            console.error('Error:', error);
+            showMessage('An error occurred while updating quantity', 'error');
+        });
+    }
+
+    // Setup controls when cart dropdown is loaded
+    const originalLoadCartDropdown = loadCartDropdown;
+    loadCartDropdown = function() {
+        originalLoadCartDropdown();
+        // Wait a bit for the content to load, then setup controls
+        setTimeout(setupCartDropdownControls, 100);
+    };
+
+    // Initial setup
+    setupCartDropdownControls();
+});
 
         function showEnhancedCartMessage(data) {
             const messageContainer = document.getElementById('messageContainer');

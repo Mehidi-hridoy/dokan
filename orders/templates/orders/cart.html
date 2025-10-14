@@ -20,20 +20,20 @@
     </div>
     {% endif %}
 
-    {% if order and order.order_items.exists %}
+    {% if cart_items %}
     <div class="grid grid-cols-1 lg:grid-cols-3 gap-8">
         <!-- Cart Items -->
         <div class="lg:col-span-2">
             <div class="bg-white rounded-lg shadow-sm border">
                 <div class="p-6 border-b">
-                    <h2 class="text-xl font-semibold">Cart Items ({{ order.order_items.count }})</h2>
+                    <h2 class="text-xl font-semibold">Cart Items ({{ cart_count }})</h2>
                 </div>
                 
                 <div class="divide-y divide-gray-200">
-                    {% for item in order.order_items.all %}
+                    {% for item in cart_items %}
                     <div class="p-6 flex items-center space-x-4">
                         {% if item.product.products_image %}
-                        <img src="{{ item.product.products_image.url }}" alt="{{ item.product.name }}" 
+                        <img src="{{ item.product.products_image.url }}" alt="{{ item.product.products_name }}" 
                              class="w-20 h-20 object-cover rounded-lg">
                         {% else %}
                         <div class="w-20 h-20 bg-gray-200 rounded-lg flex items-center justify-center">
@@ -42,39 +42,61 @@
                         {% endif %}
                         
                         <div class="flex-1">
-                            <h3 class="font-semibold text-gray-900">{{ item.product.name }}</h3>
+                            <h3 class="font-semibold text-gray-900">{{ item.product.products_name }}</h3>
                             <div class="text-sm text-gray-600 mt-1">
                                 {% if item.color %}<span class="mr-3">Color: {{ item.color }}</span>{% endif %}
                                 {% if item.size %}<span class="mr-3">Size: {{ item.size }}</span>{% endif %}
+                                {% if item.weight %}<span class="mr-3">Weight: {{ item.weight }}</span>{% endif %}
                             </div>
-                            <p class="text-sm text-gray-500">${{ item.price }} × {{ item.quantity }}</p>
-                            <p class="text-lg font-bold text-blue-600 mt-1">${{ item.get_total }}</p>
+                            <p class="text-lg font-bold text-blue-600 mt-1">${{ item.total|floatformat:2 }}</p>
                         </div>
                         
                         <div class="flex items-center space-x-2">
-                            <form action="{% url 'orders:update_cart' item.id %}" method="POST" class="flex items-center">
-                                {% csrf_token %}
-                                <button type="submit" name="action" value="decrease" 
-                                        class="px-3 py-1 border border-gray-300 hover:bg-gray-100 transition duration-200">
-                                    -
-                                </button>
-                                <span class="px-3 py-1 border-t border-b border-gray-300 bg-gray-50 min-w-12 text-center">
-                                    {{ item.quantity }}
-                                </span>
-                                <button type="submit" name="action" value="increase" 
-                                        class="px-3 py-1 border border-gray-300 hover:bg-gray-100 transition duration-200">
-                                    +
-                                </button>
-                            </form>
-                            
-                            <form action="{% url 'orders:remove_from_cart' item.id %}" method="POST" class="ml-4">
-                                {% csrf_token %}
-                                <button type="submit" 
-                                        class="text-red-600 hover:text-red-800 transition duration-200"
-                                        onclick="return confirm('Are you sure you want to remove this item?')">
-                                    <i class="fas fa-trash"></i>
-                                </button>
-                            </form>
+                            {% if user.is_authenticated and order %}
+                                <!-- Authenticated User Controls -->
+                                <form action="{% url 'orders:update_cart' item.id %}" method="POST" class="flex items-center">
+                                    {% csrf_token %}
+                                    <button type="submit" name="action" value="decrease" 
+                                            class="px-3 py-1 border border-gray-300 hover:bg-gray-100 transition duration-200">
+                                        -
+                                    </button>
+                                    <span class="px-3 py-1 border-t border-b border-gray-300 bg-gray-50 min-w-12 text-center">
+                                        {{ item.quantity }}
+                                    </span>
+                                    <button type="submit" name="action" value="increase" 
+                                            class="px-3 py-1 border border-gray-300 hover:bg-gray-100 transition duration-200">
+                                        +
+                                    </button>
+                                    <button type="submit" name="action" value="remove" 
+                                            class="ml-2 px-3 py-1 border border-red-400 text-red-600 hover:bg-red-100 transition duration-200">
+                                        Remove
+                                    </button>
+                                </form>
+                            {% else %}
+                                <!-- Guest User Controls -->
+                                <form action="{% url 'orders:update_cart_guest' %}" method="POST" class="flex items-center">
+                                    {% csrf_token %}
+                                    <input type="hidden" name="slug" value="{{ item.product.slug }}">
+                                    <input type="hidden" name="color" value="{{ item.color|default:'' }}">
+                                    <input type="hidden" name="size" value="{{ item.size|default:'' }}">
+                                    <input type="hidden" name="weight" value="{{ item.weight|default:'' }}">
+                                    <button type="submit" name="action" value="decrease" 
+                                            class="px-3 py-1 border border-gray-300 hover:bg-gray-100 transition duration-200">
+                                        -
+                                    </button>
+                                    <span class="px-3 py-1 border-t border-b border-gray-300 bg-gray-50 min-w-12 text-center">
+                                        {{ item.quantity }}
+                                    </span>
+                                    <button type="submit" name="action" value="increase" 
+                                            class="px-3 py-1 border border-gray-300 hover:bg-gray-100 transition duration-200">
+                                        +
+                                    </button>
+                                    <button type="submit" name="action" value="remove" 
+                                            class="ml-2 px-3 py-1 border border-red-400 text-red-600 hover:bg-red-100 transition duration-200">
+                                        Remove
+                                    </button>
+                                </form>
+                            {% endif %}
                         </div>
                     </div>
                     {% endfor %}
@@ -89,10 +111,10 @@
                 
                 <!-- Item Breakdown -->
                 <div class="space-y-2 mb-4">
-                    {% for item in order.order_items.all %}
+                    {% for item in cart_items %}
                     <div class="flex justify-between text-sm">
-                        <span class="text-gray-600">{{ item.product.name }} (×{{ item.quantity }})</span>
-                        <span>${{ item.get_total }}</span>
+                        <span class="text-gray-600">{{ item.product.products_name }} (×{{ item.quantity }})</span>
+                        <span>${{ item.total|floatformat:2 }}</span>
                     </div>
                     {% endfor %}
                 </div>
@@ -100,30 +122,34 @@
                 <div class="border-t pt-3 space-y-2 mb-6">
                     <div class="flex justify-between">
                         <span class="text-gray-600">Subtotal</span>
-                        <span>${{ order.total|default:0 }}</span>
+                        <span>${{ subtotal|floatformat:2 }}</span>
                     </div>
                     <div class="flex justify-between">
                         <span class="text-gray-600">Shipping</span>
-                        <span class="text-green-600">Free</span>
+                        <span>
+                            {% if subtotal >= 1000 %}
+                                <span class="text-green-600">FREE</span>
+                            {% else %}
+                                ${{ shipping_cost|floatformat:2 }}
+                            {% endif %}
+                        </span>
                     </div>
                     <div class="flex justify-between">
-                        <span class="text-gray-600">Tax</span>
-                        <span>$0.00</span>
+                        <span class="text-gray-600">Tax (5%)</span>
+                        <span>${{ tax_amount|floatformat:2 }}</span>
                     </div>
                     <div class="border-t pt-2">
                         <div class="flex justify-between text-lg font-semibold">
                             <span>Total</span>
-                            <span class="text-blue-600">${{ order.total|default:0 }}</span>
+                            <span class="text-blue-600">${{ total|floatformat:2 }}</span>
                         </div>
                     </div>
                 </div>
 
-                {% if order.order_items.exists %}
-                <a href="{% url 'products:checkout' %}" 
+                <a href="{% url 'orders:checkout' %}" 
                    class="block w-full bg-green-600 text-white text-center py-3 rounded-lg hover:bg-green-700 transition duration-200 font-semibold mb-4">
                     Proceed to Checkout
                 </a>
-                {% endif %}
                 
                 <a href="{% url 'products:product_list' %}" 
                    class="block w-full bg-gray-200 text-gray-700 text-center py-3 rounded-lg hover:bg-gray-300 transition duration-200">
@@ -153,16 +179,25 @@
 
 {% block extra_js %}
 <script>
-    // Add confirmation for remove actions
+    function updateCartQuantity(itemId, action, isGuest, color = null, size = null, weight = null) {
+    // ...
+    if (isGuest) {
+        formData.append('color', color);
+        formData.append('size', size);
+        formData.append('weight', weight);
+    }
+    // ...
+
     document.addEventListener('DOMContentLoaded', function() {
-        const removeForms = document.querySelectorAll('form[action*="remove_from_cart"]');
-        removeForms.forEach(form => {
-            form.addEventListener('submit', function(e) {
+        const removeButtons = document.querySelectorAll('button[value="remove"]');
+        removeButtons.forEach(button => {
+            button.addEventListener('click', function(e) {
                 if (!confirm('Are you sure you want to remove this item from your cart?')) {
                     e.preventDefault();
                 }
             });
         });
     });
+}
 </script>
 {% endblock %}

@@ -15,49 +15,52 @@ from django.urls import reverse
 
 
 def view_cart(request):
-    """Display cart details for both authenticated and guest users"""
+    """Display cart details for both authenticated and guest users."""
+    
+    cart_items = []
+    subtotal = Decimal('0.00')
 
     if request.user.is_authenticated:
+        # Logged-in user cart
         order = _get_user_order(request)
-        order_items = list(order.order_items.select_related('product').all()) if order else []
-        cart_count = order.order_items.count() if order else 0
-        subtotal = sum(item.unit_price * item.quantity for item in order_items) if order_items else Decimal('0')
-
-        # Wrap for template compatibility
-        cart_items = [
-            {
-                'product': item.product,
-                'quantity': item.quantity,
-                'unit_price': item.unit_price,
-                'color': item.color,
-                'size': item.size,
-                'weight': item.weight,
-                'total': item.unit_price * item.quantity
-            }
-            for item in order_items
-        ]
-    
+        if order:
+            order_items = order.order_items.select_related('product').all()
+            for item in order_items:
+                cart_items.append({
+                    'product': item.product,
+                    'quantity': item.quantity,
+                    'unit_price': item.unit_price,
+                    'color': item.color,
+                    'size': item.size,
+                    'weight': item.weight,
+                    'total': item.unit_price * item.quantity
+                })
+            subtotal = sum(i['total'] for i in cart_items)
+        else:
+            order = None
     else:
+        # Guest user cart (session-based)
         order = None
         session_cart, cart_total = _get_session_cart(request)
-        cart_items = []
         for item in session_cart:
+            product = item['product']
+            unit_price = product.sale_price or product.current_price
             cart_items.append({
-                'product': item['product'],
+                'product': product,
                 'quantity': item['quantity'],
-                'unit_price': item['product'].sale_price or item['product'].current_price,
+                'unit_price': unit_price,
                 'color': item.get('color'),
                 'size': item.get('size'),
                 'weight': item.get('weight'),
                 'total': item['total'],
             })
-        cart_count = len(cart_items)
         subtotal = cart_total
 
-    # Shipping, tax, total
+    # Common totals for both cases
     shipping_cost = Decimal('0') if subtotal >= Decimal('1000') else Decimal('50')
     tax_amount = (subtotal * Decimal('0.05')).quantize(Decimal('0.01'))
     total = (subtotal + tax_amount + shipping_cost).quantize(Decimal('0.01'))
+    cart_count = len(cart_items)
 
     context = {
         'order': order,
@@ -72,31 +75,76 @@ def view_cart(request):
 
     return render(request, 'orders/cart.html', context)
 
-@require_POST
-def update_cart(request, item_id):
-    item = get_object_or_404(OrderItem, id=item_id, order__user=request.user)
+def update_cart(request, item_id=None):
+    """Update cart item quantity for both authenticated and guest users."""
     action = request.POST.get('action')
-    
-    if action == 'increase':
-        item.quantity += 1
-    elif action == 'decrease' and item.quantity > 1:
-        item.quantity -= 1
-    
-    item.save()
-    order = _calculate_order_total(item.order)
-    
-    messages.success(request, "Cart updated successfully!")
+    slug = request.POST.get('slug')
+    color = request.POST.get('color', '')
+    size = request.POST.get('size', '')
+    weight = request.POST.get('weight', '')
+
+    if request.user.is_authenticated:
+        # Logged-in user: update OrderItem in database
+        item = get_object_or_404(OrderItem, id=item_id, order__user=request.user)
+
+        if action == 'increase':
+            item.quantity += 1
+        elif action == 'decrease' and item.quantity > 1:
+            item.quantity -= 1
+        elif action == 'remove':
+            item.delete()
+            messages.success(request, "Item removed from cart!")
+            return redirect('orders:view_cart')
+
+        item.save()
+        _calculate_order_total(item.order)
+        messages.success(request, "Cart updated successfully!")
+
+    else:
+        # Guest user: update session cart using product slug and variants
+        cart = request.session.get('cart', {})
+        cart_key = f"{slug}_{color}_{size}_{weight}"
+
+        if cart_key not in cart:
+            messages.error(request, "Item not found in your cart.")
+            return redirect('orders:view_cart')
+
+        if action == 'increase':
+            cart[cart_key]['quantity'] += 1
+        elif action == 'decrease' and cart[cart_key]['quantity'] > 1:
+            cart[cart_key]['quantity'] -= 1
+        elif action == 'remove':
+            cart.pop(cart_key, None)
+            messages.success(request, "Item removed from cart!")
+            request.session['cart'] = cart
+            request.session.modified = True
+            return redirect('orders:view_cart')
+
+        request.session['cart'] = cart
+        request.session.modified = True
+        messages.success(request, "Cart updated successfully!")
+
     return redirect('orders:view_cart')
 
-@require_POST
 def remove_from_cart(request, item_id):
-    item = get_object_or_404(OrderItem, id=item_id, order__user=request.user)
-    order = item.order
-    item.delete()
-    
-    order = _calculate_order_total(order)
-    
-    messages.success(request, "Item removed from cart!")
+    """Remove item from cart for both authenticated and guest users."""
+    if request.user.is_authenticated:
+        item = get_object_or_404(OrderItem, id=item_id, order__user=request.user)
+        order = item.order
+        item.delete()
+        _calculate_order_total(order)
+        messages.success(request, "Item removed from cart!")
+
+    else:
+        cart = request.session.get('cart', {})
+        str_id = str(item_id)
+        if str_id in cart:
+            cart.pop(str_id, None)
+            request.session['cart'] = cart
+            messages.success(request, "Item removed from cart!")
+        else:
+            messages.error(request, "Item not found in your cart.")
+
     return redirect('orders:view_cart')
 
 
@@ -171,7 +219,7 @@ def add_to_cart(request, slug):
             'product_image': product.products_image.url if product.products_image else None,
             'quantity': quantity,
             'subtotal': str((product.sale_price or product.current_price) * quantity),
-            'checkout_url': reverse('products:checkout')
+            'checkout_url': reverse('orders:checkout')
         })
     
 def _calculate_order_total(order):
@@ -181,142 +229,106 @@ def _calculate_order_total(order):
     order.save()
     return order
 
+
 def checkout(request):
     """Checkout process for both authenticated and guest users"""
+    
+    # --- Get or create order ---
     if request.user.is_authenticated:
-        # Authenticated user logic
         order = _get_user_order(request)
         if not order or not order.order_items.exists():
             messages.error(request, "Your cart is empty!")
-            return redirect('products:view_cart')
+            return redirect('orders:view_cart')
     else:
-        # Guest user logic - get cart from session
+        # Guest cart
         cart_items, cart_total = _get_session_cart(request)
         if not cart_items:
             messages.error(request, "Your cart is empty!")
-            return redirect('products:view_cart')
+            return redirect('orders:view_cart')
         
-        # Create a temporary order for guest checkout
+        # Create a temporary guest order
         order = Order.objects.create(
             order_status='pending',
             customer_name="Guest User",
             total=cart_total
         )
-        
-        # Add cart items to the order
-        for cart_item in cart_items:
+        for item in cart_items:
             OrderItem.objects.create(
                 order=order,
-                product=cart_item['product'],
-                quantity=cart_item['quantity'],
-                unit_price=cart_item['unit_price'],
-                original_unit_price=cart_item['product'].current_price,
-                color=cart_item.get('color'),
-                size=cart_item.get('size'),
-                weight=cart_item.get('weight')
+                product=item['product'],
+                quantity=item['quantity'],
+                unit_price=item['unit_price'],
+                original_unit_price=item['product'].current_price,
+                color=item.get('color'),
+                size=item.get('size'),
+                weight=item.get('weight')
             )
-        
-        # Recalculate order total
         _calculate_order_total(order)
-        
-        # Store guest order ID in session
         request.session['guest_order_id'] = order.id
 
+    # --- Handle POST (form submission) ---
     if request.method == 'POST':
         try:
             with transaction.atomic():
-                # --- Update order with customer details ---
                 order.customer_name = request.POST.get(
                     'customer_name',
                     f"{request.user.first_name} {request.user.last_name}".strip()
                     if request.user.is_authenticated else "Guest User"
                 )
                 order.phone_number = request.POST.get('phone_number', '')
-                order.email = request.POST.get('email', 
-                    request.user.email if request.user.is_authenticated else "")
+                order.email = request.POST.get('email', request.user.email if request.user.is_authenticated else '')
                 order.shipping_address = request.POST.get('shipping_address', '')
-                order.billing_address = (
-                    request.POST.get('billing_address', '')
-                    or request.POST.get('shipping_address', '')
-                )
+                order.billing_address = request.POST.get('billing_address', '') or order.shipping_address
                 order.order_note = request.POST.get('order_note', '')
                 order.payment_method = request.POST.get('payment_method', 'cash_on_delivery')
                 order.delivery_area = request.POST.get('delivery_area', '')
                 order.city = request.POST.get('city', '')
                 order.zip_code = request.POST.get('zip_code', '')
 
-                # --- Financial calculations using Decimals ---
+                # Financial calculations
                 order.tax_amount = Decimal(request.POST.get('tax_amount', '0') or '0')
                 order.shipping_cost = Decimal(request.POST.get('shipping_cost', '0') or '0')
                 order.discount_amount = Decimal(request.POST.get('discount_amount', '0') or '0')
+                order.subtotal = sum((item.unit_price * item.quantity for item in order.order_items.all()), Decimal('0'))
+                order.total = (order.subtotal + order.tax_amount + order.shipping_cost - order.discount_amount).quantize(Decimal('0.01'))
 
-                # ✅ Compute subtotal safely from order items
-                order.subtotal = sum(
-                    (item.unit_price * item.quantity for item in order.order_items.all()),
-                    Decimal('0')
-                )
-
-                # ✅ Compute total
-                order.total = (
-                    order.subtotal
-                    + order.tax_amount
-                    + order.shipping_cost
-                    - order.discount_amount
-                )
-
-                # --- Update order statuses ---
+                # Update status
                 order.order_status = 'processed'
                 order.payment_status = 'pending'
-
-                # Auto-mark as paid if not COD
                 if order.payment_method != 'cash_on_delivery':
                     order.payment_status = 'paid'
                     order.processed_at = timezone.now()
-
+                
                 order.save()
 
-                # Clear guest user session data after successful order
+                # Clear guest session
                 if not request.user.is_authenticated:
-                    if 'cart' in request.session:
-                        del request.session['cart']
-                    if 'guest_order_id' in request.session:
-                        del request.session['guest_order_id']
+                    request.session.pop('cart', None)
+                    request.session.pop('guest_order_id', None)
 
-                messages.success(request, f'Order #{order.order_number} placed successfully!')
+                messages.success(request, f"Order #{order.id} placed successfully!")
 
-                # ✅ AJAX response for frontend
                 if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
                     return JsonResponse({
                         'success': True,
-                        'message': f'Order #{order.order_number} placed successfully!',
+                        'message': f'Order #{order.id} placed successfully!',
                         'redirect': f'/thank-you/{order.id}/',
                         'order_id': order.id
                     })
                 else:
-                    return redirect('products:thank_you', order_id=order.id)
+                    return redirect('orders:thank_you', order_id=order.id)
 
         except Exception as e:
             import traceback
-            print("🧩 DEBUG TRACEBACK:", traceback.format_exc())
-            messages.error(request, f'Error processing order: {str(e)}')
+            print("DEBUG TRACEBACK:", traceback.format_exc())
+            messages.error(request, f"Error processing order: {str(e)}")
             if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
                 return JsonResponse({'success': False, 'message': f'Error: {str(e)}'})
             else:
-                return redirect('products:checkout')
+                return redirect('orders:checkout')
 
-    # --- Calculate totals for GET request ---
-    if request.user.is_authenticated:
-        subtotal = sum(
-            (item.unit_price * item.quantity for item in order.order_items.all()),
-            Decimal('0')
-        )
-    else:
-        # For guest users, use the order we just created
-        subtotal = sum(
-            (item.unit_price * item.quantity for item in order.order_items.all()),
-            Decimal('0')
-        )
-
+    # --- GET request: compute totals ---
+    subtotal = sum((item.unit_price * item.quantity for item in order.order_items.all()), Decimal('0'))
     shipping_cost = Decimal('0') if subtotal >= Decimal('1000') else Decimal('50')
     tax_amount = (subtotal * Decimal('0.05')).quantize(Decimal('0.01'))
     total = (subtotal + tax_amount + shipping_cost).quantize(Decimal('0.01'))
@@ -332,25 +344,6 @@ def checkout(request):
 
     return render(request, 'orders/checkout.html', context)
 
-def thank_you(request, order_id):
-    """Order thank you page for both authenticated and guest users"""
-    if request.user.is_authenticated:
-        order = get_object_or_404(Order, id=order_id, user=request.user)
-    else:
-        # For guest users, verify the order belongs to their session
-        guest_order_id = request.session.get('guest_order_id')
-        if guest_order_id != order_id:
-            messages.error(request, "Order not found!")
-            return redirect('products:home')
-        order = get_object_or_404(Order, id=order_id)
-    
-    order_items = order.order_items.select_related('product').all()
-    
-    context = {
-        'order': order,
-        'order_items': order_items,
-    }
-    return render(request, 'products/thank_you.html', context)
 
 @login_required
 def order_history(request):
@@ -503,3 +496,20 @@ def cart_dropdown_content(request):
     return render(request, 'includes/cart_dropdown_content.html', context)
 
 
+def thank_you(request, order_id):
+    """Order thank you page for both authenticated and guest users."""
+    if request.user.is_authenticated:
+        order = get_object_or_404(Order, id=order_id, user=request.user)
+    else:
+        order = get_object_or_404(Order, id=order_id)  # No user restriction
+        # Optionally: verify session if you want extra safety
+        guest_order_id = request.session.get('guest_order_id')
+        if guest_order_id != order_id:
+            messages.warning(request, "Viewing an order that is not yours!")
+    
+    order_items = order.order_items.select_related('product').all()
+    context = {
+        'order': order,
+        'order_items': order_items,
+    }
+    return render(request, 'products/thank_you.html', context)

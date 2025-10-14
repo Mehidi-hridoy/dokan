@@ -6,6 +6,7 @@ app_name = 'orders'
 urlpatterns = [
     path('cart/', views.view_cart, name='view_cart'),
     path('cart/add/<slug:slug>/', views.add_to_cart, name='add_to_cart'),  # Updated to use slug
+    path('cart/update/', views.update_cart, name='update_cart_guest'),  # For guest users
     path('cart/update/<int:item_id>/', views.update_cart, name='update_cart'),
     path('cart/remove/<int:item_id>/', views.remove_from_cart, name='remove_from_cart'),
     path('cart/dropdown-content/', views.cart_dropdown_content, name='cart_dropdown_content'),
