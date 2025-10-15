@@ -513,3 +513,36 @@ def thank_you(request, order_id):
         'order_items': order_items,
     }
     return render(request, 'products/thank_you.html', context)
+
+
+
+# views.py
+def session_update_cart(request, item_index):
+    cart = request.session.get('cart', [])
+    action = request.POST.get('action')
+    try:
+        item = cart[item_index]
+        if action == 'increase':
+            item['quantity'] += 1
+        elif action == 'decrease' and item['quantity'] > 1:
+            item['quantity'] -= 1
+        # Update total
+        product = Product.objects.get(slug=item['slug'])
+        unit_price = product.sale_price or product.current_price
+        item['total'] = unit_price * item['quantity']
+        request.session['cart'] = cart
+        messages.success(request, "Cart updated successfully!")
+    except IndexError:
+        messages.error(request, "Item not found in your cart.")
+    return redirect('orders:view_cart')
+
+
+def session_remove_cart(request, item_index):
+    cart = request.session.get('cart', [])
+    try:
+        cart.pop(item_index)
+        request.session['cart'] = cart
+        messages.success(request, "Item removed from cart!")
+    except IndexError:
+        messages.error(request, "Item not found in your cart.")
+    return redirect('orders:view_cart')
