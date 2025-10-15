@@ -5,7 +5,7 @@ python manage.py migrate
 python manage.py runserver
 
 git add .
-git commit -m "Updated Thank You Page and History "
+git commit -m "Updated In "
 git push -u origin main
 python manage.py runserver
 

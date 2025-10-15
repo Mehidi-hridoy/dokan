@@ -155,8 +155,11 @@ class InventoryAdmin(admin.ModelAdmin):
         return super().has_change_permission(request, obj)
     
     def has_delete_permission(self, request, obj=None):
-        """Prevent deletion of inventory records"""
+        """Allow superusers to delete inventory, block others"""
+        if request.user.is_superuser:
+            return True
         return False
+
     
     # Custom list display methods for card view
     def product_card(self, obj):

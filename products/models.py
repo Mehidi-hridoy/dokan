@@ -6,6 +6,7 @@ import re
 import uuid
 from store.models import Category, Brand
 from users.models import User
+from inventory.models import Inventory
 
 COLOR_CHOICES = [
     ('Red', 'Red'), ('Blue', 'Blue'), ('Pink', 'Pink'), ('Orange', 'Orange'),

@@ -464,14 +464,22 @@ document.addEventListener('DOMContentLoaded', function() {
         .then(response => response.json())
         .then(data => {
             if (data.success) {
-                // Reload the cart dropdown to show updated quantities
-                loadCartDropdown();
-                // Update cart count in navbar
+                // Fallbacks for message
+                data.product_name = data.product_name || 'Item';
+                data.quantity = data.quantity || 1;
+                data.subtotal = data.subtotal || '0.00';
+                data.cart_count = data.cart_count || 0;
+
+                showEnhancedCartMessage(data);
                 updateCartCount(data.cart_count);
-                // Show success message
-                showMessage('Quantity updated successfully!', 'success');
+                
+                // Reload cart dropdown if open
+                const cartDropdown = document.getElementById('cartDropdownContent');
+                if (cartDropdown.classList.contains('show')) {
+                    loadCartDropdown();
+                }
             } else {
-                showMessage(data.message, 'error');
+                showMessage(data.message || 'Failed to add item', 'error');
             }
         })
         .catch(error => {

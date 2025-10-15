@@ -55,7 +55,7 @@
                 {% with primary_image=product.primary_image %}
                 <div class="main-image mb-3">
                     <img src="{% if primary_image %}{{ primary_image.image.url }}{% else %}{% static 'images/product-placeholder.jpg' %}{% endif %}" 
-                         alt="{{ product.name }}" 
+                         alt="{{ product.product_name }}" 
                          class="img-fluid rounded shadow" 
                          id="mainProductImage">
                 </div>

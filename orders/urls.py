@@ -13,15 +13,11 @@ urlpatterns = [
     path('add-review/', views.add_review, name='add_review'),
     path('orders/history/', views.order_history, name='order_history'),
     path('checkout/', views.checkout, name='checkout'),  
-<<<<<<< HEAD
+
     path('thank-you/<int:order_id>/', views.thank_you, name='thank_you'),  # Add thank_you here
 # urls.py
-path('cart/session/update/<int:item_index>/', views.session_update_cart, name='session_update_cart'),
-path('cart/session/remove/<int:item_index>/', views.session_remove_cart, name='session_remove_cart'),
+# path('cart/session/update/<int:item_index>/', views.session_update_cart, name='session_update_cart'),
+# path('cart/session/remove/<int:item_index>/', views.session_remove_cart, name='session_remove_cart'),
 
     
 ]
-=======
-    path('thank-you/<int:order_id>/', views.thank_you, name='thank_you'),
-]
->>>>>>> 3a195cb7bcd19f465e64dcd417e82e82e41b139e

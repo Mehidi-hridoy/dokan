@@ -308,10 +308,12 @@ def checkout(request):
                     order.processed_at = timezone.now()
                 
                 order.save()
-
-                # Clear guest session after order is processed
-                if not request.user.is_authenticated:
+                if request.user.is_authenticated:
+                    order.order_items.all().delete()
+                else:
+                    # Guest user: remove cart from session
                     request.session.pop('cart', None)
+                    request.session.pop('guest_order_id', None)
 
                 messages.success(request, f"Order #{order.id} placed successfully!")
                 redirect_url = reverse('orders:thank_you', args=[order.id])
@@ -321,7 +323,8 @@ def checkout(request):
                         'success': True,
                         'message': f'Order #{order.id} placed successfully!',
                         'redirect': redirect_url,
-                        'order_id': order.id
+                        'order_id': order.id,
+                        'cart_count': 0
                     })
                 else:
                     return redirect(redirect_url)
@@ -512,42 +515,6 @@ def order_detail(request, order_id):
     context = {
         'order': order,
     }
-<<<<<<< HEAD
-    return render(request, 'products/thank_you.html', context)
-
-
-
-# views.py
-def session_update_cart(request, item_index):
-    cart = request.session.get('cart', [])
-    action = request.POST.get('action')
-    try:
-        item = cart[item_index]
-        if action == 'increase':
-            item['quantity'] += 1
-        elif action == 'decrease' and item['quantity'] > 1:
-            item['quantity'] -= 1
-        # Update total
-        product = Product.objects.get(slug=item['slug'])
-        unit_price = product.sale_price or product.current_price
-        item['total'] = unit_price * item['quantity']
-        request.session['cart'] = cart
-        messages.success(request, "Cart updated successfully!")
-    except IndexError:
-        messages.error(request, "Item not found in your cart.")
-    return redirect('orders:view_cart')
-
-
-def session_remove_cart(request, item_index):
-    cart = request.session.get('cart', [])
-    try:
-        cart.pop(item_index)
-        request.session['cart'] = cart
-        messages.success(request, "Item removed from cart!")
-    except IndexError:
-        messages.error(request, "Item not found in your cart.")
-    return redirect('orders:view_cart')
-=======
     
     return render(request, 'orders/order_detail.html', context)
 
@@ -561,4 +528,3 @@ def thank_you(request, order_id):
     return render(request, 'orders/thank_you.html', context)
 
 
->>>>>>> 3a195cb7bcd19f465e64dcd417e82e82e41b139e
