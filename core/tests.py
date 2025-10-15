@@ -5,7 +5,7 @@ python manage.py migrate
 python manage.py runserver
 
 git add .
-git commit -m "Dropdpwn and AJAX updated  "
+git commit -m "Updated Thank You Page and History "
 git push -u origin main
 python manage.py runserver
 
