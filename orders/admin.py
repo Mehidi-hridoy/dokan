@@ -622,6 +622,15 @@ class OrderAdmin(admin.ModelAdmin):
             'pending_orders': pending_orders,
             'title': 'Print Shipping Labels'
         })
+    
+    @admin.display(description="Ordered Products")
+    def ordered_products(self, obj):
+        """
+        Shows all product names linked to this order.
+        """
+        products = obj.order_items.all().select_related('product')
+        product_list = [item.product.name for item in products]
+        return format_html("<br>".join(product_list))
 
 @admin.register(OrderItem)
 class OrderItemAdmin(admin.ModelAdmin):

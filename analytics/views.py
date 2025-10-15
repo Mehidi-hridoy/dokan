@@ -1,228 +1,263 @@
-from django.shortcuts import render, get_object_or_404
-from django.http import JsonResponse
-from django.db.models import Sum, Count, F, Q, DecimalField
+# analytics/views.py
+
+from django.shortcuts import render, get_object_or_404, redirect
 from django.contrib.auth.decorators import login_required
-from django.views.decorators.http import require_http_methods
+from django.http import JsonResponse, HttpResponse
+from django.db.models import Count, Sum, F, Q, Min, Avg
+from django.core.paginator import Paginator
 from django.utils import timezone
+from datetime import timedelta
+from decimal import Decimal
 
-# Import models from other apps (assuming standard structure)
-from inventory.models import Inventory, StockMovement
-from products.models import Product 
-from users.models import User # Assuming your 'customers' are your User model
+# Import Models from other apps (adjust imports based on your project structure)
+from .models import Customer, ExpenseCategory, Expense, DamageReport, FinancialRecord
+from orders.models import Order, OrderItem
+from inventory.models import Inventory, StockMovement, StockAlert
+from products.models import Product
 
-# Note: You'll need to adjust the 'users.models' import if your Customer model 
-# is separate or in a different location.
+# --- Utility Functions ---
 
-# ==============================================================================
-# 1. Main Dashboard Views
-# ==============================================================================
+def _get_period_dates(period_days=30):
+    """Calculates start and end dates for the current reporting period."""
+    end_date = timezone.now()
+    start_date = end_date - timedelta(days=period_days)
+    return start_date, end_date
 
-# In analytics/views.py
+# --- Dashboard & Financial Views ---
 
 @login_required
-def analytics_dashboard(request):
+def analytics_dashboard(request, period_days=30):
     """
-    Renders the main analytics dashboard.
+    Main dashboard displaying a comprehensive overview (Customer, Financial, Sales).
+    Uses the CustomerManager methods for aggregated data.
     """
-    from inventory.models import Inventory
+    try:
+        period_days = int(request.GET.get('period', period_days))
+    except ValueError:
+        period_days = 30 # Default to 30 days if invalid
+
+    # Retrieve all aggregated data using CustomerManager methods
+    customer_stats = Customer.objects.get_customer_stats()
+    financial_overview = Customer.objects.get_financial_overview(period_days=period_days)
+    sales_analytics = Customer.objects.get_sales_analytics(period_days=period_days)
+    expense_analytics = Customer.objects.get_expense_analytics(period_days=period_days)
     
-    low_stock_count = Inventory.objects.low_stock().count()
-    out_of_stock_count = Inventory.objects.out_of_stock().count()
+    # Inventory Summary
     total_products = Product.objects.filter(is_active=True).count()
-    
-    # --- FIX APPLIED HERE ---
-    # Assume you are calculating a metric like 'stock difference from last week'
-    # For demonstration, let's create a placeholder value:
-    
-    # Get the current total quantity available
-    current_stock = Inventory.objects.aggregate(total=Sum('quantity'))['total'] or 0
-    # Simulate a "target" or "previous" stock value
-    target_stock = 100 
-    
-    stock_change = current_stock - target_stock
-    # Calculate the absolute change and pass it
-    absolute_stock_change = abs(stock_change) 
-    
-    # Also pass the raw change if you need to show 'up' or 'down'
-    
+    low_stock_count = Product.objects.low_stock().count()
+    out_of_stock_count = Product.objects.out_of_stock().count()
+
     context = {
-        'total_products': total_products,
-        'low_stock_count': low_stock_count,
-        'out_of_stock_count': out_of_stock_count,
-        'last_updated': timezone.now(),
-        
-        # New variables to replace the faulty template filter
-        'stock_change': stock_change, 
-        'absolute_stock_change': absolute_stock_change,
+        'period_days': period_days,
+        'customer_stats': customer_stats,
+        'financial_overview': financial_overview,
+        'sales_analytics': sales_analytics,
+        'expense_analytics': expense_analytics,
+        'inventory_summary': {
+            'total_products': total_products,
+            'low_stock_count': low_stock_count,
+            'out_of_stock_count': out_of_stock_count,
+        }
     }
-    return render(request, 'analytics/dashboard.html', context)
-# ==============================================================================
-# 2. Customer Analytics Views (Using 'users.User' as Customer)
-# ==============================================================================
+
+    return render(request, 'analytics/analytics_dashboard.html', context)
+
 
 @login_required
-def customer_analytics(request):
-    """
-    Displays a list of customers and high-level customer metrics.
-    Requires linking to an 'Order' model for true customer analytics (e.g., total spend).
-    """
-    # Filter users who are not staff/superuser to treat them as customers
-    customers = User.objects.filter(is_active=True, is_staff=False).annotate(
-        # Placeholder for future: total_orders=Count('orders'), total_spent=Sum('orders__total')
-    ).order_by('-date_joined')[:50] # Show 50 latest customers
+def sales_analytics_detail(request):
+    """Detailed view for Sales Analytics."""
+    period_days = int(request.GET.get('period', 30))
+    sales_analytics = Customer.objects.get_sales_analytics(period_days=period_days)
     
     context = {
-        'total_customers': User.objects.filter(is_staff=False).count(),
-        'customers': customers,
+        'period_days': period_days,
+        'sales_analytics': sales_analytics,
+        'top_products': sales_analytics['top_products'] # Pass products directly for easy template iteration
+    }
+    return render(request, 'analytics/sales_analytics_detail.html', context)
+
+
+@login_required
+def expense_analytics_detail(request):
+    """Detailed view for Expense Analytics."""
+    period_days = int(request.GET.get('period', 30))
+    expense_analytics = Customer.objects.get_expense_analytics(period_days=period_days)
+
+    context = {
+        'period_days': period_days,
+        'expense_analytics': expense_analytics,
+        'categories': expense_analytics['expenses_by_category'],
+        'damage_analytics': expense_analytics['damage_analytics']
+    }
+    return render(request, 'analytics/expense_analytics_detail.html', context)
+
+
+@login_required
+def financial_dashboard(request):
+    """Detailed view for Financial Overview (similar to dashboard but focused on finance)."""
+    period_days = int(request.GET.get('period', 30))
+    financial_overview = Customer.objects.get_financial_overview(period_days=period_days)
+
+    context = {
+        'period_days': period_days,
+        'financial_overview': financial_overview,
+    }
+    return render(request, 'analytics/financial_dashboard.html', context)
+
+
+@login_required
+def financial_analytics(request):
+    """
+    View to display a detailed breakdown of FinancialRecords.
+    This replaces the 'financial/' URL path.
+    """
+    record_type = request.GET.get('type')
+    start_date = request.GET.get('start')
+    end_date = request.GET.get('end')
+    
+    records = FinancialRecord.objects.all()
+
+    if record_type:
+        records = records.filter(record_type=record_type)
+    if start_date:
+        records = records.filter(date__gte=start_date)
+    if end_date:
+        # Add one day to include the end date fully
+        try:
+            end_datetime = timezone.datetime.strptime(end_date, '%Y-%m-%d').date() + timedelta(days=1)
+            records = records.filter(date__lt=end_datetime)
+        except ValueError:
+            pass # Ignore invalid date format
+
+    total_amount = records.aggregate(total=Sum('amount'))['total'] or Decimal('0')
+
+    paginator = Paginator(records, 50) # Show 50 records per page
+    page_number = request.GET.get('page')
+    page_obj = paginator.get_page(page_number)
+    
+    context = {
+        'page_obj': page_obj,
+        'record_types': FinancialRecord.RECORD_TYPES,
+        'total_amount': total_amount,
+        'selected_type': record_type,
+        'start_date': start_date,
+        'end_date': end_date,
+    }
+    return render(request, 'analytics/financial_record_list.html', context)
+
+
+# --- API Endpoint for Charts/Data ---
+
+@login_required
+def dashboard_data_api(request):
+    """API endpoint to fetch data required for dashboard charts via AJAX."""
+    period_days = int(request.GET.get('period', 30))
+    
+    sales_analytics = Customer.objects.get_sales_analytics(period_days=period_days)
+    expense_analytics = Customer.objects.get_expense_analytics(period_days=period_days)
+    
+    # Prepare Daily Sales Data
+    daily_sales_data = [{
+        'date': item['date'].strftime('%Y-%m-%d'), 
+        'revenue': item['daily_revenue'], 
+        'orders': item['order_count']
+    } for item in sales_analytics['daily_sales']]
+    
+    # Prepare Monthly Expenses Data
+    monthly_expense_data = [{
+        'month': item['month'], 
+        'total': item['monthly_total']
+    } for item in expense_analytics['monthly_expenses']]
+
+    # Prepare Expense by Category Data
+    expense_category_data = [{
+        'label': item['category__name'], 
+        'total': item['total'],
+        'color': item['category__color']
+    } for item in expense_analytics['expenses_by_category']]
+
+    return JsonResponse({
+        'daily_sales': daily_sales_data,
+        'monthly_expenses': monthly_expense_data,
+        'expense_by_category': expense_category_data,
+    })
+
+# --- Customer Management Views ---
+
+@login_required
+def customer_list(request):
+    """List all customers with filtering and search."""
+    customers = Customer.objects.all().prefetch_related('user')
+    
+    search_query = request.GET.get('q')
+    customer_type = request.GET.get('type')
+    
+    if search_query:
+        customers = customers.filter(
+            Q(name__icontains=search_query) |
+            Q(email__icontains=search_query) |
+            Q(phone__icontains=search_query)
+        )
+    if customer_type:
+        customers = customers.filter(customer_type=customer_type)
+
+    paginator = Paginator(customers, 25)
+    page_number = request.GET.get('page')
+    page_obj = paginator.get_page(page_number)
+
+    context = {
+        'page_obj': page_obj,
+        'search_query': search_query,
+        'selected_type': customer_type,
+        'customer_types': Customer.CUSTOMER_TYPES,
     }
     return render(request, 'analytics/customer_list.html', context)
 
 
 @login_required
 def customer_detail(request, customer_id):
-    """
-    Displays detailed analytics for a single customer.
-    """
-    customer = get_object_or_404(User, pk=customer_id, is_staff=False)
+    """Detailed view for a specific customer."""
+    customer = get_object_or_404(Customer, id=customer_id)
     
+    # Fetch customer's orders
+    orders = customer.orders_name.all().order_by('-created_at')[:10] # Last 10 orders
+
+    # Get customer's total spent (redundant with model field but good for verification)
+    total_spent_agg = Order.objects.filter(customer=customer, payment_status='paid').aggregate(
+        total=Sum('total')
+    )['total'] or Decimal('0')
+
     context = {
         'customer': customer,
-        # Placeholder for future: 'orders': customer.orders.all().order_by('-created_at')[:10],
+        'orders': orders,
+        'total_spent_agg': total_spent_agg,
     }
     return render(request, 'analytics/customer_detail.html', context)
 
 
 @login_required
-@require_http_methods(["POST"])
 def toggle_customer_status(request, customer_id):
-    """
-    Toggles the is_active status of a customer (for soft-deleting/deactivating).
-    """
-    customer = get_object_or_404(User, pk=customer_id, is_staff=False)
-    customer.is_active = not customer.is_active
-    customer.save()
+    """Toggle the is_fraudulent status for a customer."""
+    customer = get_object_or_404(Customer, id=customer_id)
     
-    # In a real application, you'd redirect or return a success message/JSON
-    return JsonResponse({'status': 'success', 'is_active': customer.is_active})
+    if request.method == 'POST':
+        customer.is_fraudulent = not customer.is_fraudulent
+        customer.save(update_fields=['is_fraudulent'])
+        return redirect('analytics:customer_detail', customer_id=customer.id)
+        
+    return JsonResponse({'status': 'error', 'message': 'Invalid request method.'}, status=400)
 
 
 @login_required
 def customer_search_api(request):
-    """
-    API endpoint for searching customers (useful for auto-complete/AJAX search).
-    """
+    """API endpoint for live customer search."""
     query = request.GET.get('q', '')
     if query:
-        customers = User.objects.filter(
+        customers = Customer.objects.filter(
+            Q(name__icontains=query) | 
             Q(email__icontains=query) | 
-            Q(first_name__icontains=query) |
-            Q(last_name__icontains=query)
-        ).filter(is_staff=False).values('id', 'email', 'first_name', 'last_name')[:10]
-    else:
-        customers = []
+            Q(phone__icontains=query)
+        ).values('id', 'name', 'email', 'phone')[:10]
         
-    return JsonResponse(list(customers), safe=False)
-
-# ==============================================================================
-# 3. Financial/Sales Analytics Views (Requires Order/Sale data)
-# ==============================================================================
-
-@login_required
-def sales_analytics_detail(request):
-    """
-    Shows detailed sales metrics. 
-    This is based on the assumption you have (or will have) an 'Order' model 
-    that links to 'Product' and has price data.
-    """
-    # Placeholder: Calculate basic sales metrics based on StockMovement
-    # This is a very rough proxy for sales
-    sales_movements_today = StockMovement.objects.filter(
-        movement_type='out', created_at__date=timezone.now().date()
-    ).aggregate(
-        total_quantity_out=Sum('quantity')
-    )
-    
-    # Placeholder for future: Total revenue, top-selling products from OrderItem
-    
-    context = {
-        'quantity_out_today': sales_movements_today.get('total_quantity_out') or 0,
-        # 'total_revenue_ytd': 0.00, # Would come from Order model
-    }
-    return render(request, 'analytics/sales_detail.html', context)
-
-
-@login_required
-def financial_dashboard(request):
-    """
-    High-level financial overview.
-    Requires data from Sales, Expenses, and Cost of Goods Sold (COGS).
-    """
-    # Calculate total COGS from sold products (using current cost_price as a proxy)
-    # This calculation is highly complex and depends on the Order model.
-    # For now, just show the most expensive products as a proxy for high-cost items.
-    
-    high_cost_products = Product.objects.filter(
-        cost_price__isnull=False
-    ).order_by('-cost_price')[:10]
-    
-    context = {
-        # 'total_revenue': 0.00, # From Orders
-        # 'total_expenses': 0.00, # From an Expense model
-        # 'net_profit': 0.00,
-        'high_cost_products': high_cost_products
-    }
-    return render(request, 'analytics/financial_dashboard.html', context)
-
-
-@login_required
-def expense_analytics_detail(request):
-    """
-    Displays detailed expense breakdown.
-    Requires an 'Expense' model (not provided in the current structure).
-    """
-    # Placeholder: Just show the sum of 'damaged' stock value as a form of 'loss/expense'
-    damaged_movements = StockMovement.objects.filter(movement_type='damged').aggregate(
-        total_damaged_items=Sum('quantity')
-    )
-    
-    context = {
-        # 'total_operational_expense': 0.00, # From Expense model
-        'total_damaged_items': damaged_movements.get('total_damaged_items') or 0,
-    }
-    return render(request, 'analytics/expense_detail.html', context)
-
-# ==============================================================================
-# 4. API Endpoints
-# ==============================================================================
-
-@login_required
-def dashboard_data_api(request):
-    """
-    API endpoint to quickly fetch data for charts and widgets on the dashboard.
-    """
-    # Calculate real-time inventory stats
-    inventory_stats = Inventory.objects.aggregate(
-        total_items=Count('id'),
-        low_stock=Count('id', filter=Q(quantity__lte=F('low_stock_threshold'), quantity__gt=0)),
-        out_of_stock=Count('id', filter=Q(quantity=0)),
-        available_qty_sum=Sum(F('quantity') - F('reserved_quantity')),
-        reserved_qty_sum=Sum('reserved_quantity')
-    )
-    
-    # Fetch recent stock movements for a widget
-    recent_movements = StockMovement.objects.all().order_by('-created_at')[:5].values(
-        'movement_type', 'quantity', 'created_at', 'inventory__product__products_name'
-    )
-
-    data = {
-        'inventory_summary': {
-            'total_products': inventory_stats['total_items'],
-            'low_stock_count': inventory_stats['low_stock'],
-            'out_of_stock_count': inventory_stats['out_of_stock'],
-            'available_quantity': inventory_stats['available_qty_sum'],
-            'reserved_quantity': inventory_stats['reserved_qty_sum'],
-        },
-        'recent_activity': list(recent_movements),
-        # 'sales_over_time': [date, revenue, ...], # Requires DailyAnalytics or Order model
-    }
-    return JsonResponse(data)
+        return JsonResponse(list(customers), safe=False)
+    return JsonResponse([], safe=False)

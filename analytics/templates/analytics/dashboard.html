@@ -1,4 +1,4 @@
-{% extends 'admin/base.html' %}
+{% extends 'base.html' %}
 {% load static %}
 
 {% block content %}
@@ -244,9 +244,14 @@
                                 <div class="small font-weight-bold">{{ activity.title }}</div>
                                 <div class="small text-muted">{{ activity.description }}</div>
                                 <div class="small text-muted">
-                                    <span class="{% if activity.amount >= 0 %}text-success{% else %}text-danger{% endif %}">
-                                        {% if activity.amount >= 0 %}৳{{ activity.amount|floatformat:2 }}{% else %}-৳{{ activity.amount|abs|floatformat:2 }}{% endif %}
-                                    </span>
+<span class="{% if activity.amount >= 0 %}text-success{% else %}text-danger{% endif %}">
+    {% if activity.amount >= 0 %}
+        ৳{{ activity.amount|floatformat:2 }}
+    {% else %}
+        -৳{{ activity.absolute_amount|floatformat:2 }}
+    {% endif %}
+</span>
+
                                     • {{ activity.timestamp|timesince }} ago
                                 </div>
                             </div>
@@ -359,7 +364,7 @@
                             </a>
                         </div>
                         <div class="col-md-3 mb-3">
-                            <a href="{% url 'analytics:financial_analytics' %}" class="btn btn-outline-success btn-block">
+                            <a href="{% url 'analytics:financial_dashboard' %}" class="btn btn-outline-success btn-block">
                                 <i class="fas fa-chart-pie mr-2"></i>Financial Reports
                             </a>
                         </div>

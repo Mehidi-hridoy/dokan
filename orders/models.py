@@ -87,11 +87,8 @@ class Order(models.Model):
     
     # Customer relationship - This is the main customer link
     customer = models.ForeignKey(
-        'analytics.Customer',
-        on_delete=models.CASCADE,  # Changed to CASCADE to maintain data integrity
-        null=True,
-        blank=True,
-        related_name='orders'
+        'analytics.Customer', on_delete=models.CASCADE,  # Changed to CASCADE to maintain data integrity
+        null=True, blank=True,  related_name='orders_name'
     )
     
     assigned_staff = models.ForeignKey(
@@ -138,9 +135,7 @@ class Order(models.Model):
         choices=[
             ('pathao', 'Pathao'),
             ('red_x', 'Red X'),
-            ('steadfast', 'Steadfast'),
-        ],
-        blank=True, 
+            ('steadfast', 'Steadfast'),],  blank=True, 
         null=True,
         help_text="Select courier service"
     )
