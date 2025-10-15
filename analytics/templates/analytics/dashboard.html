@@ -1,358 +1,360 @@
-{% extends 'base.html' %}
+{% extends 'admin/base.html' %}
 {% load static %}
 
-{% block title %}Analytics Dashboard - Dokan{% endblock %}
-
-{% block extra_css %}
-<style>
-    .stat-card {
-        transition: transform 0.2s ease, box-shadow 0.2s ease;
-    }
-    .stat-card:hover {
-        transform: translateY(-2px);
-        box-shadow: 0 4px 12px rgba(0,0,0,0.1);
-    }
-    .positive-change {
-        color: #10b981;
-    }
-    .negative-change {
-        color: #ef4444;
-    }
-    .progress-bar {
-        height: 6px;
-        background: #e5e7eb;
-        border-radius: 3px;
-        overflow: hidden;
-    }
-    .progress-fill {
-        height: 100%;
-        border-radius: 3px;
-        transition: width 0.5s ease-in-out;
-    }
-    .activity-item {
-        border-left: 3px solid transparent;
-        transition: all 0.2s ease;
-    }
-    .activity-item:hover {
-        border-left-color: #3b82f6;
-        background-color: #f8fafc;
-    }
-</style>
-{% endblock %}
-
 {% block content %}
-<div class="container-fluid px-4 py-6">
-    <!-- Header -->
-    <div class="flex flex-col lg:flex-row lg:items-center lg:justify-between mb-6">
-        <div>
-            <h1 class="text-3xl font-bold text-gray-900">Analytics Dashboard</h1>
-            <p class="text-gray-600">Overview of your business performance</p>
-        </div>
-        <div class="flex items-center space-x-4 mt-4 lg:mt-0">
-            <div class="flex items-center space-x-2">
-                <span class="text-sm text-gray-600">Period:</span>
-                <select id="periodSelect" class="border border-gray-300 rounded-lg px-3 py-2 text-sm">
-                    <option value="7">Last 7 Days</option>
-                    <option value="30" selected>Last 30 Days</option>
-                    <option value="90">Last 90 Days</option>
-                    <option value="365">Last Year</option>
-                </select>
-            </div>
-            <button id="refreshBtn" class="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 transition duration-200">
-                <i class="fas fa-sync-alt mr-2"></i>Refresh
-            </button>
+<div class="container-fluid">
+    <!-- Page Header -->
+    <div class="d-sm-flex align-items-center justify-content-between mb-4">
+        <h1 class="h3 mb-0 text-gray-800">Analytics Dashboard</h1>
+        <div class="d-none d-sm-inline-block">
+            <!-- Date Range Filter -->
+            <form method="GET" class="form-inline">
+                <div class="input-group">
+                    <select name="period" class="form-control form-control-sm" onchange="this.form.submit()">
+                        <option value="today" {% if period == 'today' %}selected{% endif %}>Today</option>
+                        <option value="yesterday" {% if period == 'yesterday' %}selected{% endif %}>Yesterday</option>
+                        <option value="7d" {% if period == '7d' %}selected{% endif %}>Last 7 Days</option>
+                        <option value="30d" {% if period == '30d' %}selected{% endif %}>Last 30 Days</option>
+                        <option value="90d" {% if period == '90d' %}selected{% endif %}>Last 90 Days</option>
+                        <option value="365d" {% if period == '365d' %}selected{% endif %}>Last Year</option>
+                        <option value="custom" {% if period == 'custom' %}selected{% endif %}>Custom Range</option>
+                    </select>
+                    {% if period == 'custom' %}
+                    <input type="date" name="start_date" value="{{ start_date|date:'Y-m-d' }}" class="form-control form-control-sm">
+                    <input type="date" name="end_date" value="{{ end_date|date:'Y-m-d' }}" class="form-control form-control-sm">
+                    <button type="submit" class="btn btn-primary btn-sm">Apply</button>
+                    {% endif %}
+                </div>
+            </form>
         </div>
     </div>
 
-    <!-- Quick Stats -->
-    <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
-        <!-- Today's Sales -->
-        <div class="stat-card bg-white rounded-xl border p-6">
-            <div class="flex items-center justify-between">
-                <div>
-                    <p class="text-sm font-medium text-gray-600">Today's Sales</p>
-                    <p class="text-2xl font-bold text-gray-900">৳{{ quick_stats.today_sales }}</p>
-                    <p class="text-sm {% if quick_stats.sales_change >= 0 %}positive-change{% else %}negative-change{% endif %}">
-                        <i class="fas fa-arrow-{% if quick_stats.sales_change >= 0 %}up{% else %}down{% endif %} mr-1"></i>
-                        {{ quick_stats.sales_change|floatformat:1 }}% from yesterday
-                    </p>
-                </div>
-                <div class="bg-green-100 p-3 rounded-full">
-                    <i class="fas fa-dollar-sign text-green-600 text-xl"></i>
-                </div>
-            </div>
-        </div>
-
-        <!-- Today's Orders -->
-        <div class="stat-card bg-white rounded-xl border p-6">
-            <div class="flex items-center justify-between">
-                <div>
-                    <p class="text-sm font-medium text-gray-600">Today's Orders</p>
-                    <p class="text-2xl font-bold text-gray-900">{{ quick_stats.today_orders }}</p>
-                    <p class="text-sm {% if quick_stats.orders_change >= 0 %}positive-change{% else %}negative-change{% endif %}">
-                        <i class="fas fa-arrow-{% if quick_stats.orders_change >= 0 %}up{% else %}down{% endif %} mr-1"></i>
-                        {{ quick_stats.orders_change|floatformat:1 }}% from yesterday
-                    </p>
-                </div>
-                <div class="bg-blue-100 p-3 rounded-full">
-                    <i class="fas fa-shopping-cart text-blue-600 text-xl"></i>
+    <!-- Key Performance Indicators -->
+    <div class="row">
+        <!-- Total Revenue -->
+        <div class="col-xl-3 col-md-6 mb-4">
+            <div class="card border-left-primary shadow h-100 py-2">
+                <div class="card-body">
+                    <div class="row no-gutters align-items-center">
+                        <div class="col mr-2">
+                            <div class="text-xs font-weight-bold text-primary text-uppercase mb-1">
+                                Total Revenue</div>
+                            <div class="h5 mb-0 font-weight-bold text-gray-800">৳{{ kpis.total_revenue|floatformat:2 }}</div>
+                            <div class="text-xs text-muted">Avg Daily: ৳{{ kpis.daily_sales|floatformat:2 }}</div>
+                        </div>
+                        <div class="col-auto">
+                            <i class="fas fa-dollar-sign fa-2x text-gray-300"></i>
+                        </div>
+                    </div>
                 </div>
             </div>
         </div>
 
-        <!-- Pending Orders -->
-        <div class="stat-card bg-white rounded-xl border p-6">
-            <div class="flex items-center justify-between">
-                <div>
-                    <p class="text-sm font-medium text-gray-600">Pending Orders</p>
-                    <p class="text-2xl font-bold text-gray-900">{{ quick_stats.pending_orders }}</p>
-                    <p class="text-sm text-gray-600">Need attention</p>
-                </div>
-                <div class="bg-yellow-100 p-3 rounded-full">
-                    <i class="fas fa-clock text-yellow-600 text-xl"></i>
+        <!-- Total Orders -->
+        <div class="col-xl-3 col-md-6 mb-4">
+            <div class="card border-left-success shadow h-100 py-2">
+                <div class="card-body">
+                    <div class="row no-gutters align-items-center">
+                        <div class="col mr-2">
+                            <div class="text-xs font-weight-bold text-success text-uppercase mb-1">
+                                Total Orders</div>
+                            <div class="h5 mb-0 font-weight-bold text-gray-800">{{ kpis.total_orders }}</div>
+                            <div class="text-xs text-muted">Avg Value: ৳{{ kpis.avg_order_value|floatformat:2 }}</div>
+                        </div>
+                        <div class="col-auto">
+                            <i class="fas fa-shopping-cart fa-2x text-gray-300"></i>
+                        </div>
+                    </div>
                 </div>
             </div>
         </div>
 
-        <!-- Low Stock -->
-        <div class="stat-card bg-white rounded-xl border p-6">
-            <div class="flex items-center justify-between">
-                <div>
-                    <p class="text-sm font-medium text-gray-600">Low Stock Items</p>
-                    <p class="text-2xl font-bold text-gray-900">{{ quick_stats.low_stock_products }}</p>
-                    <p class="text-sm text-gray-600">Need restocking</p>
+        <!-- New Customers -->
+        <div class="col-xl-3 col-md-6 mb-4">
+            <div class="card border-left-info shadow h-100 py-2">
+                <div class="card-body">
+                    <div class="row no-gutters align-items-center">
+                        <div class="col mr-2">
+                            <div class="text-xs font-weight-bold text-info text-uppercase mb-1">
+                                New Customers</div>
+                            <div class="h5 mb-0 font-weight-bold text-gray-800">{{ kpis.new_customers }}</div>
+                            <div class="text-xs text-muted">Retention: {{ kpis.retention_rate|floatformat:1 }}%</div>
+                        </div>
+                        <div class="col-auto">
+                            <i class="fas fa-user-plus fa-2x text-gray-300"></i>
+                        </div>
+                    </div>
                 </div>
-                <div class="bg-red-100 p-3 rounded-full">
-                    <i class="fas fa-exclamation-triangle text-red-600 text-xl"></i>
+            </div>
+        </div>
+
+        <!-- Products Sold -->
+        <div class="col-xl-3 col-md-6 mb-4">
+            <div class="card border-left-warning shadow h-100 py-2">
+                <div class="card-body">
+                    <div class="row no-gutters align-items-center">
+                        <div class="col mr-2">
+                            <div class="text-xs font-weight-bold text-warning text-uppercase mb-1">
+                                Products Sold</div>
+                            <div class="h5 mb-0 font-weight-bold text-gray-800">{{ kpis.products_sold }}</div>
+                            <div class="text-xs text-muted">Conversion: {{ kpis.conversion_rate|floatformat:1 }}%</div>
+                        </div>
+                        <div class="col-auto">
+                            <i class="fas fa-box fa-2x text-gray-300"></i>
+                        </div>
+                    </div>
                 </div>
             </div>
         </div>
     </div>
 
     <!-- Financial Overview -->
-    <div class="grid grid-cols-1 lg:grid-cols-2 gap-8 mb-8">
-        <!-- Income & Expenses -->
-        <div class="bg-white rounded-xl border p-6">
-            <h3 class="text-lg font-semibold text-gray-900 mb-4">Financial Overview</h3>
-            <div class="space-y-4">
-                <div class="flex justify-between items-center p-4 bg-gray-50 rounded-lg">
-                    <div>
-                        <p class="font-medium text-gray-900">Total Income</p>
-                        <p class="text-2xl font-bold text-green-600">৳{{ financial_overview.total_income.amount|floatformat:2 }}</p>
-                        <p class="text-sm {% if financial_overview.total_income.change >= 0 %}positive-change{% else %}negative-change{% endif %}">
-                            {{ financial_overview.total_income.change|floatformat:1 }}% change
-                        </p>
-                    </div>
-                    <i class="fas fa-money-bill-wave text-green-500 text-2xl"></i>
+    <div class="row">
+        <div class="col-lg-4 mb-4">
+            <div class="card shadow">
+                <div class="card-header py-3">
+                    <h6 class="m-0 font-weight-bold text-primary">Financial Overview</h6>
                 </div>
-
-                <div class="flex justify-between items-center p-4 bg-gray-50 rounded-lg">
-                    <div>
-                        <p class="font-medium text-gray-900">Total Expenses</p>
-                        <p class="text-2xl font-bold text-red-600">৳{{ financial_overview.total_expenses.amount|floatformat:2 }}</p>
-                        <p class="text-sm text-gray-600">
-                            Operational: ৳{{ financial_overview.total_expenses.breakdown.operational|floatformat:2 }} | 
-                            Damages: ৳{{ financial_overview.total_expenses.breakdown.damages|floatformat:2 }}
-                        </p>
+                <div class="card-body">
+                    <div class="mb-3">
+                        <span class="font-weight-bold">Revenue:</span>
+                        <span class="float-right text-success">৳{{ financial_overview.total_revenue|floatformat:2 }}</span>
                     </div>
-                    <i class="fas fa-receipt text-red-500 text-2xl"></i>
-                </div>
-
-                <div class="flex justify-between items-center p-4 bg-blue-50 rounded-lg">
-                    <div>
-                        <p class="font-medium text-gray-900">Net Balance</p>
-                        <p class="text-2xl font-bold text-blue-600">৳{{ financial_overview.net_balance.amount|floatformat:2 }}</p>
-                        <p class="text-sm {% if financial_overview.net_balance.change >= 0 %}positive-change{% else %}negative-change{% endif %}">
-                            {{ financial_overview.net_balance.change|floatformat:1 }}% change
-                        </p>
+                    <div class="mb-3">
+                        <span class="font-weight-bold">Expenses:</span>
+                        <span class="float-right text-danger">৳{{ financial_overview.total_expenses|floatformat:2 }}</span>
                     </div>
-                    <i class="fas fa-chart-line text-blue-500 text-2xl"></i>
+                    <div class="mb-3">
+                        <span class="font-weight-bold">Net Profit:</span>
+                        <span class="float-right {% if financial_overview.net_profit >= 0 %}text-success{% else %}text-danger{% endif %}">
+                            ৳{{ financial_overview.net_profit|floatformat:2 }}
+                        </span>
+                    </div>
+                    <div class="mb-3">
+                        <span class="font-weight-bold">Profit Margin:</span>
+                        <span class="float-right {% if financial_overview.profit_margin >= 0 %}text-success{% else %}text-danger{% endif %}">
+                            {{ financial_overview.profit_margin|floatformat:1 }}%
+                        </span>
+                    </div>
                 </div>
             </div>
         </div>
 
         <!-- Customer Statistics -->
-        <div class="bg-white rounded-xl border p-6">
-            <h3 class="text-lg font-semibold text-gray-900 mb-4">Customer Insights</h3>
-            <div class="space-y-4">
-                <div class="grid grid-cols-2 gap-4">
-                    <div class="text-center p-4 bg-blue-50 rounded-lg">
-                        <p class="text-2xl font-bold text-blue-600">{{ customer_stats.total_customers }}</p>
-                        <p class="text-sm text-gray-600">Total Customers</p>
+        <div class="col-lg-4 mb-4">
+            <div class="card shadow">
+                <div class="card-header py-3">
+                    <h6 class="m-0 font-weight-bold text-primary">Customer Statistics</h6>
+                </div>
+                <div class="card-body">
+                    <div class="mb-3">
+                        <span class="font-weight-bold">Total Customers:</span>
+                        <span class="float-right">{{ customer_stats.total_customers }}</span>
                     </div>
-                    <div class="text-center p-4 bg-green-50 rounded-lg">
-                        <p class="text-2xl font-bold text-green-600">{{ customer_stats.new_customers }}</p>
-                        <p class="text-sm text-gray-600">New Customers</p>
+                    <div class="mb-3">
+                        <span class="font-weight-bold">New Customers:</span>
+                        <span class="float-right text-success">{{ customer_stats.new_customers }}</span>
                     </div>
-                    <div class="text-center p-4 bg-purple-50 rounded-lg">
-                        <p class="text-2xl font-bold text-purple-600">{{ customer_stats.vip_customers }}</p>
-                        <p class="text-sm text-gray-600">VIP Customers</p>
+                    <div class="mb-3">
+                        <span class="font-weight-bold">Repeat Rate:</span>
+                        <span class="float-right text-info">{{ customer_stats.repeat_rate|floatformat:1 }}%</span>
                     </div>
-                    <div class="text-center p-4 bg-red-50 rounded-lg">
-                        <p class="text-2xl font-bold text-red-600">{{ customer_stats.fraud_customers }}</p>
-                        <p class="text-sm text-gray-600">Fraud Cases</p>
+                    <div class="mb-3">
+                        <span class="font-weight-bold">VIP Customers:</span>
+                        <span class="float-right text-warning">{{ customer_stats.segments.vip_customers }}</span>
                     </div>
                 </div>
-                
-                <!-- Customer Type Distribution -->
-                <div class="mt-4">
-                    <p class="font-medium text-gray-700 mb-2">Customer Distribution</p>
-                    <div class="space-y-2">
-                        {% with total=customer_stats.total_customers %}
-                        <div class="flex justify-between text-sm">
-                            <span>New Customers</span>
-                            <span>{{ customer_stats.new_customers }}</span>
-                        </div>
-                        <div class="progress-bar">
-                            <div class="progress-fill bg-blue-500" 
-                                 style="width: {% widthratio customer_stats.new_customers total 100 %}%"></div>
-                        </div>
-                        
-                        <div class="flex justify-between text-sm">
-                            <span>Regular Customers</span>
-                            <span>{{ customer_stats.regular_customers }}</span>
-                        </div>
-                        <div class="progress-bar">
-                            <div class="progress-fill bg-green-500" 
-                                 style="width: {% widthratio customer_stats.regular_customers total 100 %}%"></div>
-                        </div>
-                        
-                        <div class="flex justify-between text-sm">
-                            <span>VIP Customers</span>
-                            <span>{{ customer_stats.vip_customers }}</span>
-                        </div>
-                        <div class="progress-bar">
-                            <div class="progress-fill bg-purple-500" 
-                                 style="width: {% widthratio customer_stats.vip_customers total 100 %}%"></div>
-                        </div>
-                        {% endwith %}
+            </div>
+        </div>
+
+        <!-- Inventory Status -->
+        <div class="col-lg-4 mb-4">
+            <div class="card shadow">
+                <div class="card-header py-3">
+                    <h6 class="m-0 font-weight-bold text-primary">Inventory Status</h6>
+                </div>
+                <div class="card-body">
+                    <div class="mb-3">
+                        <span class="font-weight-bold">Total Products:</span>
+                        <span class="float-right">{{ operations_analytics.inventory.total_products }}</span>
+                    </div>
+                    <div class="mb-3">
+                        <span class="font-weight-bold text-warning">Low Stock:</span>
+                        <span class="float-right">{{ operations_analytics.pending_actions.low_stock_items }}</span>
+                    </div>
+                    <div class="mb-3">
+                        <span class="font-weight-bold text-danger">Out of Stock:</span>
+                        <span class="float-right">{{ product_analytics.out_of_stock }}</span>
+                    </div>
+                    <div class="mb-3">
+                        <span class="font-weight-bold">Active Alerts:</span>
+                        <span class="float-right text-danger">{{ operations_analytics.active_alerts }}</span>
                     </div>
                 </div>
             </div>
         </div>
     </div>
 
-    <!-- Sales & Products -->
-    <div class="grid grid-cols-1 lg:grid-cols-2 gap-8 mb-8">
-        <!-- Sales Performance -->
-        <div class="bg-white rounded-xl border p-6">
-            <h3 class="text-lg font-semibold text-gray-900 mb-4">Sales Performance</h3>
-            <div class="space-y-4">
-                <div class="grid grid-cols-2 gap-4">
-                    <div class="text-center p-4 bg-gray-50 rounded-lg">
-                        <p class="text-xl font-bold text-gray-900">{{ sales_analytics.orders.total_orders|default:0 }}</p>
-                        <p class="text-sm text-gray-600">Total Orders</p>
+    <!-- Charts and Detailed Analytics -->
+    <div class="row">
+        <!-- Sales Chart -->
+        <div class="col-xl-8 col-lg-7">
+            <div class="card shadow mb-4">
+                <div class="card-header py-3 d-flex justify-content-between align-items-center">
+                    <h6 class="m-0 font-weight-bold text-primary">Sales Trend</h6>
+                    <div class="btn-group btn-group-sm">
+                        <button class="btn btn-outline-primary active" onclick="switchChart('revenue')">Revenue</button>
+                        <button class="btn btn-outline-primary" onclick="switchChart('orders')">Orders</button>
                     </div>
-                    <div class="text-center p-4 bg-gray-50 rounded-lg">
-                        <p class="text-xl font-bold text-gray-900">{{ sales_analytics.orders.completed_orders|default:0 }}</p>
-                        <p class="text-sm text-gray-600">Completed</p>
-                    </div>
-                    <div class="text-center p-4 bg-gray-50 rounded-lg">
-                        <p class="text-xl font-bold text-gray-900">৳{{ sales_analytics.orders.avg_order_value|default:0|floatformat:2 }}</p>
-                        <p class="text-sm text-gray-600">Avg Order Value</p>
-                    </div>
-                    <div class="text-center p-4 bg-gray-50 rounded-lg">
-                        <p class="text-xl font-bold text-gray-900">৳{{ sales_analytics.orders.total_revenue|default:0|floatformat:2 }}</p>
-                        <p class="text-sm text-gray-600">Total Revenue</p>
+                </div>
+                <div class="card-body">
+                    <div class="chart-area">
+                        <canvas id="salesChart" height="300"></canvas>
                     </div>
                 </div>
             </div>
         </div>
 
-        <!-- Top Products -->
-        <div class="bg-white rounded-xl border p-6">
-            <h3 class="text-lg font-semibold text-gray-900 mb-4">Top Performing Products</h3>
-            <div class="space-y-3">
-                {% for product in top_products %}
-                <div class="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
-                    <div class="flex-1">
-                        <p class="font-medium text-gray-900">{{ product.product__products_name }}</p>
-                        <p class="text-sm text-gray-600">Code: {{ product.product__product_code }}</p>
-                    </div>
-                    <div class="text-right">
-                        <p class="font-semibold text-gray-900">৳{{ product.total_revenue|floatformat:2 }}</p>
-                        <p class="text-sm text-gray-600">{{ product.total_sold }} sold</p>
-                    </div>
-                </div>
-                {% empty %}
-                <p class="text-gray-500 text-center py-4">No sales data available</p>
-                {% endfor %}
-            </div>
-        </div>
-    </div>
-
-    <!-- Recent Activities & Expense Breakdown -->
-    <div class="grid grid-cols-1 lg:grid-cols-2 gap-8">
         <!-- Recent Activities -->
-        <div class="bg-white rounded-xl border p-6">
-            <h3 class="text-lg font-semibold text-gray-900 mb-4">Recent Activities</h3>
-            <div class="space-y-3">
-                {% for activity in recent_activities %}
-                <div class="activity-item p-4 border-l-4 
-                    {% if activity.color == 'blue' %}border-blue-500
-                    {% elif activity.color == 'red' %}border-red-500
-                    {% else %}border-orange-500{% endif %}">
-                    <div class="flex items-start justify-between">
-                        <div class="flex items-start space-x-3">
-                            <div class="{% if activity.color == 'blue' %}bg-blue-100
-                                      {% elif activity.color == 'red' %}bg-red-100
-                                      {% else %}bg-orange-100{% endif %} p-2 rounded-full mt-1">
-                                <i class="{{ activity.icon }} 
-                                    {% if activity.color == 'blue' %}text-blue-600
-                                    {% elif activity.color == 'red' %}text-red-600
-                                    {% else %}text-orange-600{% endif %}"></i>
+        <div class="col-xl-4 col-lg-5">
+            <div class="card shadow mb-4">
+                <div class="card-header py-3">
+                    <h6 class="m-0 font-weight-bold text-primary">Recent Activities</h6>
+                </div>
+                <div class="card-body" style="max-height: 400px; overflow-y: auto;">
+                    {% for activity in recent_activities %}
+                    <div class="mb-3 pb-3 border-bottom">
+                        <div class="d-flex align-items-start">
+                            <div class="mr-3">
+                                <i class="fas {{ activity.icon }} text-{{ activity.color }}"></i>
                             </div>
-                            <div>
-                                <p class="font-medium text-gray-900">{{ activity.title }}</p>
-                                <p class="text-sm text-gray-600">{{ activity.description }}</p>
-                                <p class="text-xs text-gray-500 mt-1">{{ activity.timestamp|timesince }} ago</p>
+                            <div class="flex-grow-1">
+                                <div class="small font-weight-bold">{{ activity.title }}</div>
+                                <div class="small text-muted">{{ activity.description }}</div>
+                                <div class="small text-muted">
+                                    <span class="{% if activity.amount >= 0 %}text-success{% else %}text-danger{% endif %}">
+                                        {% if activity.amount >= 0 %}৳{{ activity.amount|floatformat:2 }}{% else %}-৳{{ activity.amount|abs|floatformat:2 }}{% endif %}
+                                    </span>
+                                    • {{ activity.timestamp|timesince }} ago
+                                </div>
                             </div>
-                        </div>
-                        <div class="text-right">
-                            <p class="font-semibold {% if activity.amount >= 0 %}text-green-600{% else %}text-red-600{% endif %}">
-                                {% if activity.amount >= 0 %}৳{% else %}-৳{% endif %}{{ activity.amount|abs|floatformat:2 }}
-                            </p>
-                            <span class="inline-block px-2 py-1 text-xs bg-gray-100 text-gray-600 rounded-full">
-                                {{ activity.status }}
-                            </span>
                         </div>
                     </div>
+                    {% empty %}
+                    <div class="text-center text-muted py-4">
+                        <i class="fas fa-info-circle fa-2x mb-2"></i>
+                        <p>No recent activities</p>
+                    </div>
+                    {% endfor %}
                 </div>
-                {% empty %}
-                <p class="text-gray-500 text-center py-4">No recent activities</p>
-                {% endfor %}
+            </div>
+        </div>
+    </div>
+
+    <!-- Top Products and Order Status -->
+    <div class="row">
+        <!-- Top Products -->
+        <div class="col-lg-8 mb-4">
+            <div class="card shadow">
+                <div class="card-header py-3">
+                    <h6 class="m-0 font-weight-bold text-primary">Top Selling Products</h6>
+                </div>
+                <div class="card-body">
+                    <div class="table-responsive">
+                        <table class="table table-bordered table-hover">
+                            <thead class="thead-light">
+                                <tr>
+                                    <th>Product</th>
+                                    <th>Product Code</th>
+                                    <th>Price</th>
+                                    <th>Units Sold</th>
+                                    <th>Revenue</th>
+                                    <th>Orders</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for product in product_analytics.top_products %}
+                                <tr>
+                                    <td class="font-weight-bold">{{ product.product__products_name }}</td>
+                                    <td><code>{{ product.product__product_code }}</code></td>
+                                    <td>
+                                        {% if product.product__sale_price %}
+                                        <span class="text-danger">৳{{ product.product__sale_price }}</span>
+                                        <small class="text-muted"><del>৳{{ product.product__base_price }}</del></small>
+                                        {% else %}
+                                        ৳{{ product.product__base_price }}
+                                        {% endif %}
+                                    </td>
+                                    <td class="text-center">{{ product.units_sold }}</td>
+                                    <td class="text-success">৳{{ product.total_revenue|floatformat:2 }}</td>
+                                    <td class="text-center">{{ product.order_count }}</td>
+                                </tr>
+                                {% empty %}
+                                <tr>
+                                    <td colspan="6" class="text-center text-muted py-3">
+                                        No sales data available for the selected period
+                                    </td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
             </div>
         </div>
 
-        <!-- Expense Breakdown -->
-        <div class="bg-white rounded-xl border p-6">
-            <h3 class="text-lg font-semibold text-gray-900 mb-4">Expense Breakdown</h3>
-            <div class="space-y-4">
-                {% for expense in expense_analytics.expenses_by_category %}
-                <div class="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
-                    <div class="flex items-center space-x-3">
-                        <div class="w-3 h-3 rounded-full" style="background-color: {{ expense.category__color|default:'#3498db' }}"></div>
-                        <span class="font-medium text-gray-900">{{ expense.category__name }}</span>
-                    </div>
-                    <div class="text-right">
-                        <p class="font-semibold text-red-600">৳{{ expense.total|floatformat:2 }}</p>
+        <!-- Order Status Breakdown -->
+        <div class="col-lg-4 mb-4">
+            <div class="card shadow">
+                <div class="card-header py-3">
+                    <h6 class="m-0 font-weight-bold text-primary">Order Status</h6>
+                </div>
+                <div class="card-body">
+                    <canvas id="orderStatusChart" height="250"></canvas>
+                    <div class="mt-3">
+                        {% for status in sales_analytics.status_breakdown %}
+                        <div class="d-flex justify-content-between align-items-center mb-2">
+                            <span class="text-capitalize">{{ status.order_status }}</span>
+                            <div>
+                                <span class="badge badge-primary">{{ status.count }}</span>
+                                <small class="text-muted ml-2">৳{{ status.revenue|default:0|floatformat:2 }}</small>
+                            </div>
+                        </div>
+                        {% endfor %}
                     </div>
                 </div>
-                {% empty %}
-                <p class="text-gray-500 text-center py-4">No expense data available</p>
-                {% endfor %}
-                
-                <!-- Damage Summary -->
-                <div class="mt-6 p-4 bg-red-50 rounded-lg">
-                    <h4 class="font-semibold text-red-900 mb-2">Damage Reports</h4>
-                    <div class="grid grid-cols-2 gap-4 text-sm">
-                        <div>
-                            <p class="text-red-700">Total Cost</p>
-                            <p class="font-semibold text-red-900">৳{{ expense_analytics.damage_analytics.total_damages|default:0|floatformat:2 }}</p>
+            </div>
+        </div>
+    </div>
+
+    <!-- Quick Actions -->
+    <div class="row">
+        <div class="col-12">
+            <div class="card shadow">
+                <div class="card-header py-3">
+                    <h6 class="m-0 font-weight-bold text-primary">Quick Actions</h6>
+                </div>
+                <div class="card-body">
+                    <div class="row">
+                        <div class="col-md-3 mb-3">
+                            <a href="{% url 'analytics:sales_analytics' %}" class="btn btn-outline-primary btn-block">
+                                <i class="fas fa-chart-line mr-2"></i>Sales Analytics
+                            </a>
                         </div>
-                        <div>
-                            <p class="text-red-700">Units Damaged</p>
-                            <p class="font-semibold text-red-900">{{ expense_analytics.damage_analytics.total_units|default:0 }}</p>
+                        <div class="col-md-3 mb-3">
+                            <a href="{% url 'analytics:customer_list' %}" class="btn btn-outline-info btn-block">
+                                <i class="fas fa-users mr-2"></i>Customer Management
+                            </a>
+                        </div>
+                        <div class="col-md-3 mb-3">
+                            <a href="{% url 'analytics:financial_analytics' %}" class="btn btn-outline-success btn-block">
+                                <i class="fas fa-chart-pie mr-2"></i>Financial Reports
+                            </a>
+                        </div>
+                        <div class="col-md-3 mb-3">
+                            <a href="/admin/inventory/inventory/" class="btn btn-outline-warning btn-block">
+                                <i class="fas fa-boxes mr-2"></i>Inventory Management
+                            </a>
                         </div>
                     </div>
                 </div>
@@ -363,28 +365,126 @@
 {% endblock %}
 
 {% block extra_js %}
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 <script>
-    document.addEventListener('DOMContentLoaded', function() {
-        const periodSelect = document.getElementById('periodSelect');
-        const refreshBtn = document.getElementById('refreshBtn');
-        
-        refreshBtn.addEventListener('click', function() {
-            const period = periodSelect.value;
-            refreshBtn.disabled = true;
-            refreshBtn.innerHTML = '<i class="fas fa-spinner fa-spin mr-2"></i>Loading...';
-            
-            fetch(`/analytics/dashboard-data/?period=${period}`)
-                .then(response => response.json())
-                .then(data => {
-                    location.reload(); // Simple refresh for demo
-                })
-                .catch(error => {
-                    console.error('Error refreshing dashboard:', error);
-                    refreshBtn.disabled = false;
-                    refreshBtn.innerHTML = '<i class="fas fa-sync-alt mr-2"></i>Refresh';
-                    alert('Error refreshing dashboard data');
-                });
-        });
+// Sales Chart Data
+const salesData = {{ sales_analytics.daily_sales|safe }};
+const dates = salesData.map(item => new Date(item.date).toLocaleDateString());
+const revenueData = salesData.map(item => parseFloat(item.revenue || 0));
+const ordersData = salesData.map(item => item.orders || 0);
+
+let currentChart = 'revenue';
+
+// Initialize Sales Chart
+const salesCtx = document.getElementById('salesChart').getContext('2d');
+const salesChart = new Chart(salesCtx, {
+    type: 'line',
+    data: {
+        labels: dates,
+        datasets: [{
+            label: 'Revenue (৳)',
+            data: revenueData,
+            borderColor: '#4e73df',
+            backgroundColor: 'rgba(78, 115, 223, 0.1)',
+            tension: 0.4,
+            fill: true,
+            yAxisID: 'y'
+        }]
+    },
+    options: {
+        responsive: true,
+        interaction: {
+            mode: 'index',
+            intersect: false,
+        },
+        scales: {
+            x: {
+                display: true,
+                title: {
+                    display: true,
+                    text: 'Date'
+                }
+            },
+            y: {
+                type: 'linear',
+                display: true,
+                position: 'left',
+                title: {
+                    display: true,
+                    text: 'Revenue (৳)'
+                },
+                beginAtZero: true
+            }
+        }
+    }
+});
+
+// Order Status Chart
+const statusCtx = document.getElementById('orderStatusChart').getContext('2d');
+const statusData = {
+    labels: {{ sales_analytics.status_breakdown|safe|default:"[]" }}.map(item => item.order_status),
+    datasets: [{
+        data: {{ sales_analytics.status_breakdown|safe|default:"[]" }}.map(item => item.count),
+        backgroundColor: [
+            '#4e73df', '#1cc88a', '#36b9cc', '#f6c23e', '#e74a3b'
+        ],
+        hoverOffset: 4
+    }]
+};
+
+const orderStatusChart = new Chart(statusCtx, {
+    type: 'doughnut',
+    data: statusData,
+    options: {
+        responsive: true,
+        plugins: {
+            legend: {
+                position: 'bottom',
+            }
+        }
+    }
+});
+
+// Chart Switching Function
+function switchChart(type) {
+    currentChart = type;
+    
+    if (type === 'revenue') {
+        salesChart.data.datasets[0] = {
+            label: 'Revenue (৳)',
+            data: revenueData,
+            borderColor: '#4e73df',
+            backgroundColor: 'rgba(78, 115, 223, 0.1)',
+            tension: 0.4,
+            fill: true,
+            yAxisID: 'y'
+        };
+        salesChart.options.scales.y.title.text = 'Revenue (৳)';
+    } else {
+        salesChart.data.datasets[0] = {
+            label: 'Orders',
+            data: ordersData,
+            borderColor: '#1cc88a',
+            backgroundColor: 'rgba(28, 200, 138, 0.1)',
+            tension: 0.4,
+            fill: true,
+            yAxisID: 'y'
+        };
+        salesChart.options.scales.y.title.text = 'Orders';
+    }
+    
+    salesChart.update();
+    
+    // Update button states
+    document.querySelectorAll('.btn-group .btn').forEach(btn => {
+        btn.classList.remove('active');
     });
+    event.target.classList.add('active');
+}
+
+// Auto-refresh dashboard every 5 minutes
+setTimeout(() => {
+    window.location.reload();
+}, 300000);
 </script>
 {% endblock %}

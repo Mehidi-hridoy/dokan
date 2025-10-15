@@ -7,8 +7,9 @@ from django.db import models
 from decimal import Decimal
 from django.db.models.functions import TruncMonth, TruncDate
 from django.db import connection
-from datetime import datetime, timedelta
 import datetime
+import datetime
+from datetime import datetime, date, time, timedelta
 
 class CustomerManager(models.Manager):
     def get_customer_stats(self):
@@ -254,6 +255,41 @@ class CustomerManager(models.Manager):
             }
         }
 
+    def get_inventory_analytics(self):
+        """Get inventory analytics"""
+        from inventory.models import Inventory, StockAlert
+        
+        inventory_stats = Inventory.objects.aggregate(
+            total_products=Count('id'),
+            in_stock=Count('id', filter=Q(quantity__gt=0)),
+            low_stock=Count('id', filter=Q(quantity__lte=F('low_stock_threshold'), quantity__gt=0)),
+            out_of_stock=Count('id', filter=Q(quantity=0)),
+            total_inventory_value=Sum(
+                F('quantity') * 
+                Case(
+                    When(product__sale_price__isnull=False, then=F('product__sale_price')),
+                    default=F('product__base_price'),
+                    output_field=models.DecimalField()
+                )
+            )
+        )
+        
+        # Recent stock alerts
+        recent_alerts = StockAlert.objects.filter(status='active').select_related('inventory__product')[:5]
+        
+        # Low stock products
+        low_stock_products = Inventory.objects.filter(
+            quantity__lte=F('low_stock_threshold'),
+            quantity__gt=0
+        ).select_related('product')[:10]
+        
+        return {
+            'inventory_stats': inventory_stats,
+            'recent_alerts': recent_alerts,
+            'low_stock_products': low_stock_products,
+            'active_alert_count': StockAlert.objects.filter(status='active').count()
+        }
+
 class Customer(models.Model):
     CUSTOMER_TYPES = (
         ('new', 'New Customer'),
@@ -436,3 +472,99 @@ class DamageReport(models.Model):
     
     def __str__(self):
         return f"Damage - {self.product.products_name} - {self.quantity} units - ৳{self.cost_amount}"
+
+class AnalyticsSnapshot(models.Model):
+    """Store periodic analytics snapshots for trend analysis"""
+    SNAPSHOT_TYPES = [
+        ('daily', 'Daily'),
+        ('weekly', 'Weekly'),
+        ('monthly', 'Monthly'),
+    ]
+    
+    snapshot_type = models.CharField(max_length=10, choices=SNAPSHOT_TYPES)
+    snapshot_date = models.DateField()
+    
+    # Key metrics
+    total_revenue = models.DecimalField(max_digits=12, decimal_places=2, default=0)
+    total_orders = models.IntegerField(default=0)
+    new_customers = models.IntegerField(default=0)
+    total_products_sold = models.IntegerField(default=0)
+    avg_order_value = models.DecimalField(max_digits=10, decimal_places=2, default=0)
+    
+    # Inventory metrics
+    total_inventory_value = models.DecimalField(max_digits=12, decimal_places=2, default=0)
+    low_stock_items = models.IntegerField(default=0)
+    out_of_stock_items = models.IntegerField(default=0)
+    
+    # Customer metrics
+    customer_acquisition_cost = models.DecimalField(max_digits=10, decimal_places=2, default=0)
+    customer_lifetime_value = models.DecimalField(max_digits=10, decimal_places=2, default=0)
+    
+    created_at = models.DateTimeField(auto_now_add=True)
+    
+    class Meta:
+        ordering = ['-snapshot_date', '-snapshot_type']
+        unique_together = ['snapshot_type', 'snapshot_date']
+        indexes = [
+            models.Index(fields=['snapshot_type', 'snapshot_date']),
+        ]
+    
+    def __str__(self):
+        return f"{self.get_snapshot_type_display()} Snapshot - {self.snapshot_date}"
+
+class ProductPerformance(models.Model):
+    """Track product performance over time"""
+    product = models.ForeignKey('products.Product', on_delete=models.CASCADE)
+    period_date = models.DateField()
+    
+    # Performance metrics
+    units_sold = models.PositiveIntegerField(default=0)
+    total_revenue = models.DecimalField(max_digits=10, decimal_places=2, default=0)
+    order_count = models.PositiveIntegerField(default=0)
+    avg_selling_price = models.DecimalField(max_digits=10, decimal_places=2, default=0)
+    
+    # Inventory metrics
+    starting_stock = models.PositiveIntegerField(default=0)
+    ending_stock = models.PositiveIntegerField(default=0)
+    stock_turnover = models.DecimalField(max_digits=10, decimal_places=2, default=0)
+    
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+    
+    class Meta:
+        ordering = ['-period_date', '-total_revenue']
+        unique_together = ['product', 'period_date']
+        indexes = [
+            models.Index(fields=['product', 'period_date']),
+            models.Index(fields=['period_date', 'total_revenue']),
+        ]
+    
+    def __str__(self):
+        return f"{self.product.products_name} - {self.period_date}"
+
+# Import Case and When for inventory calculations
+from django.db.models import Case, When
+
+# Signal to update customer stats when order is saved
+from django.db.models.signals import post_save
+from django.dispatch import receiver
+
+@receiver(post_save, sender='orders.Order')
+def update_customer_on_order_save(sender, instance, **kwargs):
+    """
+    Update customer statistics when an order is saved.
+    If no linked customer exists, try to find or create a guest customer.
+    """
+    if instance.customer:
+        instance.customer.update_customer_stats()
+    elif instance.email and instance.phone_number:
+        customer, created = Customer.objects.get_or_create(
+            email=instance.email,
+            defaults={
+                'phone': instance.phone_number,
+                'name': instance.customer_name or "Guest Customer",
+                'is_guest': True
+            }
+        )
+        instance.customer = customer
+        instance.save(update_fields=['customer'])

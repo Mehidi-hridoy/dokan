@@ -15,7 +15,7 @@ path('sales-analytics/', views.sales_analytics_detail, name='sales_analytics'),
 path('financial-dashboard/', views.financial_dashboard, name='financial_dashboard'),
 path('expense-analytics/', views.expense_analytics_detail, name='expense_analytics'),
     path('dashboard-data/', views.dashboard_data_api, name='dashboard_data'),
-    # path('financial/', views.financial_analytics, name='financial_analytics'),
+    # path('financial/', views.financial_analytics, name='financial_analytics')
 
 
 ]
