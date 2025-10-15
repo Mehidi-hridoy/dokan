@@ -194,7 +194,19 @@
             </div>
         </div>
     </div>
-
+<div class="metric-card">
+    <h3>Stock Change</h3>
+    
+    {% if stock_change > 0 %}
+        <span class="text-success">Up by </span>
+    {% elif stock_change < 0 %}
+        <span class="text-danger">Down by </span>
+    {% else %}
+        <span class="text-info">No change </span>
+    {% endif %}
+    
+    <strong>{{ absolute_stock_change }}</strong> units.
+</div>
     <!-- Charts and Detailed Analytics -->
     <div class="row">
         <!-- Sales Chart -->
