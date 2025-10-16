@@ -5,7 +5,7 @@ python manage.py migrate
 python manage.py runserver
 
 git add .
-git commit -m "Updated In  analytics "
+git commit -m "Updated Products "
 git push -u origin main
 python manage.py runserver
 

@@ -95,6 +95,7 @@ class Order(models.Model):
         related_name='assigned_orders'
     )
     order_number = models.CharField(max_length=20, unique=True, blank=True)
+    # products_name=models.ForeignKey()
     order_status = models.CharField(max_length=20, choices=ORDER_STATUS_CHOICES, default='pending')
     courier_status = models.CharField(max_length=20, choices=COURIER_STATUS_CHOICES, default='pending')
     payment_status = models.CharField(max_length=20, choices=PAYMENT_STATUS_CHOICES, default='pending')
