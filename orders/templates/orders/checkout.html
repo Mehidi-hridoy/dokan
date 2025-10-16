@@ -5,276 +5,52 @@
 
 {% block content %}
 <div class="container mx-auto px-4 py-8">
-    <div class="mb-8">
-        <h1 class="text-3xl font-bold text-gray-900 mb-2">Checkout</h1>
-        <p class="text-gray-600">Complete your order</p>
-    </div>
-
-    {% if order and order.order_items.exists %}
-
-    <div class="grid grid-cols-1 lg:grid-cols-2 gap-8">
-        <!-- Checkout Form -->
-        <div class="bg-white rounded-lg shadow-sm border p-6">
-            <h2 class="text-xl font-semibold mb-6">Shipping Information</h2>
-            
-            <!-- FIXED: Use products:checkout URL -->
-            <form id="checkoutForm" method="POST" action="{% url 'orders:checkout' %}">
-                {% csrf_token %}
-                
-                <!-- Customer Information -->
-                <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
-                    <div>
-                        <label for="customer_name" class="block text-sm font-medium text-gray-700 mb-2">
-                            Full Name *
-                        </label>
-                        <input type="text" id="customer_name" name="customer_name" 
-                               value="{{ user.get_full_name|default:user.username }}" required
-                               class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500">
-                    </div>
-                    
-                    <div>
-                        <label for="phone_number" class="block text-sm font-medium text-gray-700 mb-2">
-                            Phone Number *
-                        </label>
-                        <input type="tel" id="phone_number" name="phone_number" required
-                               class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-                               placeholder="Enter your phone number">
-                    </div>
-                </div>
-
-                <div class="mb-4">
-                    <label for="email" class="block text-sm font-medium text-gray-700 mb-2">
-                        Email Address *
-                    </label>
-                    <input type="email" id="email" name="email" 
-                           value="{{ user.email }}" required
-                           class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500">
-                </div>
-
-                <div class="mb-4">
-                    <label for="shipping_address" class="block text-sm font-medium text-gray-700 mb-2">
-                        Shipping Address *
-                    </label>
-                    <textarea id="shipping_address" name="shipping_address" rows="3" required
-                              class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-                              placeholder="Enter your complete shipping address"></textarea>
-                </div>
-
-                <div class="grid grid-cols-1 md:grid-cols-3 gap-4 mb-4">
-                    <div>
-                        <label for="delivery_area" class="block text-sm font-medium text-gray-700 mb-2">
-                            Area
-                        </label>
-                        <input type="text" id="delivery_area" name="delivery_area"
-                               class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-                               placeholder="Your area">
-                    </div>
-                    
-                    <div>
-                        <label for="city" class="block text-sm font-medium text-gray-700 mb-2">
-                            City *
-                        </label>
-                        <input type="text" id="city" name="city" required
-                               class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-                               placeholder="Your city">
-                    </div>
-                    
-                    <div>
-                        <label for="zip_code" class="block text-sm font-medium text-gray-700 mb-2">
-                            ZIP Code
-                        </label>
-                        <input type="text" id="zip_code" name="zip_code"
-                               class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-                               placeholder="ZIP code">
-                    </div>
-                </div>
-
-                <div class="mb-6">
-                    <label for="payment_method" class="block text-sm font-medium text-gray-700 mb-2">
-                        Payment Method *
-                    </label>
-                    <select id="payment_method" name="payment_method" required
-                            class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500">
-                        <option value="">Select payment method</option>
-                        <option value="credit_card">Credit Card</option>
-                        <option value="debit_card">Debit Card</option>
-                        <option value="paypal">PayPal</option>
-                        <option value="cash_on_delivery" selected>Cash on Delivery</option>
-                    </select>
-                </div>
-
-                <div class="mb-6">
-                    <label for="order_note" class="block text-sm font-medium text-gray-700 mb-2">
-                        Order Notes (Optional)
-                    </label>
-                    <textarea id="order_note" name="order_note" rows="3"
-                              class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-                              placeholder="Any special instructions for your order..."></textarea>
-                </div>
-
-                <button type="submit" 
-                        class="w-full bg-green-600 text-white py-3 rounded-lg hover:bg-green-700 transition duration-200 font-semibold">
-                    Place Order - ₹{{ total }}
-                </button>
-            </form>
-        </div>
-
-        <!-- Order Summary -->
-        <div class="bg-white rounded-lg shadow-sm border p-6 sticky top-24">
-            <h2 class="text-xl font-semibold mb-4">Order Summary</h2>
-            
-            <!-- Order Items -->
-            <div class="mb-6 max-h-96 overflow-y-auto">
-                {% for item in order.order_items.all %}
-                <div class="flex items-center space-x-3 py-3 border-b border-gray-100">
-                    {% if item.product.products_image %}
-                    <img src="{{ item.product.products_image.url }}" alt="{{ item.product.name }}" 
-                         class="w-12 h-12 object-cover rounded">
-                    {% else %}
-                    <div class="w-12 h-12 bg-gray-200 rounded flex items-center justify-center">
-                        <i class="fas fa-image text-gray-400"></i>
-                    </div>
-                    {% endif %}
-                    <div class="flex-1">
-                        <p class="font-medium text-sm">{{ item.product.name }}</p>
-                        <p class="text-xs text-gray-500">
-                            Qty: {{ item.quantity }}
-                            {% if item.color %} | Color: {{ item.color }}{% endif %}
-                            {% if item.size %} | Size: {{ item.size }}{% endif %}
-                        </p>
-                        <p class="text-sm font-semibold text-blue-600">₹{{ item.get_total }}</p>
-                    </div>
-                </div>
-                {% endfor %}
-            </div>
-
-            <!-- Price Breakdown -->
-            <!-- Price Breakdown -->
-            <div class="space-y-3 mb-6 bg-gray-50 p-4 rounded-lg shadow-sm">
-                <!-- Subtotal -->
-                <div class="flex justify-between text-gray-700">
-                    <span>Subtotal</span>
-                    <span>₹{{ subtotal|floatformat:2 }}</span>
-                </div>
-
-                <!-- Tax -->
-                <div class="flex justify-between text-gray-700">
-                    <span>Tax (5%)</span>
-                    <span>₹{{ tax_amount|floatformat:2 }}</span>
-                </div>
-
-                <!-- Shipping -->
-                <div class="flex justify-between text-gray-700">
-                    <span>Shipping</span>
-                    <span>
-                        {% if shipping_cost == 0 or shipping_cost == '0.00' %}
-                            <span class="text-green-600 font-medium">Free</span>
-                        {% else %}
-                            ₹{{ shipping_cost|floatformat:2 }}
-                        {% endif %}
-                    </span>
-                </div>
-
-                <!-- Divider -->
-                <div class="border-t border-gray-200 pt-3 mt-3"></div>
-
-                <!-- Total -->
-                <div class="flex justify-between text-lg font-semibold">
-                    <span>Total</span>
-                    <span class="text-blue-600">₹{{ total|floatformat:2 }}</span>
-                </div>
-            </div>
-
-            <!-- FIXED: Use products namespace for view_cart if it's in products app -->
-            <a href="{% url 'orders:view_cart' %}" 
-               class="block w-full bg-gray-200 text-gray-700 text-center py-3 rounded-lg hover:bg-gray-300 transition duration-200">
-                Back to Cart
-            </a>
-        </div>
-    </div>
-    {% else %}
-    <!-- Empty Cart -->
-    <div class="text-center py-16 bg-white rounded-lg shadow-sm border">
-        <div class="max-w-md mx-auto">
-            <div class="w-24 h-24 bg-gray-100 rounded-full flex items-center justify-center mx-auto mb-4">
-                <i class="fas fa-shopping-cart text-3xl text-gray-400"></i>
-            </div>
-            <h3 class="text-xl font-semibold text-gray-700 mb-2">Your cart is empty</h3>
-            <p class="text-gray-500 mb-6">Add some items to your cart before checkout</p>
-            <a href="{% url 'products:product_list' %}" 
-               class="bg-blue-600 text-white px-8 py-3 rounded-lg font-semibold hover:bg-blue-700 transition duration-200 inline-block">
-                Start Shopping
-            </a>
-        </div>
-    </div>
-    {% endif %}
-</div>
-{% endblock %}
-
-{% block extra_js %}
-<script>
-    document.addEventListener('DOMContentLoaded', function() {
-        const checkoutForm = document.getElementById('checkoutForm');
-        if (checkoutForm) {
-            checkoutForm.addEventListener('submit', function(e) {
-                e.preventDefault();
-                
-                const formData = new FormData(this);
-                const submitButton = this.querySelector('button[type="submit"]');
-                const originalText = submitButton.textContent;
-                
-                // Show loading state
-                submitButton.textContent = 'Processing...';
-                submitButton.disabled = true;
-                
-                fetch(this.action, {
-                    method: 'POST',
-                    body: formData,
-                    headers: {
-                        'X-Requested-With': 'XMLHttpRequest',
-                        'X-CSRFToken': '{{ csrf_token }}',
-                    },
-                })
-                .then(response => response.json())
-                .then(data => {
-                    if (data.success) {
-                        showMessage(data.message, 'success');
-                        setTimeout(() => {
-                            // FIXED: Use the redirect URL from the response
-                            if (data.redirect) {
-                                window.location.href = data.redirect;
-                            } else if (data.order_id) {
-                                window.location.href = `/thank-you/${data.order_id}/`;
-                            }
-                        }, 1500);
-                    } else {
-                        showMessage(data.message || 'An error occurred', 'error');
-                        submitButton.textContent = originalText;
-                        submitButton.disabled = false;
-                    }
-                })
-                .catch(error => {
-                    console.error('Error:', error);
-                    showMessage('An error occurred. Please try again.', 'error');
-                    submitButton.textContent = originalText;
-                    submitButton.disabled = false;
-                });
-            });
-        }
-    });
+    <h1 class="text-3xl font-bold mb-6">Checkout</h1>
     
-    function showMessage(message, type) {
-        // Create toast notification
-        const toast = document.createElement('div');
-        toast.className = `fixed top-4 right-4 p-4 rounded-lg shadow-lg z-50 ${
-            type === 'success' ? 'bg-green-500 text-white' : 'bg-red-500 text-white'
-        }`;
-        toast.textContent = message;
-        document.body.appendChild(toast);
+    {% if messages %}
+        {% for message in messages %}
+            <div class="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded mb-4">{{ message }}</div>
+        {% endfor %}
+    {% endif %}
 
-        setTimeout(() => {
-            toast.remove();
-        }, 3000);
-    }
-</script>
+    <form method="POST" action="{% url 'orders:checkout' %}" class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        {% csrf_token %}
+        <div>
+            <h2 class="text-xl font-semibold mb-4">Shipping Information</h2>
+            <input type="text" name="customer_name" placeholder="Full Name" value="{{ order.customer_name|default:'' }}" class="w-full p-2 border rounded mb-3" required>
+            <input type="email" name="email" placeholder="Email" value="{{ order.email|default:'' }}" class="w-full p-2 border rounded mb-3" required>
+            <input type="tel" name="phone_number" placeholder="Phone" value="{{ order.phone_number|default:'' }}" class="w-full p-2 border rounded mb-3" required>
+            <textarea name="shipping_address" placeholder="Shipping Address" class="w-full p-2 border rounded mb-3" required>{{ order.shipping_address|default:'' }}</textarea>
+            <input type="text" name="city" placeholder="City" class="w-full p-2 border rounded mb-3">
+            <input type="text" name="zip_code" placeholder="Zip Code" class="w-full p-2 border rounded mb-3">
+            <textarea name="order_note" placeholder="Order Notes (optional)" class="w-full p-2 border rounded mb-3">{{ order.order_note|default:'' }}</textarea>
+        </div>
+        
+        <div>
+            <h2 class="text-xl font-semibold mb-4">Order Summary</h2>
+            {% if is_guest and cart_items %}
+                {% for item in cart_items %}
+                    <div class="flex justify-between mb-2">
+                        <span>{{ item.product.products_name }} x {{ item.quantity }}</span>
+                        <span>${{ item.total }}</span>
+                    </div>
+                {% endfor %}
+            {% endif %}
+            <hr class="my-4">
+            <div class="flex justify-between"><span>Subtotal</span><span>${{ subtotal }}</span></div>
+            <div class="flex justify-between"><span>Tax</span><span>${{ tax_amount }}</span></div>
+            <div class="flex justify-between"><span>Shipping</span><span>${{ shipping_cost }}</span></div>
+            <div class="flex justify-between font-bold text-lg"><span>Total</span><span>${{ total }}</span></div>
+            
+            <h2 class="text-xl font-semibold mb-4 mt-6">Payment Method</h2>
+            <select name="payment_method" class="w-full p-2 border rounded mb-3">
+                <option value="cod">Cash on Delivery</option>
+                <option value="card">Credit/Debit Card</option>
+                <!-- Add more -->
+            </select>
+            
+            <button type="submit" class="w-full bg-blue-600 text-white py-3 rounded hover:bg-blue-700">Place Order</button>
+        </div>
+    </form>
+</div>
 {% endblock %}

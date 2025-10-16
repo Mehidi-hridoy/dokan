@@ -1,263 +1,213 @@
 # analytics/views.py
-
-from django.shortcuts import render, get_object_or_404, redirect
-from django.contrib.auth.decorators import login_required
-from django.http import JsonResponse, HttpResponse
-from django.db.models import Count, Sum, F, Q, Min, Avg
-from django.core.paginator import Paginator
+from django.views.generic import TemplateView
+from django.db.models import Sum, Count, Q, Avg
 from django.utils import timezone
+from django.core.serializers.json import DjangoJSONEncoder
+import json
 from datetime import timedelta
-from decimal import Decimal
-
-# Import Models from other apps (adjust imports based on your project structure)
-from .models import Customer, ExpenseCategory, Expense, DamageReport, FinancialRecord
-from orders.models import Order, OrderItem
-from inventory.models import Inventory, StockMovement, StockAlert
+from orders.models import ORDER_STATUS_CHOICES
+from orders.models import Order
+from inventory.models import Inventory
 from products.models import Product
+from users.models import User  # Assuming Customer is User or extend
+# analytics/views.py
+from django.views.generic import ListView, DetailView
+from django.db.models import Q, Sum
+from django.shortcuts import render
+from .models import Customer
+from orders.models import Order  # For detail view orders
 
-# --- Utility Functions ---
 
-def _get_period_dates(period_days=30):
-    """Calculates start and end dates for the current reporting period."""
-    end_date = timezone.now()
-    start_date = end_date - timedelta(days=period_days)
-    return start_date, end_date
 
-# --- Dashboard & Financial Views ---
+class BaseAnalyticsView(TemplateView):
+    """Base for common data."""
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        # Common: Last 30 days filter
+        end_date = timezone.now().date()
+        start_date = end_date - timedelta(days=30)
+        context['date_range'] = {'start': start_date, 'end': end_date}
+        return context
 
-@login_required
-def analytics_dashboard(request, period_days=30):
-    """
-    Main dashboard displaying a comprehensive overview (Customer, Financial, Sales).
-    Uses the CustomerManager methods for aggregated data.
-    """
-    try:
-        period_days = int(request.GET.get('period', period_days))
-    except ValueError:
-        period_days = 30 # Default to 30 days if invalid
+class AnalyticsDashboard(BaseAnalyticsView):
+    template_name = 'analytics/dashboard.html'
 
-    # Retrieve all aggregated data using CustomerManager methods
-    customer_stats = Customer.objects.get_customer_stats()
-    financial_overview = Customer.objects.get_financial_overview(period_days=period_days)
-    sales_analytics = Customer.objects.get_sales_analytics(period_days=period_days)
-    expense_analytics = Customer.objects.get_expense_analytics(period_days=period_days)
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        orders = Order.objects.filter(order_status__in=['processed', 'delivered'])
+        context['total_revenue'] = orders.aggregate(Sum('total'))['total__sum'] or 0
+        context['total_orders'] = orders.count()
+        context['low_stock_count'] = Inventory.objects.low_stock().count()
+        context['out_of_stock_count'] = Inventory.objects.out_of_stock().count()
+        context['active_customers'] = User.objects.filter(order__order_status='processed').distinct().count()
+
+        # Revenue trend
+        revenue_trend = orders.filter(created_at__date__gte=context['date_range']['start']) \
+            .extra({'day': 'date(created_at)'}).values('day').annotate(revenue=Sum('total')).order_by('day')
+        context['revenue_dates'] = json.dumps([item['day'].strftime('%Y-%m-%d') for item in revenue_trend], cls=DjangoJSONEncoder)
+        context['revenue_values'] = json.dumps([float(item['revenue'] or 0) for item in revenue_trend], cls=DjangoJSONEncoder)
+
+        # Top products (by order associations; placeholder)
+        context['top_products'] = Product.objects.annotate(sales_count=Count('order')).order_by('-sales_count')[:5]
+
+        # Recent orders
+        context['recent_orders'] = Order.objects.order_by('-created_at')[:5]
+
+        # Inventory pie
+        context['in_stock_count'] = Inventory.objects.in_stock().count()
+        return context
+
+class SalesAnalyticsView(BaseAnalyticsView):
+    template_name = 'analytics/sales.html'
+
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        start = self.request.GET.get('start_date', context['date_range']['start'])
+        end = self.request.GET.get('end_date', context['date_range']['end'])
+        orders = Order.objects.filter(created_at__date__range=[start, end], order_status__in=['processed', 'delivered'])
+
+        context['total_sales'] = orders.count()
+        context['avg_order_value'] = orders.aggregate(Avg('total'))['total__avg	j'] or 0
+        context['top_products'] = Product.objects.annotate(sales_count=Count('order'), revenue=Sum('order__total')).order_by('-sales_count')[:10]
+
+        # Sales trend (bar)
+        sales_trend = orders.extra({'day': 'date(created_at)'}).values('day').annotate(sales=Count('id')).order_by('day')
+        context['sales_dates'] = json.dumps([item['day'].strftime('%Y-%m-%d') for item in sales_trend], cls=DjangoJSONEncoder)
+        context['sales_values'] = json.dumps([item['sales'] for item in sales_trend], cls=DjangoJSONEncoder)
+
+        context['top_product'] = context['top_products'].first()
+        return context
+
+class OrdersAnalyticsView(BaseAnalyticsView):
+    template_name = 'analytics/orders.html'
+
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        status = self.request.GET.get('status')
+        orders = Order.objects.all()
+        if status:
+            orders = orders.filter(order_status=status)
+
+        context['order_status_choices'] = Order.ORDER_STATUS
+        context['pending_count'] = Order.objects.filter(order_status='pending').count()
+        context['processed_count'] = Order.objects.filter(order_status='processed').count()
+        context['delivered_count'] = Order.objects.filter(order_status='delivered').count()
+        context['cancelled_count'] = Order.objects.filter(order_status='cancelled').count()
+
+        # Status pie
+        status_data = orders.values('order_status').annotate(count=Count('id'))
+        context['status_labels'] = json.dumps([dict(Order.ORDER_STATUS).get(s['order_status'], s['order_status']) for s in status_data], cls=DjangoJSONEncoder)
+        context['status_values'] = json.dumps([s['count'] for s in status_data], cls=DjangoJSONEncoder)
+
+        context['recent_orders'] = orders.order_by('-created_at')[:10]
+        return context
+
+class InventoryAnalyticsView(BaseAnalyticsView):
+    template_name = 'analytics/inventory.html'
+
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        inv = Inventory.objects.select_related('product')
+        context['total_items'] = inv.count()
+        context['low_stock_count'] = inv.low_stock().count()
+        context['out_of_stock_count'] = inv.out_of_stock().count()
+        context['total_stock_value'] = sum(i.available_quantity * i.product.current_price for i in inv if i.product.current_price) or 0
+
+        # Pie data
+        context['stock_data'] = json.dumps({
+            'in': inv.in_stock().count(),
+            'low': context['low_stock_count'],
+            'out': context['out_of_stock_count']
+        }, cls=DjangoJSONEncoder)
+
+        context['low_stock_items'] = inv.low_stock()[:10]
+        return context
+
+class ProductsAnalyticsView(BaseAnalyticsView):
+    template_name = 'analytics/products.html'
+
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        products = Product.objects.select_related('inventory').annotate(
+            sales_count=Count('order'), revenue=Sum('order__total')
+        ).order_by('-sales_count')
+        context['products'] = products
+        context['out_of_stock_products'] = products.filter(inventory__quantity=0)
+        context['best_sellers'] = products[:5]
+
+        # Bar for best sellers
+        context['product_names'] = json.dumps([p.products_name for p in context['best_sellers']], cls=DjangoJSONEncoder)
+        context['product_sales'] = json.dumps([p.sales_count for p in context['best_sellers']], cls=DjangoJSONEncoder)
+        return context
+
+class RevenueAnalyticsView(BaseAnalyticsView):
+    template_name = 'analytics/revenue.html'
+
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        orders = Order.objects.filter(order_status__in=['processed', 'delivered'])
+        context['total_revenue'] = orders.aggregate(Sum('total'))['total__sum'] or 0
+
+        # Monthly
+        monthly = orders.extra({'month': "strftime('%%Y-%%m', created_at)"}).values('month').annotate(revenue=Sum('total')).order_by('month')
+        context['monthly_labels'] = json.dumps([m['month'] for m in monthly], cls=DjangoJSONEncoder)
+        context['monthly_values'] = json.dumps([float(m['revenue'] or 0) for m in monthly], cls=DjangoJSONEncoder)
+
+        # By payment
+        payment_data = orders.values('payment_method').annotate(revenue=Sum('total'))
+        context['payment_labels'] = json.dumps([dict(Order.PAYMENT_METHODS).get(p['payment_method'], p['payment_method']) for p in payment_data], cls=DjangoJSONEncoder)
+        context['payment_values'] = json.dumps([float(p['revenue'] or 0) for p in payment_data], cls=DjangoJSONEncoder)
+
+        # Daily trend
+        daily = orders.filter(created_at__date__gte=context['date_range']['start']).extra({'day': 'date(created_at)'}).values('day').annotate(revenue=Sum('total')).order_by('day')
+        context['daily_dates'] = json.dumps([d['day'].strftime('%Y-%m-%d') for d in daily], cls=DjangoJSONEncoder)
+        context['daily_values'] = json.dumps([float(d['revenue'] or 0) for d in daily], cls=DjangoJSONEncoder)
+        return context
     
-    # Inventory Summary
-    total_products = Product.objects.filter(is_active=True).count()
-    low_stock_count = Product.objects.low_stock().count()
-    out_of_stock_count = Product.objects.out_of_stock().count()
-
-    context = {
-        'period_days': period_days,
-        'customer_stats': customer_stats,
-        'financial_overview': financial_overview,
-        'sales_analytics': sales_analytics,
-        'expense_analytics': expense_analytics,
-        'inventory_summary': {
-            'total_products': total_products,
-            'low_stock_count': low_stock_count,
-            'out_of_stock_count': out_of_stock_count,
-        }
-    }
-
-    return render(request, 'analytics/analytics_dashboard.html', context)
 
 
-@login_required
-def sales_analytics_detail(request):
-    """Detailed view for Sales Analytics."""
-    period_days = int(request.GET.get('period', 30))
-    sales_analytics = Customer.objects.get_sales_analytics(period_days=period_days)
-    
-    context = {
-        'period_days': period_days,
-        'sales_analytics': sales_analytics,
-        'top_products': sales_analytics['top_products'] # Pass products directly for easy template iteration
-    }
-    return render(request, 'analytics/sales_analytics_detail.html', context)
+class CustomerListView(ListView):
+    model = Customer
+    template_name = 'analytics/customer_list.html'
+    context_object_name = 'customers'
+    paginate_by = 10  # 10 customers per page
 
-
-@login_required
-def expense_analytics_detail(request):
-    """Detailed view for Expense Analytics."""
-    period_days = int(request.GET.get('period', 30))
-    expense_analytics = Customer.objects.get_expense_analytics(period_days=period_days)
-
-    context = {
-        'period_days': period_days,
-        'expense_analytics': expense_analytics,
-        'categories': expense_analytics['expenses_by_category'],
-        'damage_analytics': expense_analytics['damage_analytics']
-    }
-    return render(request, 'analytics/expense_analytics_detail.html', context)
-
-
-@login_required
-def financial_dashboard(request):
-    """Detailed view for Financial Overview (similar to dashboard but focused on finance)."""
-    period_days = int(request.GET.get('period', 30))
-    financial_overview = Customer.objects.get_financial_overview(period_days=period_days)
-
-    context = {
-        'period_days': period_days,
-        'financial_overview': financial_overview,
-    }
-    return render(request, 'analytics/financial_dashboard.html', context)
-
-
-@login_required
-def financial_analytics(request):
-    """
-    View to display a detailed breakdown of FinancialRecords.
-    This replaces the 'financial/' URL path.
-    """
-    record_type = request.GET.get('type')
-    start_date = request.GET.get('start')
-    end_date = request.GET.get('end')
-    
-    records = FinancialRecord.objects.all()
-
-    if record_type:
-        records = records.filter(record_type=record_type)
-    if start_date:
-        records = records.filter(date__gte=start_date)
-    if end_date:
-        # Add one day to include the end date fully
-        try:
-            end_datetime = timezone.datetime.strptime(end_date, '%Y-%m-%d').date() + timedelta(days=1)
-            records = records.filter(date__lt=end_datetime)
-        except ValueError:
-            pass # Ignore invalid date format
-
-    total_amount = records.aggregate(total=Sum('amount'))['total'] or Decimal('0')
-
-    paginator = Paginator(records, 50) # Show 50 records per page
-    page_number = request.GET.get('page')
-    page_obj = paginator.get_page(page_number)
-    
-    context = {
-        'page_obj': page_obj,
-        'record_types': FinancialRecord.RECORD_TYPES,
-        'total_amount': total_amount,
-        'selected_type': record_type,
-        'start_date': start_date,
-        'end_date': end_date,
-    }
-    return render(request, 'analytics/financial_record_list.html', context)
-
-
-# --- API Endpoint for Charts/Data ---
-
-@login_required
-def dashboard_data_api(request):
-    """API endpoint to fetch data required for dashboard charts via AJAX."""
-    period_days = int(request.GET.get('period', 30))
-    
-    sales_analytics = Customer.objects.get_sales_analytics(period_days=period_days)
-    expense_analytics = Customer.objects.get_expense_analytics(period_days=period_days)
-    
-    # Prepare Daily Sales Data
-    daily_sales_data = [{
-        'date': item['date'].strftime('%Y-%m-%d'), 
-        'revenue': item['daily_revenue'], 
-        'orders': item['order_count']
-    } for item in sales_analytics['daily_sales']]
-    
-    # Prepare Monthly Expenses Data
-    monthly_expense_data = [{
-        'month': item['month'], 
-        'total': item['monthly_total']
-    } for item in expense_analytics['monthly_expenses']]
-
-    # Prepare Expense by Category Data
-    expense_category_data = [{
-        'label': item['category__name'], 
-        'total': item['total'],
-        'color': item['category__color']
-    } for item in expense_analytics['expenses_by_category']]
-
-    return JsonResponse({
-        'daily_sales': daily_sales_data,
-        'monthly_expenses': monthly_expense_data,
-        'expense_by_category': expense_category_data,
-    })
-
-# --- Customer Management Views ---
-
-@login_required
-def customer_list(request):
-    """List all customers with filtering and search."""
-    customers = Customer.objects.all().prefetch_related('user')
-    
-    search_query = request.GET.get('q')
-    customer_type = request.GET.get('type')
-    
-    if search_query:
-        customers = customers.filter(
-            Q(name__icontains=search_query) |
-            Q(email__icontains=search_query) |
-            Q(phone__icontains=search_query)
-        )
-    if customer_type:
-        customers = customers.filter(customer_type=customer_type)
-
-    paginator = Paginator(customers, 25)
-    page_number = request.GET.get('page')
-    page_obj = paginator.get_page(page_number)
-
-    context = {
-        'page_obj': page_obj,
-        'search_query': search_query,
-        'selected_type': customer_type,
-        'customer_types': Customer.CUSTOMER_TYPES,
-    }
-    return render(request, 'analytics/customer_list.html', context)
-
-
-@login_required
-def customer_detail(request, customer_id):
-    """Detailed view for a specific customer."""
-    customer = get_object_or_404(Customer, id=customer_id)
-    
-    # Fetch customer's orders
-    orders = customer.orders_name.all().order_by('-created_at')[:10] # Last 10 orders
-
-    # Get customer's total spent (redundant with model field but good for verification)
-    total_spent_agg = Order.objects.filter(customer=customer, payment_status='paid').aggregate(
-        total=Sum('total')
-    )['total'] or Decimal('0')
-
-    context = {
-        'customer': customer,
-        'orders': orders,
-        'total_spent_agg': total_spent_agg,
-    }
-    return render(request, 'analytics/customer_detail.html', context)
-
-
-@login_required
-def toggle_customer_status(request, customer_id):
-    """Toggle the is_fraudulent status for a customer."""
-    customer = get_object_or_404(Customer, id=customer_id)
-    
-    if request.method == 'POST':
-        customer.is_fraudulent = not customer.is_fraudulent
-        customer.save(update_fields=['is_fraudulent'])
-        return redirect('analytics:customer_detail', customer_id=customer.id)
+    def get_queryset(self):
+        queryset = Customer.objects.all().order_by('-total_spent')  # Default: high-value first
         
-    return JsonResponse({'status': 'error', 'message': 'Invalid request method.'}, status=400)
-
-
-@login_required
-def customer_search_api(request):
-    """API endpoint for live customer search."""
-    query = request.GET.get('q', '')
-    if query:
-        customers = Customer.objects.filter(
-            Q(name__icontains=query) | 
-            Q(email__icontains=query) | 
-            Q(phone__icontains=query)
-        ).values('id', 'name', 'email', 'phone')[:10]
+        # Search by name/email
+        search = self.request.GET.get('search')
+        if search:
+            queryset = queryset.filter(Q(name__icontains=search) | Q(email__icontains=search))
         
-        return JsonResponse(list(customers), safe=False)
-    return JsonResponse([], safe=False)
+        # Sort
+        sort = self.request.GET.get('sort', 'spent_desc')
+        if sort == 'spent_desc':
+            queryset = queryset.order_by('-total_spent')
+        elif sort == 'spent_asc':
+            queryset = queryset.order_by('total_spent')
+        elif sort == 'orders_desc':
+            queryset = queryset.order_by('-total_orders')
+        elif sort == 'join_date':
+            queryset = queryset.order_by('created_at')
+        
+        return queryset
+
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        # Add any extra (e.g., total customers count)
+        context['total_customers'] = Customer.objects.count()
+        return context
+
+class CustomerDetailView(DetailView):
+    model = Customer
+    template_name = 'analytics/customer_detail.html'
+    context_object_name = 'customer'
+    
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        # Fetch related orders (paginated)
+        context['orders'] = self.object.orders.select_related('inventory').order_by('-created_at')[:20]  # Last 20 orders
+        # Recalculate spent if needed (fallback to DB sum)
+        context['lifetime_value'] = self.object.orders.aggregate(total=Sum('total'))['total'] or 0
+        return context

@@ -1,0 +1,29 @@
+{% extends 'base.html' %}
+{% block title %}Stock Alerts{% endblock %}
+
+{% block content %}
+<div class="container mx-auto px-4 py-8">
+    <h1 class="text-3xl font-bold mb-6">Active Stock Alerts</h1>
+    
+    <form method="POST" class="mb-6">
+        {% csrf_token %}
+        <input type="hidden" name="action" value="resolve">
+        <table class="w-full table-auto border">
+            <thead><tr><th>Select</th><th>Product</th><th>Type</th><th>Message</th><th>Created</th></tr></thead>
+            <tbody>
+                {% for alert in alerts %}
+                <tr>
+                    <td><input type="checkbox" name="alert_ids" value="{{ alert.id }}"></td>
+                    <td>{{ alert.inventory.product.products_name }}</td>
+                    <td>{{ alert.get_alert_type_display }}</td>
+                    <td>{{ alert.message }}</td>
+                    <td>{{ alert.created_at|date:"M d, Y" }}</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+        <button type="submit" name="action" value="resolve" class="bg-green-600 text-white px-4 py-2 rounded mr-2">Resolve Selected</button>
+        <button type="submit" name="action" value="dismiss" class="bg-gray-600 text-white px-4 py-2 rounded">Dismiss</button>
+    </form>
+</div>
+{% endblock %}

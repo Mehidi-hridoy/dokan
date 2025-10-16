@@ -1,37 +1,86 @@
-from django.shortcuts import render, get_object_or_404, redirect
+# products/views.py
+from decimal import Decimal
+from typing import List, Tuple, Dict, Any
+
+from django.shortcuts import render, get_object_or_404
+from django.http import JsonResponse
+from django.db.models import Q
 from django.contrib.auth.decorators import login_required
 from django.contrib import messages
-from django.http import JsonResponse
-from django.views.decorators.http import require_POST
-from products.models import Product
-from store.models import Category, Brand
-from orders.models import Order, OrderItem
-from django.db.models import Q
-from django.db import transaction
-from django.utils import timezone
-from decimal import Decimal  # ✅ Keep only this one
-from .models import Product
-from django.urls import reverse
-from . models import Review
-from orders.views import _get_session_cart, _calculate_discount, _get_user_order
+from django.views.generic import ListView, DetailView
 
+from products.models import Product, Review
+from store.models import Category, Brand
+from decimal import Decimal
+
+
+# ----------------------------------------------------------------------
+# Helper functions (replace with the real implementations from orders app)
+# ----------------------------------------------------------------------
+def _calculate_discount(product: Product) -> Product:
+    """
+    Placeholder – apply any active discount logic here.
+    For the moment it simply adds a ``discounted_price`` attribute.
+    """
+    # Example: 10% off if a sale_price exists
+    if product.sale_price and product.sale_price < product.base_price:
+        product.discounted_price = product.sale_price
+    else:
+        product.discounted_price = product.base_price
+    return product
+
+
+def _get_session_cart(request) -> Tuple[List[Dict[str, Any]], Decimal]:
+    """
+    Return cart items and total for anonymous users.
+    Replace with your real session-based cart logic.
+    """
+    cart = request.session.get('cart', {})
+    items = []
+    total = Decimal('0.00')
+    # dummy implementation – adapt to your session format
+    return items, total
+
+
+def _get_user_order(request):
+    """
+    Return the **open** Order object for the logged-in user (or None).
+    Replace with the real implementation from orders.views.
+    """
+    # Example stub:
+    # from orders.models import Order
+    # return Order.objects.filter(user=request.user, status='cart').first()
+    return None
+
+
+# products/views.py (The fixed home function)
 
 def home(request):
-    products = Product.objects.filter(is_active=True).select_related('category', 'brand')
+    """
+    Home page – shows active products, categories, brands and the current cart.
+    """
+    from decimal import Decimal
+    
+    # 🌟 FIX: Use the correct related_name 'inventory_reverse' for select_related
+    products_qs = Product.objects.filter(is_active=True).select_related(
+        'category', 
+        'brand',
+        'inventory_reverse' # <-- CRITICAL CHANGE HERE to match the related_name on Inventory
+    )
+    
+    products = [_calculate_discount(p) for p in products_qs]
+
     categories = Category.objects.all()
     brands = Brand.objects.all()
-    
-    products = [_calculate_discount(product) for product in products]
-    
-    # Get cart items for both authenticated and anonymous users
+
+    # ---------- cart handling ----------
     if request.user.is_authenticated:
         order = _get_user_order(request)
-        cart_items = []
-        cart_total = Decimal('0.00')
+        cart_items, cart_total = [], Decimal('0.00')
     else:
         order = None
         cart_items, cart_total = _get_session_cart(request)
-    
+
     context = {
         'products': products,
         'categories': categories,
@@ -42,129 +91,146 @@ def home(request):
     }
     return render(request, 'products/home.html', context)
 
-def product_list(request):
-    category_slug = request.GET.get('category', '')
-    brand_slug = request.GET.get('brand', '')
-    tag = request.GET.get('tag', '')
-    sort = request.GET.get('sort', 'name')
 
-    products = Product.objects.filter(is_active=True).select_related('category', 'brand')
-    categories = Category.objects.all()
-    brands = Brand.objects.all()
+# products/views.py
+class ProductListView(ListView):
+    model = Product
+    template_name = 'products/list.html'
+    context_object_name = 'products'
+    paginate_by = 10  # 10 products per page
 
-    if category_slug:
-        category = get_object_or_404(Category, slug=category_slug)
-        products = products.filter(Q(category=category) | Q(sub_category=category))
-        header_name = category.name
-        brands = brands.filter(products__category=category, products__is_active=True).distinct()
-    elif brand_slug:
-        brand = get_object_or_404(Brand, slug=brand_slug)
-        products = products.filter(brand=brand)
-        header_name = brand.name
-        categories = categories.filter(products__brand=brand, products__is_active=True).distinct()
-    elif tag:
-        products = products.filter(tags__icontains=tag)
-        header_name = f"Products tagged with: {tag}"
-    else:
-        header_name = "All Products"
+    def get_queryset(self):
+        queryset = Product.objects.select_related('inventory').prefetch_related('images', 'reviews').all()
+        
+        # Search by name/description
+        search = self.request.GET.get('search')
+        if search:
+            queryset = queryset.filter(Q(products_name__icontains=search) | Q(description__icontains=search))
+        
+        # Filter by price range
+        min_price = self.request.GET.get('min_price')
+        max_price = self.request.GET.get('max_price')
+        if min_price:
+            queryset = queryset.filter(current_price__gte=min_price)
+        if max_price:
+            queryset = queryset.filter(current_price__lte=max_price)
+        
+        # Sort
+        sort = self.request.GET.get('sort', 'name_asc')
+        if sort == 'price_asc':
+            queryset = queryset.order_by('current_price')
+        elif sort == 'price_desc':
+            queryset = queryset.order_by('-current_price')
+        elif sort == 'name_asc':
+            queryset = queryset.order_by('products_name')
+        elif sort == 'rating_desc':
+            queryset = queryset.annotate(avg_rating=Avg('reviews__rating')).order_by('-avg_rating')
+        
+        return queryset
 
-    if sort == 'price_low':
-        products = products.order_by('price')
-    elif sort == 'price_high':
-        products = products.order_by('-price')
-    elif sort == 'newest':
-        products = products.order_by('-created_at')
-    elif sort == 'name':
-        products = products.order_by('-products_name')
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        # Add avg rating and stock to each product (annotate for efficiency)
+        for product in context['products']:
+            product.avg_rating = product.reviews.aggregate(Avg('rating'))['rating__avg'] or 0
+            product.stock_available = product.inventory.available_quantity if product.inventory else 0
+            product.is_out_of_stock = product.stock_available <= 0
+            product.thumbnail = product.images.first().image.url if product.images.exists() else '/static/default.jpg'
+        return context
 
-    category_counts = {category.id: Product.objects.filter(category=category, is_active=True).count() for category in categories}
-    brand_counts = {brand.id: Product.objects.filter(brand=brand, is_active=True).count() for brand in brands}
-
-    if request.user.is_authenticated:
-        delivered_orders = Order.objects.filter(user=request.user, order_status='delivered')
-        delivered_product_ids = OrderItem.objects.filter(order__in=delivered_orders).values_list('product_id', flat=True).distinct()
-        for product in products:
-            product.can_review = product.id in delivered_product_ids and not product.reviews.filter(user=request.user).exists()
-    else:
-        for product in products:
-            product.can_review = False
-
-    products = [_calculate_discount(product) for product in products]
+class ProductDetailView(DetailView):
+    model = Product
+    template_name = 'products/detail.html'
+    context_object_name = 'product'
     
-    cart_items, cart_total = _get_session_cart(request) if not request.user.is_authenticated else ([], 0)
-
-    context = {
-        'products': products,
-        'categories': categories,
-        'brands': brands,
-        'category_counts': category_counts,
-        'brand_counts': brand_counts,
-        'header_name': header_name,
-        'selected_category': category_slug,
-        'selected_brand': brand_slug,
-        'selected_tag': tag,
-        'current_sort': sort,
-        'order': _get_user_order(request),
-        'cart_items': cart_items,
-        'cart_total': cart_total,
-    }
-    return render(request, 'products/product_list.html', context)
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        context['reviews'] = self.object.reviews.all()
+        context['avg_rating'] = self.object.reviews.aggregate(Avg('rating'))['rating__avg'] or 0
+        context['stock_available'] = self.object.inventory.available_quantity if self.object.inventory else 0
+        return context
 
 def product_detail(request, slug):
+    """
+    Product detail page – also shows reviews and cart summary.
+    """
     product = get_object_or_404(Product, slug=slug, is_active=True)
     product = _calculate_discount(product)
-    
-    cart_items, cart_total = _get_session_cart(request) if not request.user.is_authenticated else ([], 0)
-    
+
+    # Cart for anonymous users only (authenticated users get order only)
+    if request.user.is_authenticated:
+        cart_items, cart_total = [], Decimal('0.00')
+        order = _get_user_order(request)
+    else:
+        order = None
+        cart_items, cart_total = _get_session_cart(request)
+
     context = {
         'product': product,
-        'reviews': product.reviews.all(),
-        'order': _get_user_order(request),
+        'reviews': product.reviews.filter(is_approved=True).select_related('user'),
+        'order': order,
         'cart_items': cart_items,
         'cart_total': cart_total,
     }
     return render(request, 'products/product_detail.html', context)
 
+
 def search(request):
+    """
+    Simple search by product name or description.
+    """
     query = request.GET.get('q', '').strip()
-    products = Product.objects.filter(is_active=True).select_related('category', 'brand')
-    
+    products_qs = Product.objects.filter(is_active=True).select_related('category', 'brand')
+
     if query:
-        products = products.filter(Q(name__icontains=query) | Q(description__icontains=query))
-    
-    products = [_calculate_discount(product) for product in products]
-    
-    cart_items, cart_total = _get_session_cart(request) if not request.user.is_authenticated else ([], 0)
-    
+        products_qs = products_qs.filter(
+            Q(products_name__icontains=query) |
+            Q(description__icontains=query)
+        )
+
+    products = [_calculate_discount(p) for p in products_qs]
+
+    # Cart handling (same logic as home page)
+    if request.user.is_authenticated:
+        order = _get_user_order(request)
+        cart_items, cart_total = [], Decimal('0.00')  # No OrderItem, so empty
+    else:
+        order = None
+        cart_items, cart_total = _get_session_cart(request)
+
     context = {
         'products': products,
         'categories': Category.objects.all(),
         'brands': Brand.objects.all(),
         'query': query,
-        'order': _get_user_order(request),
+        'order': order,
         'cart_items': cart_items,
         'cart_total': cart_total,
     }
     return render(request, 'products/search_results.html', context)
 
-# Add this to your views.py
+
 def search_suggestions(request):
+    """
+    AJAX endpoint that powers the live-search dropdown.
+    Returns up to 5 matching products (name, slug, price, image).
+    """
     query = request.GET.get('q', '').strip()
-    products = Product.objects.filter(is_active=True)
-    
+    products_qs = Product.objects.filter(is_active=True)
+
     if query:
-        products = products.filter(
-            Q(products_name__icontains=query) | 
+        products_qs = products_qs.filter(
+            Q(products_name__icontains=query) |
             Q(description__icontains=query)
-        )[:5]  # Limit to 5 results
-    
+        )[:5]
+
     suggestions = []
-    for product in products:
+    for p in products_qs:
         suggestions.append({
-            'name': product.products_name,
-            'slug': product.slug,
-            'price': str(product.sale_price or product.current_price),
-            'image': product.products_image.url if product.products_image else None,
+            'name': p.products_name,
+            'slug': p.slug,
+            'price': str(p.sale_price or p.base_price),
+            'image': p.products_image.url if p.products_image else None,
         })
-    
+
     return JsonResponse({'products': suggestions})

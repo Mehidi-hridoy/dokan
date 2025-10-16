@@ -1,3 +1,5 @@
+# products/models.py
+
 from django.db import models
 from django_ckeditor_5.fields import CKEditor5Field
 from django.utils.text import slugify
@@ -6,7 +8,8 @@ import re
 import uuid
 from store.models import Category, Brand
 from users.models import User
-from inventory.models import Inventory
+from django.contrib.auth import get_user_model
+from decimal import Decimal
 
 COLOR_CHOICES = [
     ('Red', 'Red'), ('Blue', 'Blue'), ('Pink', 'Pink'), ('Orange', 'Orange'),
@@ -41,6 +44,14 @@ class ProductManager(models.Manager):
 
 class Product(models.Model):
     # Basic Information
+    inventory = models.OneToOneField(
+        'inventory.Inventory', 
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        # CRITICAL FIX: The related_name needs to match the admin.py logic ('inventory_reverse')
+        related_name='inventory_reverse' # Changed from 'product_reverse' to 'inventory_reverse'
+    )
     user = models.ForeignKey(User, on_delete=models.CASCADE, related_name='products',null=True, blank=True)
     products_name = models.CharField(max_length=255)
     slug = models.SlugField(max_length=255, unique=True, blank=True)
@@ -116,7 +127,7 @@ class Product(models.Model):
             self.tags = ', '.join(unique_words[:10])
 
         # Set sale price if not provided
-        if not self.sale_price:
+        if self.sale_price is None: # Use None check for proper initialization
             self.sale_price = self.base_price
 
         super().save(*args, **kwargs)
@@ -126,41 +137,53 @@ class Product(models.Model):
 
     @property
     def current_price(self):
-        """Get current price (sale price if available, otherwise base price)"""
-        return self.sale_price or self.base_price
+        """
+        Calculates the current selling price: 
+        Uses sale_price if available and less than base_price, otherwise falls back to base_price.
+        """
+        if self.sale_price is not None and self.sale_price < self.base_price:
+            return self.sale_price
+        return self.base_price
 
     @property
+    def profit_margin(self):
+        """Calculates profit margin based on current price and cost price."""
+        if self.cost_price is not None and self.base_price is not None:
+            selling_price = self.current_price
+            
+            if selling_price is not None and selling_price > Decimal('0'):
+                profit = selling_price - self.cost_price
+                return (profit / selling_price) * 100
+                
+        return None 
+    
+    @property
     def is_in_stock(self):
-        """Check if product is in stock through inventory"""
-        if hasattr(self, 'inventory'):
-            return self.inventory.quantity > 0
+        """Check if product has positive quantity in inventory."""
+        # Use inventory_reverse (the correct related name)
+        if hasattr(self, 'inventory_reverse') and self.inventory_reverse is not None:
+            return self.inventory_reverse.available_quantity > 0 
         return False
 
     @property
     def available_quantity(self):
-        """Get available quantity from inventory"""
-        if hasattr(self, 'inventory'):
-            return self.inventory.quantity
+        """Get the available quantity from inventory."""
+        # Use inventory_reverse (the correct related name)
+        if hasattr(self, 'inventory_reverse') and self.inventory_reverse is not None:
+            return self.inventory_reverse.available_quantity
         return 0
 
     @property
     def is_low_stock(self):
-        """Check if product is low in stock"""
-        if hasattr(self, 'inventory'):
-            return 0 < self.inventory.quantity <= self.inventory.low_stock_threshold
+        """Check if product is at or below the low stock threshold."""
+        # Use inventory_reverse (the correct related name)
+        if hasattr(self, 'inventory_reverse') and self.inventory_reverse is not None:
+            return self.inventory_reverse.is_low_stock
         return False
-
-    @property
-    def profit_margin(self):
-        """Calculate profit margin if cost price is available"""
-        if self.cost_price and self.current_price:
-            return ((self.current_price - self.cost_price) / self.cost_price) * 100
-        return None
 
     def get_price_for_order(self):
         """Get price to be used in orders (immutable once order is created)"""
         return self.current_price
-
 
 class ProductImage(models.Model):
     product = models.ForeignKey(Product, on_delete=models.CASCADE, related_name='images')
@@ -197,3 +220,31 @@ class Review(models.Model):
 
     def __str__(self):
         return f"Review by {self.user.username} for {self.product.products_name} - {self.rating} stars"
+
+
+# --- START OF CODE TO BE REMOVED/MOVED ---
+# The following code is causing the crash and should not be in models.py
+# If you need ProductForm, move it to products/forms.py
+# If you need the AdminForm helper, that logic belongs in admin.py
+
+# from django import forms # Removed as part of cleanup
+# from .models import Product, Review # Removed as part of cleanup
+
+
+# class ProductForm(forms.ModelForm): # Removed as part of cleanup
+#     class Meta: # Removed as part of cleanup
+#         model = Product # Removed as part of cleanup
+#         fields = [ # Removed as part of cleanup
+#             'products_name', 'slug', 'product_code', 'brand', 'category', 'sub_category', # Removed as part of cleanup
+#             'short_description', 'description', 'base_price', 'sale_price', # Removed as part of cleanup
+#             'cost_price', 'color', 'size', 'weight', 'products_image', 'gallery_images', # Removed as part of cleanup
+#             'meta_title', 'meta_description', 'is_active', 'is_featured', 'is_published', 'user' # Removed as part of cleanup
+#         ] # Removed as part of cleanup
+
+
+# helpers.AdminForm( # CRASHING CODE - MUST BE REMOVED
+#     form, # CRASHING CODE - MUST BE REMOVED
+#     # ...<8 lines>... # CRASHING CODE - MUST BE REMOVED
+#     model_admin=self, # CRASHING CODE - MUST BE REMOVED
+# ) # CRASHING CODE - MUST BE REMOVED
+# --- END OF CODE TO BE REMOVED/MOVED ---

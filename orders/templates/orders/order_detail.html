@@ -1,0 +1,38 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block title %}Order #{{ order.order_number }} - Dokan{% endblock %}
+
+{% block content %}
+<div class="container mx-auto px-4 py-8">
+    <h1 class="text-3xl font-bold mb-6">Order Details #{{ order.order_number }}</h1>
+    
+    <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        <div class="bg-gray-50 p-6 rounded">
+            <h2 class="text-xl font-semibold mb-4">Order Info</h2>
+            <p><strong>Status:</strong> {{ order.get_order_status_display }}</p>
+            <p><strong>Placed:</strong> {{ order.created_at|date:"M d, Y H:i" }}</p>
+            <p><strong>Total:</strong> ${{ order.total }}</p>
+            <p><strong>Payment:</strong> {{ order.get_payment_status_display }} via {{ order.get_payment_method_display }}</p>
+            <p><strong>Notes:</strong> {{ order.order_note|default:"None" }}</p>
+        </div>
+        
+        <div class="bg-gray-50 p-6 rounded">
+            <h2 class="text-xl font-semibold mb-4">Shipping Info</h2>
+            <p><strong>Name:</strong> {{ order.customer_name }}</p>
+            <p><strong>Email:</strong> {{ order.email }}</p>
+            <p><strong>Phone:</strong> {{ order.phone_number }}</p>
+            <p><strong>Address:</strong> {{ order.shipping_address }}, {{ order.city }} {{ order.zip_code }}</p>
+            <p><strong>Delivery Area:</strong> {{ order.delivery_area }}</p>
+        </div>
+    </div>
+    
+    <!-- No items section since no OrderItem -->
+    <div class="mt-6 bg-gray-50 p-6 rounded">
+        <h2 class="text-xl font-semibold mb-4">Items</h2>
+        <p class="text-gray-500">Item details not tracked in this version.</p>
+    </div>
+    
+    <a href="{% url 'orders:order_history' %}" class="mt-4 inline-block text-blue-600 hover:underline">&laquo; Back to History</a>
+</div>
+{% endblock %}

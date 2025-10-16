@@ -1,0 +1,20 @@
+{% extends 'base.html' %}
+
+{% block title %}Sales Analytics{% endblock %}
+
+{% block content %}
+<!-- Similar grid for filters, stats, chart, table -->
+<h1 class="text-3xl font-bold mb-6">Sales Analytics</h1>
+<form method="GET" class="mb-6"><input type="date" name="start_date"> <input type="date" name="end_date"> <button class="bg-blue-600 text-white px-4 py-2">Filter</button></form>
+<div class="grid grid-cols-3 gap-6 mb-8">
+    <div class="bg-white p-6 shadow"><h3>Total Sales</h3><p>{{ total_sales }}</p></div>
+    <div class="bg-white p-6 shadow"><h3>Avg Order Value</h3><p>${{ avg_order_value|floatformat:2 }}</p></div>
+    <div class="bg-white p-6 shadow"><h3>Top Product</h3><p>{{ top_product.products_name }}</p></div>
+</div>
+<canvas id="salesChart" height="200"></canvas>
+<table><!-- Top products --></table>
+{% endblock %}
+
+{% block extra_js %}
+<script>new Chart('salesChart', {type: 'bar', data: {labels: {{ sales_dates|safe }}, datasets: [{label: 'Sales', data: {{ sales_values|safe }} }]}});</script>
+{% endblock %}

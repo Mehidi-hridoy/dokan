@@ -1,0 +1,46 @@
+{% extends 'base.html' %}
+{% block title %}{{ inventory.product.products_name }} Inventory{% endblock %}
+
+{% block content %}
+<div class="container mx-auto px-4 py-8">
+    <h1 class="text-3xl font-bold mb-6">{{ inventory.product.products_name }} - Inventory</h1>
+    
+    <div class="grid grid-cols-1 md:grid-cols-2 gap-6 mb-8">
+        <div class="bg-white p-6 rounded shadow">
+            <p><strong>Total Qty:</strong> {{ inventory.quantity }}</p>
+            <p><strong>Reserved:</strong> {{ inventory.reserved_quantity }}</p>
+            <p><strong>Available:</strong> {{ inventory.available_quantity }}</p>
+            <p><strong>Location:</strong> {{ inventory.location|default:"N/A" }}</p>
+            <p><strong>Low Threshold:</strong> {{ inventory.low_stock_threshold }}</p>
+            <a href="{% url 'inventory:restock' inventory.pk %}" class="bg-green-600 text-white px-4 py-2 rounded mt-4 inline-block">Restock</a>
+        </div>
+        <div class="bg-white p-6 rounded shadow">
+            <h2 class="text-xl font-semibold mb-4">Quick Reserve</h2>
+            <form method="POST">
+                {% csrf_token %}
+                <input type="hidden" name="action" value="reserve">
+                <input type="number" name="quantity" min="1" class="p-2 border rounded mb-2" placeholder="Qty">
+                <button type="submit" class="bg-blue-600 text-white px-4 py-2 rounded">Reserve</button>
+            </form>
+        </div>
+    </div>
+    
+    <h2 class="text-2xl font-semibold mb-4">Recent Movements</h2>
+    <table class="w-full table-auto border mb-8">
+        <thead><tr><th>Type</th><th>Qty</th><th>Reference</th><th>Date</th></tr></thead>
+        <tbody>
+            {% for m in movements %}
+            <tr>
+                <td>{{ m.get_movement_type_display }}</td>
+                <td>{{ m.quantity }}</td>
+                <td>{{ m.reference }}</td>
+                <td>{{ m.created_at|date:"M d, Y" }}</td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+    
+    <h2 class="text-2xl font-semibold mb-4">Alerts</h2>
+    <!-- Similar table for alerts -->
+</div>
+{% endblock %}

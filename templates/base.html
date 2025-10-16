@@ -5,16 +5,11 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>{% block title %}Dokan - Modern Ecommerce{% endblock %}</title>
-    <!-- Tailwind CSS -->
     <link href="https://cdn.jsdelivr.net/npm/tailwindcss@2.2.19/dist/tailwind.min.css" rel="stylesheet">
-    <!-- Bootstrap CSS -->
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
-    <!-- Font Awesome -->
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
-    <!-- Google Fonts -->
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
 
-    <!-- Global & Product CSS -->
     <link rel="stylesheet" href="{% static 'css/global.css' %}">
     <link rel="stylesheet" href="{% static 'products/css/products.css' %}">
 
@@ -66,62 +61,76 @@
         .cart-dropdown-content.show {
             display: block;
         }
+
+        /* Search suggestions */
+        #searchSuggestions {
+            position: absolute;
+            top: 100%;
+            left: 0;
+            right: 0;
+            background: white;
+            border: 1px solid #ddd;
+            max-height: 300px;
+            overflow-y: auto;
+            z-index: 50;
+            display: none;
+        }
+        .suggestion-item {
+            padding: 8px;
+            cursor: pointer;
+        }
+        .suggestion-item:hover {
+            background: #f0f0f0;
+        }
+        /* Cart Badge visibility fix */
+        .cart-count-badge {
+            display: flex; /* Ensure the badge shows */
+        }
     </style>
 </head>
 
 <body class="font-inter bg-gray-50 text-gray-900">
-    <!-- Flying Messages Container -->
+    <input type="hidden" id="initialCartCount" value="{{ cart_count|default:0 }}">
+
     <div id="messageContainer" class="fixed top-20 right-4 z-50 space-y-2" style="max-width: 400px;"></div>
 
-    <!-- Navigation -->
     <nav class="bg-blue-600 text-white py-4 shadow-lg sticky top-0 z-50">
         <div class="container mx-auto px-4 flex justify-between items-center">
-            <!-- Logo -->
             <a href="{% url 'products:home' %}" class="text-2xl text-white font-bold tracking-wide flex items-center no-underline">
                 <i class="fas fa-store mr-2 "></i>Dokan
             </a>
 
-        <!-- Navigation Links -->
-        <div class="hidden md:flex items-center space-x-2">
-            <a href="{% url 'products:home' %}" 
-            class="px-3 py-2 rounded-md text-white hover:bg-blue-500 transition duration-200 no-underline">Home</a>
-            {% if request.user.is_authenticated %}
-                <a href="{% url 'analytics:analytics_dashboard' %}" 
-                class="px-3 py-2 rounded-md text-white hover:bg-blue-500 transition duration-200 no-underline">Dashboard</a>
-            {% endif %}
-            <a href="{% url 'products:product_list' %}" 
-            class="px-3 py-2 rounded-md text-white hover:bg-blue-500 transition duration-200 no-underline">Shop</a>
-            <a href="{% url 'analytics:financial_dashboard' %}" 
-            class="px-3 py-2 rounded-md text-white hover:bg-blue-500 transition duration-200 no-underline">Customer List</a>
-            <a href="{% url 'analytics:sales_analytics' %}" 
-            class="px-3 py-2 rounded-md text-white hover:bg-blue-500 transition duration-200 no-underline">Sales Analytics</a>
-            {% if request.user.is_authenticated %}
-                <a href="{% url 'orders:order_history' %}" 
-                class="px-3 py-2 rounded-md text-white hover:bg-blue-500 transition duration-200 no-underline">Orders</a>
-            {% endif %}
-        </div>
+            <div class="hidden md:flex items-center space-x-2">
+                <a href="{% url 'products:home' %}" class="px-3 py-2 rounded-md text-white hover:bg-blue-500 transition duration-200 no-underline">Home</a>
+                {% if request.user.is_authenticated %}
+                    <a href="#" class="px-3 py-2 rounded-md text-white hover:bg-blue-500 transition duration-200 no-underline">Dashboard</a>
+                {% endif %}
+                <a href="{% url 'products:product_list' %}" class="px-3 py-2 rounded-md text-white hover:bg-blue-500 transition duration-200 no-underline">Shop</a>
+                <a href="#" class="px-3 py-2 rounded-md text-white hover:bg-blue-500 transition duration-200 no-underline">Customer List</a>
+                <a href="#" class="px-3 py-2 rounded-md text-white hover:bg-blue-500 transition duration-200 no-underline">Sales Analytics</a>
+                {% if request.user.is_authenticated %}
+                    <a href="{% url 'orders:order_history' %}" class="px-3 py-2 rounded-md text-white hover:bg-blue-500 transition duration-200 no-underline">Orders</a>
+                {% endif %}
+            </div>
 
-
-            <!-- Right Section -->
             <div class="flex items-center space-x-4">
-                <!-- Search Button -->
                 <div class="relative">
                     <button onclick="toggleSearch()" class="p-2 hover:bg-blue-500 rounded-full transition duration-200">
                         <i class="fas fa-search"></i>
                     </button>
                     
                     <div id="searchBar" class="absolute top-12 left-0 right-0 bg-white shadow-lg p-4 z-50 hidden">
-                        <form action="{% url 'products:search' %}" method="GET" class="container mx-auto flex">
-                            <input type="text" name="q" placeholder="Search products..." 
-                                   class="flex-1 px-4 py-2 border border-gray-300 rounded-l-lg focus:outline-none focus:ring-2 focus:ring-blue-500">
+                        <form action="{% url 'products:search' %}" method="GET" class="container mx-auto flex relative">
+                            <input type="text" id="searchInput" name="q" placeholder="Search products..." 
+                                    class="flex-1 px-4 py-2 border border-gray-300 rounded-l-lg focus:outline-none focus:ring-2 focus:ring-blue-500">
                             <button type="submit" class="bg-blue-600 text-white px-6 py-2 rounded-r-lg hover:bg-blue-700 transition duration-200">
                                 Search
                             </button>
+                            <div id="searchSuggestions"></div>
                         </form>
                     </div>
                 </div>
 
-                <!-- Notification Dropdown -->
                 <div class="relative">
                     <button onclick="toggleNotifications()" class="flex items-center space-x-2 p-2 hover:bg-blue-500 rounded-lg transition duration-200 relative">
                         <i class="fas fa-bell"></i>
@@ -141,25 +150,16 @@
                     </div>
                 </div>
 
-                <!-- Cart Dropdown -->
                 <div class="relative" id="cartDropdown">
                     <button onclick="toggleCart()" class="flex items-center space-x-2 p-2 hover:bg-blue-500 rounded-lg transition duration-200 relative">
                         <i class="fas fa-shopping-cart"></i>
                         <span>Cart</span>
-                        <span id="cartBadge" class="absolute -top-1 -right-1 bg-red-500 text-white rounded-full w-5 h-5 flex items-center justify-center text-xs {% if not cart_items and not order.order_items.exists %}hidden{% endif %}">
-                            {% if cart_items %}
-                                {{ cart_items|length }}
-                            {% elif order and order.order_items.exists %}
-                                {{ order.order_items.count }}
-                            {% else %}
-                                0
-                            {% endif %}
+                        <span id="cart-count-badge" class="absolute -top-1 -right-1 bg-red-500 text-white rounded-full w-5 h-5 flex items-center justify-center text-xs cart-count-badge">
+                            {{ cart_count|default:0 }} 
                         </span>
                     </button>
 
-                    <!-- Cart Dropdown Content -->
                     <div id="cartDropdownContent" class="absolute top-12 right-0 bg-white text-gray-800 shadow-2xl rounded-lg w-80 cart-dropdown border border-gray-200 cart-dropdown-content">
-                        <!-- Cart content will be loaded dynamically -->
                         <div class="p-4">
                             <div class="text-center py-8">
                                 <i class="fas fa-spinner fa-spin text-2xl text-gray-300 mb-3"></i>
@@ -169,7 +169,6 @@
                     </div>
                 </div>
 
-                <!-- User Menu -->
                 {% if request.user.is_authenticated %}
                     <div class="relative">
                         <button onclick="toggleUserMenu()" class="flex items-center space-x-2 p-2 hover:bg-blue-500 rounded-lg transition duration-200">
@@ -198,7 +197,6 @@
         </div>
     </nav>
 
-    <!-- Mobile Menu -->
     <div class="md:hidden bg-blue-600 text-white p-2">
         <button onclick="toggleMobileMenu()" class="w-full text-center py-2">
             <i class="fas fa-bars mr-2"></i>Menu
@@ -218,427 +216,97 @@
         </div>
     </div>
 
-    <!-- Main Content -->
     <main class="min-h-screen">
         {% block content %}
         {% endblock %}
     </main>
 
-    <!-- Footer -->
     {% include 'includes/footer.html' %}
 
-    <!-- Scripts -->
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
     <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
-  
-<script>
-    // Toggle mobile menu
-    function toggleMobileMenu() {
-        const mobileMenu = document.getElementById('mobileMenu');
-        mobileMenu.classList.toggle('hidden');
-    }
+ 
+    <script>
+        // Set initial cart count on page load
+        $(document).ready(function() {
+            const initialCount = $('#initialCartCount').val();
+            $('#cart-count-badge').text(initialCount);
+        });
 
-    // Toggle search bar
-    function toggleSearch() {
-        const searchBar = document.getElementById('searchBar');
-        const notificationDropdown = document.getElementById('notificationDropdown');
-        const cartDropdown = document.getElementById('cartDropdownContent');
-        const userMenu = document.getElementById('userMenu');
-        
-        // Close other dropdowns
-        if (notificationDropdown) notificationDropdown.classList.add('hidden');
-        if (cartDropdown) cartDropdown.classList.remove('show');
-        if (userMenu) userMenu.classList.add('hidden');
-        
-        // Toggle search
-        searchBar.classList.toggle('hidden');
-    }
-
-    // Toggle notifications
-    function toggleNotifications() {
-        const notificationDropdown = document.getElementById('notificationDropdown');
-        const searchBar = document.getElementById('searchBar');
-        const cartDropdown = document.getElementById('cartDropdownContent');
-        const userMenu = document.getElementById('userMenu');
-        
-        // Close other dropdowns
-        if (searchBar) searchBar.classList.add('hidden');
-        if (cartDropdown) cartDropdown.classList.remove('show');
-        if (userMenu) userMenu.classList.add('hidden');
-        
-        // Toggle notifications
-        notificationDropdown.classList.toggle('hidden');
-    }
-
-    // Toggle cart
-    function toggleCart() {
-        const cartDropdown = document.getElementById('cartDropdownContent');
-        const searchBar = document.getElementById('searchBar');
-        const notificationDropdown = document.getElementById('notificationDropdown');
-        const userMenu = document.getElementById('userMenu');
-        
-        // Close other dropdowns
-        if (searchBar) searchBar.classList.add('hidden');
-        if (notificationDropdown) notificationDropdown.classList.add('hidden');
-        if (userMenu) userMenu.classList.add('hidden');
-        
-        // Toggle cart
-        cartDropdown.classList.toggle('show');
-        
-        // Load cart content if showing
-        if (cartDropdown.classList.contains('show')) {
-            loadCartDropdown();
+        // Toggle functions for the navbar
+        function toggleSearch() {
+            const searchBar = document.getElementById('searchBar');
+            searchBar.classList.toggle('hidden');
+            if (!searchBar.classList.contains('hidden')) {
+                document.getElementById('searchInput').focus();
+            }
         }
-    }
 
-    // Toggle user menu
-    function toggleUserMenu() {
-        const userMenu = document.getElementById('userMenu');
-        const searchBar = document.getElementById('searchBar');
-        const notificationDropdown = document.getElementById('notificationDropdown');
-        const cartDropdown = document.getElementById('cartDropdownContent');
-        
-        // Close other dropdowns
-        if (searchBar) searchBar.classList.add('hidden');
-        if (notificationDropdown) notificationDropdown.classList.add('hidden');
-        if (cartDropdown) cartDropdown.classList.remove('show');
-        
-        // Toggle user menu
-        userMenu.classList.toggle('hidden');
-    }
+        function toggleNotifications() {
+            const dropdown = document.getElementById('notificationDropdown');
+            dropdown.classList.toggle('hidden');
+        }
 
-    // Close dropdowns when clicking outside
-    document.addEventListener('click', function(event) {
-        const searchBar = document.getElementById('searchBar');
-        const searchButton = event.target.closest('button[onclick="toggleSearch()"]');
-        const notificationDropdown = document.getElementById('notificationDropdown');
-        const notificationButton = event.target.closest('button[onclick="toggleNotifications()"]');
-        const cartDropdown = document.getElementById('cartDropdownContent');
-        const cartButton = event.target.closest('button[onclick="toggleCart()"]');
-        const userMenu = document.getElementById('userMenu');
-        const userButton = event.target.closest('button[onclick="toggleUserMenu()"]');
-        
-        // Close search if clicking outside
-        if (searchBar && !searchBar.contains(event.target) && !searchButton) {
-            searchBar.classList.add('hidden');
+        function toggleCart() {
+            const dropdown = document.getElementById('cartDropdownContent');
+            dropdown.classList.toggle('cart-dropdown-content');
+            dropdown.classList.toggle('show');
+            // In a real application, you'd trigger a function here to load
+            // the actual cart contents via AJAX when the user clicks the button.
+            // loadCartDropdown(); 
+        }
+
+        function toggleUserMenu() {
+            const menu = document.getElementById('userMenu');
+            menu.classList.toggle('hidden');
         }
         
-        // Close notifications if clicking outside
-        if (notificationDropdown && !notificationDropdown.contains(event.target) && !notificationButton) {
-            notificationDropdown.classList.add('hidden');
+        function toggleMobileMenu() {
+            const menu = document.getElementById('mobileMenu');
+            menu.classList.toggle('hidden');
         }
-        
-        // Close cart if clicking outside
-        if (cartDropdown && !cartDropdown.contains(event.target) && !cartButton) {
-            cartDropdown.classList.remove('show');
-        }
-        
-        // Close user menu if clicking outside
-        if (userMenu && !userMenu.contains(event.target) && !userButton) {
-            userMenu.classList.add('hidden');
-        }
-    });
 
-    // Load cart dropdown content - SIMPLE VERSION
-    function loadCartDropdown() {
-        // Use hardcoded URL to avoid template tag issues
-        const url = '/orders/cart/dropdown-content/';
-        
-        fetch(url)
-            .then(response => {
-                if (!response.ok) {
-                    throw new Error('Network response was not ok');
+        // Search suggestions (Your existing logic)
+        const searchInput = document.getElementById('searchInput');
+        const suggestionsDiv = document.getElementById('searchSuggestions');
+        if (searchInput) {
+            searchInput.addEventListener('input', function() {
+                const query = this.value.trim();
+                if (query.length < 2) {
+                    suggestionsDiv.innerHTML = '';
+                    suggestionsDiv.style.display = 'none';
+                    return;
                 }
-                return response.text();
-            })
-            .then(html => {
-                document.getElementById('cartDropdownContent').innerHTML = html;
-            })
-            .catch(error => {
-                console.error('Error loading cart dropdown:', error);
-                document.getElementById('cartDropdownContent').innerHTML = `
-                    <div class="p-4">
-                        <div class="text-center py-8">
-                            <i class="fas fa-shopping-cart text-4xl text-gray-300 mb-3"></i>
-                            <p class="text-gray-500 mb-4">Your cart is empty</p>
-                            <a href="/products/" class="inline-block bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 transition duration-200 text-sm">
-                                Start Shopping
-                            </a>
-                        </div>
-                    </div>
-                `;
-            });
-    }
-
-    // Add to Cart AJAX functionality
-    document.addEventListener('DOMContentLoaded', function() {
-        // Intercept all add to cart forms
-        document.addEventListener('submit', function(e) {
-            if (e.target.method === 'POST' && (e.target.action.includes('/add-to-cart/') || e.target.action.includes('/orders/add-to-cart/'))) {
-                e.preventDefault();
-                
-                const form = e.target;
-                const formData = new FormData(form);
-                const button = form.querySelector('button[type="submit"]');
-                const originalText = button.innerHTML;
-                
-                // Show loading state
-                button.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Adding...';
-                button.disabled = true;
-                
-                fetch(form.action, {
-                    method: 'POST',
-                    body: formData,
-                    headers: {
-                        'X-Requested-With': 'XMLHttpRequest',
-                        'X-CSRFToken': formData.get('csrfmiddlewaretoken')
-                    }
-                })
-                .then(response => response.json())
-                .then(data => {
-                    if (data.success) {
-                        showEnhancedCartMessage(data);
-                        updateCartCount(data.cart_count);
-                        // Reload cart dropdown content if it's open
-                        const cartDropdown = document.getElementById('cartDropdownContent');
-                        if (cartDropdown.classList.contains('show')) {
-                            loadCartDropdown();
+                fetch(`/products/search-suggestions/?q=${encodeURIComponent(query)}`)
+                    .then(response => response.json())
+                    .then(data => {
+                        suggestionsDiv.innerHTML = '';
+                        if (data.products.length > 0) {
+                            data.products.forEach(product => {
+                                const item = document.createElement('div');
+                                item.className = 'suggestion-item flex items-center space-x-2';
+                                item.innerHTML = `
+                                    ${product.image ? `<img src="${product.image}" alt="${product.name}" class="w-8 h-8 object-cover">` : ''}
+                                    <span>${product.name} - $${product.price}</span>
+                                `;
+                                item.onclick = () => location.href = `/products/${product.slug}/`;
+                                suggestionsDiv.appendChild(item);
+                            });
+                            suggestionsDiv.style.display = 'block';
+                        } else {
+                            suggestionsDiv.style.display = 'none';
                         }
-                    } else {
-                        showMessage(data.message, 'error');
-                    }
-                })
-                .catch(error => {
-                    console.error('Error:', error);
-                    showMessage('An error occurred while adding to cart', 'error');
-                })
-                .finally(() => {
-                    // Restore button state
-                    button.innerHTML = originalText;
-                    button.disabled = false;
-                });
-            }
-        });
-
-        // Add quantity control functionality for guest users
-document.addEventListener('DOMContentLoaded', function() {
-    // Existing add to cart code...
-    
-    // Handle quantity controls in cart dropdown
-    function setupCartDropdownControls() {
-        // Quantity decrease for guest users
-        document.querySelectorAll('.quantity-decrease').forEach(button => {
-            button.addEventListener('click', function() {
-                updateCartItemQuantity(this, -1);
+                    });
             });
-        });
-
-        // Quantity increase for guest users
-        document.querySelectorAll('.quantity-increase').forEach(button => {
-            button.addEventListener('click', function() {
-                updateCartItemQuantity(this, 1);
-            });
-        });
-    }
-
-    function updateCartItemQuantity(button, change) {
-        const slug = button.dataset.slug;
-        const color = button.dataset.color;
-        const size = button.dataset.size;
-        const weight = button.dataset.weight;
-        
-        const formData = new FormData();
-        formData.append('quantity', change);
-        formData.append('color', color);
-        formData.append('size', size);
-        formData.append('weight', weight);
-        formData.append('csrfmiddlewaretoken', '{{ csrf_token }}');
-
-        fetch(`/orders/add-to-cart/${slug}/`, {
-            method: 'POST',
-            body: formData,
-            headers: {
-                'X-Requested-With': 'XMLHttpRequest',
-            }
-        })
-        .then(response => response.json())
-        .then(data => {
-            if (data.success) {
-                // Fallbacks for message
-                data.product_name = data.product_name || 'Item';
-                data.quantity = data.quantity || 1;
-                data.subtotal = data.subtotal || '0.00';
-                data.cart_count = data.cart_count || 0;
-
-                showEnhancedCartMessage(data);
-                updateCartCount(data.cart_count);
-                
-                // Reload cart dropdown if open
-                const cartDropdown = document.getElementById('cartDropdownContent');
-                if (cartDropdown.classList.contains('show')) {
-                    loadCartDropdown();
-                }
-            } else {
-                showMessage(data.message || 'Failed to add item', 'error');
-            }
-        })
-        .catch(error => {
-            console.error('Error:', error);
-            showMessage('An error occurred while updating quantity', 'error');
-        });
-    }
-
-    // Setup controls when cart dropdown is loaded
-    const originalLoadCartDropdown = loadCartDropdown;
-    loadCartDropdown = function() {
-        originalLoadCartDropdown();
-        // Wait a bit for the content to load, then setup controls
-        setTimeout(setupCartDropdownControls, 100);
-    };
-
-    // Initial setup
-    setupCartDropdownControls();
-});
-
-        function showEnhancedCartMessage(data) {
-            const messageContainer = document.getElementById('messageContainer');
-            const messageId = 'msg-' + Date.now();
-            
-            const messageEl = document.createElement('div');
-            messageEl.id = messageId;
-            messageEl.className = `flying-message bg-white border border-green-200 rounded-lg shadow-lg overflow-hidden`;
-            messageEl.innerHTML = `
-                <div class="p-4">
-                    <div class="flex items-start space-x-3">
-                        <div class="flex-shrink-0">
-                            <i class="fas fa-check-circle text-green-500 text-xl"></i>
-                        </div>
-                        <div class="flex-1">
-                            <p class="font-semibold text-green-800 mb-1">Added to Cart!</p>
-                            <p class="text-sm text-gray-600 mb-2">${data.product_name} has been added to your cart.</p>
-                            
-                            <div class="flex items-center space-x-3 mb-3 p-2 bg-green-50 rounded">
-                                ${data.product_image ? 
-                                    `<img src="${data.product_image}" alt="${data.product_name}" class="w-10 h-10 object-cover rounded">` :
-                                    `<div class="w-10 h-10 bg-gray-200 rounded flex items-center justify-center">
-                                        <i class="fas fa-image text-gray-400"></i>
-                                    </div>`
-                                }
-                                <div class="flex-1">
-                                    <p class="text-sm font-medium text-gray-800">${data.product_name}</p>
-                                    <p class="text-xs text-gray-500">Qty: ${data.quantity} • $${data.subtotal}</p>
-                                </div>
-                            </div>
-                            
-                            <div class="flex space-x-2">
-                                <button onclick="toggleCart()" class="flex-1 bg-gray-100 text-gray-700 text-center py-2 rounded text-sm hover:bg-gray-200 transition duration-200">
-                                    View Cart
-                                </button>
-                                <a href="/orders/checkout/" class="flex-1 bg-green-600 text-white text-center py-2 rounded text-sm hover:bg-green-700 transition duration-200">
-                                    Checkout
-                                </a>
-                            </div>
-                        </div>
-                        <button onclick="closeMessage('${messageId}')" class="flex-shrink-0 text-gray-400 hover:text-gray-600">
-                            <i class="fas fa-times"></i>
-                        </button>
-                    </div>
-                </div>
-            `;
-            
-            messageContainer.appendChild(messageEl);
-            
-            // Animate in
-            setTimeout(() => {
-                messageEl.classList.add('show');
-            }, 10);
-            
-            // Auto remove after 8 seconds
-            setTimeout(() => {
-                closeMessage(messageId);
-            }, 8000);
         }
 
-        function updateCartCount(count) {
-            let cartBadge = document.getElementById('cartBadge');
-            
-            if (!cartBadge) {
-                // Create badge if it doesn't exist
-                const cartButton = document.querySelector('#cartDropdown button');
-                cartBadge = document.createElement('span');
-                cartBadge.id = 'cartBadge';
-                cartBadge.className = 'absolute -top-1 -right-1 bg-red-500 text-white rounded-full w-5 h-5 flex items-center justify-center text-xs';
-                cartButton.appendChild(cartBadge);
+        // Close suggestions on outside click
+        document.addEventListener('click', function(e) {
+            if (searchInput && suggestionsDiv && !searchInput.contains(e.target) && !suggestionsDiv.contains(e.target)) {
+                suggestionsDiv.style.display = 'none';
             }
-            
-            if (count > 0) {
-                cartBadge.textContent = count;
-                cartBadge.classList.remove('hidden');
-            } else {
-                cartBadge.classList.add('hidden');
-            }
-        }
-
-        // Show flying messages
-        function showMessage(message, type = 'info') {
-            const messageContainer = document.getElementById('messageContainer');
-            const messageId = 'msg-' + Date.now();
-            
-            const typeConfig = {
-                'success': { icon: 'check-circle', color: 'green' },
-                'error': { icon: 'exclamation-circle', color: 'red' },
-                'warning': { icon: 'exclamation-triangle', color: 'yellow' },
-                'info': { icon: 'info-circle', color: 'blue' }
-            };
-            
-            const config = typeConfig[type] || typeConfig.info;
-            
-            const messageEl = document.createElement('div');
-            messageEl.id = messageId;
-            messageEl.className = `flying-message bg-${config.color}-100 border border-${config.color}-200 rounded-lg p-4`;
-            messageEl.innerHTML = `
-                <div class="flex items-center space-x-3">
-                    <i class="fas fa-${config.icon} text-${config.color}-500"></i>
-                    <div class="flex-1">
-                        <p class="text-sm font-medium text-${config.color}-800">${message}</p>
-                    </div>
-                    <button onclick="closeMessage('${messageId}')" class="text-${config.color}-400 hover:text-${config.color}-600">
-                        <i class="fas fa-times"></i>
-                    </button>
-                </div>
-            `;
-            
-            messageContainer.appendChild(messageEl);
-            
-            // Animate in
-            setTimeout(() => {
-                messageEl.classList.add('show');
-            }, 10);
-            
-            // Auto remove after 5 seconds
-            setTimeout(() => {
-                closeMessage(messageId);
-            }, 5000);
-        }
-
-        // Close message function
-        window.closeMessage = function(messageId) {
-            const messageEl = document.getElementById(messageId);
-            if (messageEl) {
-                messageEl.classList.remove('show');
-                messageEl.classList.add('hide');
-                setTimeout(() => {
-                    if (messageEl.parentNode) {
-                        messageEl.parentNode.removeChild(messageEl);
-                    }
-                }, 300);
-            }
-        };
-
-        // Global function for showing messages from AJAX calls
-        window.showMessage = showMessage;
-    });
-</script>
+        });
+    </script>
 
     {% block extra_js %}{% endblock %}
 </body>

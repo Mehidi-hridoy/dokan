@@ -1,29 +1,18 @@
 # analytics/urls.py
-
 from django.urls import path
-from . import views 
-
+from django.contrib.auth.decorators import login_required
+from django.contrib.admin.views.decorators import staff_member_required
+from . import views
 
 app_name = 'analytics'
 
 urlpatterns = [
-    # Main Dashboard
-    path('', views.analytics_dashboard, name='analytics_dashboard'), 
-    
-    # Customer Management
-    path('customers/', views.customer_list, name='customer_list'),
-    path('customers/<int:customer_id>/', views.customer_detail, name='customer_detail'),
-    path('customers/<int:customer_id>/toggle-status/', views.toggle_customer_status, name='toggle_customer_status'),
-    path('api/customer-search/', views.customer_search_api, name='customer_search_api'),
-    
-    # Financial/Sales Analytics Details
-    path('sales-analytics/', views.sales_analytics_detail, name='sales_analytics'),
-    path('financial-dashboard/', views.financial_dashboard, name='financial_dashboard'), # High-level finance metrics
-    path('expense-analytics/', views.expense_analytics_detail, name='expense_analytics'),
-    
-    # Financial Records / Transaction List (Detailed)
-    path('financial/', views.financial_analytics, name='financial_analytics'),
-    
-    # API for Charts
-    path('dashboard-data/', views.dashboard_data_api, name='dashboard_data'),
+    path('dashboard/', staff_member_required(views.AnalyticsDashboard.as_view()), name='dashboard'),
+    path('sales/', staff_member_required(views.SalesAnalyticsView.as_view()), name='sales'),
+    path('orders/', staff_member_required(views.OrdersAnalyticsView.as_view()), name='orders'),
+    path('inventory/', staff_member_required(views.InventoryAnalyticsView.as_view()), name='inventory'),
+    path('products/', staff_member_required(views.ProductsAnalyticsView.as_view()), name='products'),
+    path('revenue/', staff_member_required(views.RevenueAnalyticsView.as_view()), name='revenue'),
+    path('customers/', staff_member_required(views.CustomerListView.as_view()), name='customer_list'),
+    path('customers/detail/<int:pk>/', staff_member_required(views.CustomerDetailView.as_view()), name='customer_detail'),
 ]

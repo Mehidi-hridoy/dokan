@@ -1,0 +1,42 @@
+{% extends 'base.html' %}
+{% block title %}Inventory List{% endblock %}
+
+{% block content %}
+<div class="container mx-auto px-4 py-8">
+    <h1 class="text-3xl font-bold mb-6">Inventory List</h1>
+    
+    <form method="GET" class="mb-6 flex space-x-4">
+        <input type="text" name="q" placeholder="Search product..." value="{{ request.GET.q }}" class="p-2 border rounded">
+        <select name="location" class="p-2 border rounded">
+            <option value="">All Locations</option>
+            {% for loc in locations %}<option value="{{ loc }}">{{ loc }}</option>{% endfor %}
+        </select>
+        <button type="submit" class="bg-blue-600 text-white px-4 py-2 rounded">Filter</button>
+    </form>
+    
+    <table class="w-full table-auto border">
+        <thead><tr><th>Product</th><th>Qty</th><th>Available</th><th>Location</th><th>Status</th><th>Actions</th></tr></thead>
+        <tbody>
+            {% for inv in inventories %}
+            <tr>
+                <td>{{ inv.product.products_name }}</td>
+                <td>{{ inv.quantity }}</td>
+                <td>{{ inv.available_quantity }}</td>
+                <td>{{ inv.location|default:"N/A" }}</td>
+                <td>{% if inv.is_low_stock %}Low{% elif inv.is_stock_out %}Out{% else %}OK{% endif %}</td>
+                <td><a href="{% url 'inventory:detail' inv.pk %}" class="text-blue-600">Detail</a></td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+    
+    <!-- Pagination -->
+    {% if is_paginated %}
+    <div class="mt-4 flex justify-center">
+        {% if page_obj.has_previous %}<a href="?page={{ page_obj.previous_page_number }}" class="px-2">&laquo;</a>{% endif %}
+        <span>Page {{ page_obj.number }} of {{ paginator.num_pages }}</span>
+        {% if page_obj.has_next %}<a href="?page={{ page_obj.next_page_number }}" class="px-2">&raquo;</a>{% endif %}
+    </div>
+    {% endif %}
+</div>
+{% endblock %}

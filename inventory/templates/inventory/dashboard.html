@@ -1,0 +1,47 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block title %}Inventory Dashboard{% endblock %}
+
+{% block content %}
+<div class="container mx-auto px-4 py-8">
+    <h1 class="text-3xl font-bold mb-6">Inventory Dashboard</h1>
+    
+    {% include 'includes/messages.html' %}
+    
+    <div class="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
+        <div class="bg-white p-6 rounded shadow">
+            <h2 class="text-xl font-semibold">Low Stock</h2>
+            <p class="text-3xl">{{ low_stock_count }}</p>
+            <a href="{% url 'inventory:list' %}?status=low" class="text-blue-600">View</a>
+        </div>
+        <div class="bg-white p-6 rounded shadow">
+            <h2 class="text-xl font-semibold">Out of Stock</h2>
+            <p class="text-3xl">{{ out_of_stock_count }}</p>
+            <a href="{% url 'inventory:list' %}?status=out" class="text-blue-600">View</a>
+        </div>
+        <div class="bg-white p-6 rounded shadow">
+            <h2 class="text-xl font-semibold">Active Alerts</h2>
+            <p class="text-3xl">{{ active_alerts }}</p>
+            <a href="{% url 'inventory:alerts' %}" class="text-blue-600">Manage</a>
+        </div>
+    </div>
+    
+    <h2 class="text-2xl font-semibold mb-4">Recent Movements</h2>
+    <table class="w-full table-auto border">
+        <thead><tr><th>Product</th><th>Type</th><th>Qty</th><th>Date</th></tr></thead>
+        <tbody>
+            {% for movement in recent_movements %}
+            <tr>
+                <td>{{ movement.inventory.product.products_name }}</td>
+                <td>{{ movement.get_movement_type_display }}</td>
+                <td>{{ movement.quantity }}</td>
+                <td>{{ movement.created_at|date:"M d, Y" }}</td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+    
+    <a href="{% url 'inventory:list' %}" class="mt-6 inline-block bg-blue-600 text-white px-4 py-2 rounded">Full Inventory List</a>
+</div>
+{% endblock %}
