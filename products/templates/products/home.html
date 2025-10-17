@@ -1,5 +1,6 @@
 {% extends 'base.html' %}
 {% load static %}
+{% load humanize %}
 
 {% block title %}Home - Dokan{% endblock %}
 
@@ -14,6 +15,7 @@
     </nav>
 
     <div class="grid grid-cols-1 md:grid-cols-4 gap-6">
+        <!-- Sidebar -->
         <aside class="md:col-span-1">
             <h2 class="text-xl font-semibold mb-4">Categories</h2>
             <ul class="space-y-2">
@@ -23,6 +25,7 @@
                     <li>No categories</li>
                 {% endfor %}
             </ul>
+
             <h2 class="text-xl font-semibold mb-4 mt-6">Brands</h2>
             <ul class="space-y-2">
                 {% for brand in brands %}
@@ -33,6 +36,7 @@
             </ul>
         </aside>
 
+        <!-- Main Product Grid -->
         <section class="md:col-span-3">
             <h1 class="text-3xl font-bold mb-6">Featured Products</h1>
             <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
@@ -41,12 +45,24 @@
                         {% if product.products_image %}
                             <img src="{{ product.products_image.url }}" alt="{{ product.products_name }}" class="w-full h-48 object-cover">
                         {% endif %}
+
                         <div class="p-4">
-                            <h3 class="text-lg font-semibold mb-2"><a href="{% url 'products:product_detail' product.slug %}">{{ product.products_name }}</a></h3>
-                            
-                            <p class="text-gray-800 font-bold mb-1">${{ product.current_price }}</p> 
-                            
-                            {# --- Stock Display Added Here --- #}
+                            <h3 class="text-lg font-semibold mb-2">
+                                <a href="{% url 'products:product_detail' product.slug %}">{{ product.products_name }}</a>
+                            </h3>
+
+                            <!-- Price & Discount -->
+                            <p class="text-2xl text-green-600 mb-4 flex items-center space-x-2">
+                                <span>${{ product.current_price_display|intcomma }}</span>
+                                {% if product.discount_percentage %}
+                                    <span class="line-through text-gray-500">${{ product.base_price|intcomma }}</span>
+                                    <span class="discount-badge bg-red-500 text-white px-2 py-1 rounded text-sm">
+                                        -{{ product.discount_percentage }}%
+                                    </span>
+                                {% endif %}
+                            </p>
+
+                            <!-- Stock Status -->
                             {% if product.is_in_stock %}
                                 <p class="text-sm {% if product.is_low_stock %}text-red-500 font-medium{% else %}text-green-600{% endif %} mb-2 flex items-center">
                                     <i class="fas fa-box-open mr-1"></i>
@@ -58,14 +74,15 @@
                                     Out of Stock
                                 </p>
                             {% endif %}
-                            {# --------------------------------- #}
-                            
-                            <p class="text-sm text-gray-500 mb-4">{{ product.short_description|truncatewords:20 }}</p>
-                            
+
+{% if product.short_description|striptags %}
+    <p class="text-sm text-gray-500 mb-4">{{ product.short_description|safe }}</p>
+{% endif %}
+
+                            <!-- Add to Cart -->
                             <form class="add-to-cart-form" action="{% url 'orders:add_to_cart' product.slug %}" method="POST">
                                 {% csrf_token %}
                                 <input type="hidden" name="quantity" value="1">
-                                
                                 {% if product.is_in_stock %}
                                     <button type="submit" class="bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700 w-full transition duration-200">
                                         Add to Cart
@@ -88,52 +105,38 @@
 
 <script>
 $(document).ready(function() {
-    // 1. Target all forms with the class 'add-to-cart-form'
     $('.add-to-cart-form').on('submit', function(e) {
-        e.preventDefault(); // Prevent the default form submission (browser refresh)
-        
+        e.preventDefault();
         const form = $(this);
-        const url = form.attr('action');
-        const method = form.attr('method');
-        const data = form.serialize(); // Serialize form data (including CSRF token and quantity)
-
-        // Disable button while processing
         const submitButton = form.find('button[type="submit"]');
+        const url = form.attr('action');
+        const data = form.serialize();
+
         submitButton.prop('disabled', true).text('Adding...');
 
         $.ajax({
             url: url,
-            method: method,
+            method: 'POST',
             data: data,
-            dataType: 'json', // Expecting JSON response
+            dataType: 'json',
             success: function(response) {
                 if (response.success) {
-                    // 2. Update the cart count in the navbar
                     $('#cart-count-badge').text(response.cart_count);
-                    
-                    // Re-enable button and change text
-                    submitButton.prop('disabled', false).text('Added!'); 
-                    setTimeout(() => submitButton.text('Add to Cart'), 2000); // Revert text after 2s
-                    
-                    // You should also display response.message (e.g., as a toast notification)
-                    console.log(response.message);
-                    
+                    submitButton.text('Added!');
+                    setTimeout(() => submitButton.text('Add to Cart'), 2000);
                 } else {
                     alert('Error: ' + response.message);
-                    submitButton.prop('disabled', false).text('Add to Cart'); // Re-enable button on error
+                    submitButton.prop('disabled', false).text('Add to Cart');
                 }
             },
-            error: function(xhr, status, error) {
-                // Handle non-200 responses (like the out-of-stock 400 status)
-                let errorMessage = "An unknown error occurred.";
+            error: function(xhr) {
+                let msg = "An unknown error occurred.";
                 try {
-                    const responseJson = JSON.parse(xhr.responseText);
-                    errorMessage = responseJson.message || errorMessage;
-                } catch (e) {
-                    // pass
-                }
-                alert('Failed to add to cart: ' + errorMessage);
-                submitButton.prop('disabled', false).text('Add to Cart'); // Re-enable button on error
+                    const res = JSON.parse(xhr.responseText);
+                    msg = res.message || msg;
+                } catch {}
+                alert('Failed to add to cart: ' + msg);
+                submitButton.prop('disabled', false).text('Add to Cart');
             }
         });
     });

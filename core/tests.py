@@ -1,11 +1,11 @@
 from django.test import TestCase
 """
-python manage.py makemigrations products
+python manage.py makemigrations 
 python manage.py migrate
 python manage.py runserver
 
 git add .
-git commit -m "Updated Products "
+git commit -m "Updated Home "
 git push -u origin main
 python manage.py runserver
 
