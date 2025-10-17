@@ -71,6 +71,64 @@ def _get_session_cart(request):
             continue
     return cart_items, cart_total
 
+def add_to_cart(request, slug):
+    """Add product to cart (session for guests; fallback for auth)."""
+    product = get_object_or_404(Product, slug=slug, is_active=True)
+    
+    if not product.is_in_stock:
+        return JsonResponse({'success': False, 'message': f"{product.products_name} is out of stock."}, status=400)
+
+    color = request.POST.get('color')
+    size = request.POST.get('size')
+    weight = request.POST.get('weight')
+    quantity = int(request.POST.get('quantity', 1))
+
+    # --- Unified Session Cart Logic ---
+    cart = request.session.get('cart', {})
+    cart_key = f"{slug}_{color or ''}_{size or ''}_{weight or ''}"
+    
+    if cart_key in cart:
+        cart[cart_key]['quantity'] += quantity
+    else:
+        cart[cart_key] = {
+            'slug': slug,
+            'quantity': quantity,
+            'color': color,
+            'size': size,
+            'weight': weight
+        }
+        
+    request.session['cart'] = cart
+    request.session.modified = True
+    
+    # Calculate the total count from the session cart
+    cart_count = sum(item['quantity'] for item in cart.values())
+    
+    # --- Response Logic ---
+    if request.user.is_authenticated:
+        # NOTE: This still uses the session for counting until a DB cart is implemented.
+        messages.success(request, f"{product.products_name} noted for cart (DB add coming soon).")
+        response_data = {
+            'success': True,
+            'message': f"{product.products_name} added (temp)!",
+        }
+    else:
+        response_data = {
+            'success': True,
+            'message': f"{product.products_name} added to cart!",
+        }
+        
+    # Unified response data
+    response_data.update({
+        'cart_count': cart_count,
+        'product_name': product.products_name,
+        'product_image': product.products_image.url if product.products_image else None,
+        'quantity': quantity,
+        'subtotal': str((product.sale_price or product.current_price) * quantity),
+        'checkout_url': reverse('orders:checkout')
+    })
+
+    return JsonResponse(response_data)
 
 
 def view_cart(request):
@@ -161,65 +219,6 @@ def remove_from_cart(request):
             messages.error(request, "Item not found in your cart.")
 
     return redirect('orders:view_cart')
-
-def add_to_cart(request, slug):
-    """Add product to cart (session for guests; fallback for auth)."""
-    product = get_object_or_404(Product, slug=slug, is_active=True)
-    
-    if not product.is_in_stock:
-        return JsonResponse({'success': False, 'message': f"{product.products_name} is out of stock."}, status=400)
-
-    color = request.POST.get('color')
-    size = request.POST.get('size')
-    weight = request.POST.get('weight')
-    quantity = int(request.POST.get('quantity', 1))
-
-    # --- Unified Session Cart Logic ---
-    cart = request.session.get('cart', {})
-    cart_key = f"{slug}_{color or ''}_{size or ''}_{weight or ''}"
-    
-    if cart_key in cart:
-        cart[cart_key]['quantity'] += quantity
-    else:
-        cart[cart_key] = {
-            'slug': slug,
-            'quantity': quantity,
-            'color': color,
-            'size': size,
-            'weight': weight
-        }
-        
-    request.session['cart'] = cart
-    request.session.modified = True
-    
-    # Calculate the total count from the session cart
-    cart_count = sum(item['quantity'] for item in cart.values())
-    
-    # --- Response Logic ---
-    if request.user.is_authenticated:
-        # NOTE: This still uses the session for counting until a DB cart is implemented.
-        messages.success(request, f"{product.products_name} noted for cart (DB add coming soon).")
-        response_data = {
-            'success': True,
-            'message': f"{product.products_name} added (temp)!",
-        }
-    else:
-        response_data = {
-            'success': True,
-            'message': f"{product.products_name} added to cart!",
-        }
-        
-    # Unified response data
-    response_data.update({
-        'cart_count': cart_count,
-        'product_name': product.products_name,
-        'product_image': product.products_image.url if product.products_image else None,
-        'quantity': quantity,
-        'subtotal': str((product.sale_price or product.current_price) * quantity),
-        'checkout_url': reverse('orders:checkout')
-    })
-
-    return JsonResponse(response_data)
 
 
 def checkout(request):

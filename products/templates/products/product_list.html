@@ -26,6 +26,7 @@
         border-radius: 4px;
         font-size: 12px;
         font-weight: bold;
+        z-index: 10; /* Ensure it is above the image */
     }
     .filter-active {
         background-color: #3b82f6 !important;
@@ -50,10 +51,11 @@
     .filter-section:last-child {
         border-bottom: none;
         margin-bottom: 0;
+        padding-bottom: 0;
     }
     .filter-link {
         display: flex;
-        justify-content: space-between; /* Adjusted 'between' to 'space-between' */
+        justify-content: space-between;
         align-items: center;
         padding: 0.5rem 0.75rem;
         border-radius: 0.375rem;
@@ -84,7 +86,6 @@
                     <span class="text-gray-400 mx-2">/</span>
                     <span class="text-gray-600">Products</span>
                 </li>
-                {% comment %} The header is dynamic, so we only show the current filter name in the breadcrumb if one is active {% endcomment %}
                 {% if selected_category or selected_brand or search_query %} 
                 <li class="flex items-center">
                     <span class="text-gray-400 mx-2">/</span>
@@ -96,15 +97,13 @@
         
         <h1 class="text-3xl font-bold text-gray-900 mb-2">{{ header_name }}</h1>
         <p class="text-gray-600">Found {{ page_obj.paginator.count|default:"0" }} product{{ page_obj.paginator.count|default:"0"|pluralize }}</p> 
-        {% comment %} Use page_obj.paginator.count for total count, not just current page length {% endcomment %}
     </div>
 
     <div class="flex flex-col lg:flex-row gap-8">
         <div class="lg:w-1/4">
             <div class="bg-white rounded-lg shadow-sm border p-6 sticky top-24">
                 
-                {% comment %} 
-                *** IMPORTANT: The variables 'categories', 'category_counts', 'brands', and 'brand_counts' are missing from your ProductListView. You MUST add them to get_context_data for the sidebar to work. *** {% endcomment %}
+                {% comment %} NOTE: The variables 'categories', 'category_counts', 'brands', and 'brand_counts' must be added to your ProductListView's get_context_data method for the sidebar to work. {% endcomment %}
 
                 <div class="filter-section">
                     <h3 class="font-semibold text-lg mb-4 text-gray-900">Price Range</h3>
@@ -113,6 +112,7 @@
                         {% if search_query %}<input type="hidden" name="search" value="{{ search_query }}">{% endif %}
                         {% if selected_category %}<input type="hidden" name="category" value="{{ selected_category }}">{% endif %}
                         {% if selected_brand %}<input type="hidden" name="brand" value="{{ selected_brand }}">{% endif %}
+                        {% if selected_tag %}<input type="hidden" name="tag" value="{{ selected_tag }}">{% endif %}
                         {% if current_sort and current_sort != 'name_asc' %}<input type="hidden" name="sort" value="{{ current_sort }}">{% endif %}
                         
                         <div class="flex space-x-3">
@@ -129,29 +129,47 @@
                     </form>
                 </div>
 
+                {% if all_tags %}
+                <div class="filter-section">
+                    <h3 class="font-semibold text-lg mb-4 text-gray-900">Tags</h3>
+                    <div class="flex flex-wrap gap-2">
+                        {% for t in all_tags %}
+                        {% with base_url=request.GET.urlencode|remove_query_param:"tag" query_sep="&" %}
+                            <a href="?{{ base_url }}{{ query_sep }}tag={{ t|urlencode }}"
+                               class="px-3 py-1 rounded text-sm {% if t == selected_tag %}bg-blue-600 text-white{% else %}bg-gray-100 text-gray-700 hover:bg-gray-200{% endif %}">
+                                {{ t }}
+                            </a>
+                        {% endwith %}
+                        {% endfor %}
+                    </div>
+                </div>
+                {% endif %}
+
+
                 {% if categories %}
                 <div class="filter-section">
                     <h3 class="font-semibold text-lg mb-4 text-gray-900">Categories</h3>
                     <div class="space-y-1">
-
-{% with current_query=request.GET.urlencode|remove_query_param:"page" %}
-    <a href="?{{ current_query }}&page={{ page_number }}">Page {{ page_number }}</a>
-{% endwith %}
-
-
-                       
-                        
-                        {% for category in categories %}
                         {% with base_url=request.GET.urlencode|remove_query_param:"category" query_sep="&" %}
+                        <a href="?{{ base_url }}" 
+                           class="filter-link {% if not selected_category %}filter-active{% else %}text-gray-700{% endif %}">
+                            All Categories
+                            <span class="count-badge">
+                                {{ page_obj.paginator.count|default:"0" }} 
+                                {% comment %} Note: This count should ideally be the total *before* filtering by category, but for simplicity, we use the total result count here. {% endcomment %}
+                            </span>
+                        </a>
+                        {% for category in categories %}
                         <a href="?{{ base_url }}{{ query_sep }}category={{ category.slug }}" 
                            class="filter-link {% if selected_category == category.slug %}filter-active{% else %}text-gray-700{% endif %}">
                             {{ category.name }}
                             <span class="count-badge">
+                                {% comment %} Assuming category_counts is a dict: {category_id: count} {% endcomment %}
                                 {{ category_counts|get_item:category.id|default:"0" }}
                             </span>
                         </a>
-                        {% endwith %}
                         {% endfor %}
+                        {% endwith %}
                     </div>
                 </div>
                 {% endif %}
@@ -176,6 +194,7 @@
                            class="filter-link {% if selected_brand == brand.slug %}filter-active{% else %}text-gray-700{% endif %}">
                             {{ brand.name }}
                             <span class="count-badge">
+                                {% comment %} Assuming brand_counts is a dict: {brand_id: count} {% endcomment %}
                                 {{ brand_counts|get_item:brand.id|default:"0" }}
                             </span>
                         </a>
@@ -185,7 +204,7 @@
                 </div>
                 {% endif %}
 
-                {% if selected_category or selected_brand or request.GET.min_price or request.GET.max_price or search_query %}
+                {% if selected_category or selected_brand or request.GET.min_price or request.GET.max_price or search_query or selected_tag %}
                 <div class="filter-section">
                     <h3 class="font-semibold text-lg mb-3 text-gray-900">Active Filters</h3>
                     <div class="flex flex-wrap gap-2">
@@ -195,6 +214,16 @@
                         <a href="?{{ full_url }}" 
                            class="bg-blue-100 text-blue-800 px-3 py-1 rounded-full text-sm flex items-center hover:bg-blue-200">
                             Search: {{ search_query|truncatechars:15 }}
+                            <i class="fas fa-times ml-1"></i>
+                        </a>
+                        {% endwith %}
+                        {% endif %}
+
+                        {% if selected_tag %}
+                        {% with full_url=request.GET.urlencode|remove_query_param:"tag" %}
+                        <a href="?{{ full_url }}" 
+                           class="bg-blue-100 text-blue-800 px-3 py-1 rounded-full text-sm flex items-center hover:bg-blue-200">
+                            Tag: {{ selected_tag }}
                             <i class="fas fa-times ml-1"></i>
                         </a>
                         {% endwith %}
@@ -249,7 +278,7 @@
                             {% with base_url=request.GET.urlencode|remove_query_param:"sort" query_sep="&" %}
                             
                             <a href="?{{ base_url }}{{ query_sep }}sort=name_asc" 
-                               class="px-3 py-1 rounded text-sm {% if current_sort == 'name_asc' %}sort-active{% else %}bg-gray-100 hover:bg-gray-200{% endif %}">
+                               class="px-3 py-1 rounded text-sm {% if current_sort == 'name_asc' or not current_sort %}sort-active{% else %}bg-gray-100 hover:bg-gray-200{% endif %}">
                                 Name (A-Z)
                             </a>
                             <a href="?{{ base_url }}{{ query_sep }}sort=price_asc" 
@@ -279,114 +308,116 @@
 
             {% if products %}
 
-<div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
-    {% for product in products %}
-    <div class="product-card bg-white rounded-lg shadow-md overflow-hidden border border-gray-100">
-        <div class="relative overflow-hidden">
-            <img src="{{ product.thumbnail }}" alt="{{ product.products_name }}" 
-                 class="w-full h-48 object-cover transition duration-300 hover:scale-105">
-        
-            {% if product|discount_percentage %}
-                <div class="discount-badge absolute top-2 right-2 bg-red-500 text-white px-2 py-1 rounded text-xs">
-                    -{{ product|discount_percentage }}%
-                </div>
-            {% endif %}
+            <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
+                {% for product in products %}
+                <div class="product-card bg-white rounded-lg shadow-md overflow-hidden border border-gray-100">
+                    <div class="relative overflow-hidden">
+                    <img src="{% if product.products_image %}{{ product.products_image.url }}{% else %}{% static 'path/to/default_image.jpg' %}{% endif %}" 
+                            alt="{{ product.products_name }}" 
+                            class="w-full h-48 object-cover transition duration-300 hover:scale-105">
 
-            <div class="absolute top-2 left-2">
-                {% if not product.is_out_of_stock %}
-                    <span class="bg-green-500 text-white px-2 py-1 rounded text-xs">In Stock ({{ product.stock_available }})</span>
-                {% else %}
-                    <span class="bg-red-500 text-white px-2 py-1 rounded text-xs">Out of Stock</span>
-                {% endif %}
-            </div>
-        </div>
-        
-        <div class="p-4">
-            <div class="flex justify-between items-start mb-2">
-                <h3 class="font-semibold text-gray-800 truncate flex-1 mr-2" title="{{ product.products_name }}">
-                    <a href="{% url 'products:product_detail' product.slug %}" class="hover:text-blue-600">
-                        {{ product.products_name }}
-                    </a>
-                </h3>
-                {% if product.category %}
-                    <span class="text-xs bg-blue-100 text-blue-600 px-2 py-1 rounded">{{ product.category.name }}</span>
-                {% endif %}
-            </div>
-            
-            {% if product.brand %}
-                <p class="text-gray-500 text-sm mb-2">by {{ product.brand.name }}</p>
-            {% endif %}
-            
-            <p class="text-gray-600 text-sm mb-3 line-clamp-2">{{ product.description|striptags|truncatewords:15 }}</p>
-            
-            {% if product.tag_list %}
-            <div class="mb-4 flex flex-wrap gap-2">
-                {% for tag in product.tag_list %}
-                    <a href="{% url 'products:product_list' %}?tag={{ tag|urlencode }}" class="inline-block text-xs bg-gray-100 text-gray-700 px-2 py-1 rounded-full hover:bg-blue-600 hover:text-white transition">
-                        {{ tag }}
-                    </a>
+                        {% if product.discount_percentage %}
+                            {% comment %} Assuming calculate_discount in views adds discount_percentage to the product object {% endcomment %}
+                            <div class="discount-badge">
+                                -{{ product.discount_percentage|floatformat:0 }}%
+                            </div>
+                        {% endif %}
+
+                        <div class="absolute top-2 left-2 z-10">
+                            {% if product.is_out_of_stock %}
+                                <span class="bg-red-500 text-white px-2 py-1 rounded text-xs">Out of Stock</span>
+                            {% else %}
+                                <span class="bg-green-500 text-white px-2 py-1 rounded text-xs">In Stock ({{ product.stock_available }})</span>
+                            {% endif %}
+                        </div>
+                    </div>
+                    
+                    <div class="p-4">
+                        <div class="flex justify-between items-start mb-2">
+                            <h3 class="font-semibold text-gray-800 truncate flex-1 mr-2" title="{{ product.products_name }}">
+                                <a href="{% url 'products:product_detail' product.slug %}" class="hover:text-blue-600">
+                                    {{ product.products_name }}
+                                </a>
+                            </h3>
+                            {% if product.category %}
+                                <span class="text-xs bg-blue-100 text-blue-600 px-2 py-1 rounded">{{ product.category.name }}</span>
+                            {% endif %}
+                        </div>
+                        
+                        {% if product.brand %}
+                            <p class="text-gray-500 text-sm mb-2">by {{ product.brand.name }}</p>
+                        {% endif %}
+                        
+                        <p class="text-gray-600 text-sm mb-3 line-clamp-2">{{ product.short_description|safe }}</p>
+                        
+                        {% if product.tag_list %}
+                            <div class="mb-4 flex flex-wrap gap-2">
+                                {% for tag in product.tag_list %}
+                                    <a href="{% url 'products:product_list' %}?tag={{ tag|urlencode }}" 
+                                       class="inline-block text-xs bg-gray-100 text-gray-700 px-2 py-1 rounded-full hover:bg-blue-600 hover:text-white transition">
+                                        {{ tag }}
+                                    </a>
+                                {% endfor %}
+                            </div>
+                        {% endif %}
+
+                        <div class="flex items-center justify-between mb-3">
+                            <div class="flex items-baseline space-x-2">
+                                <span class="text-2xl font-bold text-green-600">${{ product.current_price|floatformat:2|intcomma }}</span>
+                                {% comment %} Note: The view calculates 'current_price' (sale_price) and 'base_price' {% endcomment %}
+                                {% if product.sale_price and product.sale_price < product.base_price %}
+                                    <span class="text-lg text-gray-400 line-through">${{ product.base_price|floatformat:2|intcomma }}</span>
+                                {% endif %}
+                            </div>
+                            
+                            {% if product.avg_rating %}
+                            <div class="flex items-center text-yellow-400">
+                                <i class="fas fa-star"></i>
+                                <span class="text-gray-600 text-sm ml-1">{{ product.avg_rating|floatformat:1 }}/5</span>
+                            </div>
+                            {% endif %}
+                        </div>
+                        
+                        <div class="space-y-2">
+                            <div class="flex space-x-2">
+                                <a href="{% url 'products:product_detail' product.slug %}" 
+                                   class="flex-1 bg-gray-100 text-gray-700 text-center py-2 rounded hover:bg-gray-200 transition duration-200 text-sm">
+                                    View Details
+                                </a>
+                                
+                                {% if not product.is_out_of_stock %}
+                                <form action="{% url 'orders:add_to_cart' product.slug %}" method="POST" class="flex-1">
+                                    {% csrf_token %}
+                                    <button type="submit" 
+                                            class="w-full bg-blue-600 text-white py-2 rounded hover:bg-blue-700 transition duration-200 text-sm">
+                                        Add to Cart
+                                    </button>
+                                </form>
+                                {% else %}
+                                <button class="w-full bg-gray-400 text-white py-2 rounded text-sm cursor-not-allowed" disabled>
+                                    Out of Stock
+                                </button>
+                                {% endif %}
+                            </div>
+                            
+                            {% comment %} Assuming product.can_review is added to the product object in the view, if necessary {% endcomment %}
+                            {% if product.can_review %}
+                            <button onclick="openReviewModal('{{ product.slug }}', '{{ product.products_name }}')" 
+                                    class="w-full review-btn py-2 rounded transition duration-200 text-sm flex items-center justify-center">
+                                <i class="fas fa-star mr-2"></i>
+                                Add Review
+                            </button>
+                            {% endif %}
+                        </div>
+                    </div>
+                </div>
                 {% endfor %}
             </div>
-            {% endif %}
-
-            <div class="flex items-center justify-between mb-3">
-<div class="flex items-baseline space-x-2">
-    <!-- Current Price -->
-    <span class="text-2xl font-bold text-green-600">${{ product.current_price|floatformat:2|intcomma }}</span>
-
-    <!-- Base Price (strikethrough if discounted) -->
-    {% if product.sale_price and product.sale_price < product.base_price %}
-        <span class="text-lg text-gray-400 line-through">${{ product.base_price|floatformat:2|intcomma }}</span>
-    {% endif %}
-</div>
-
-                
-                {% if product.avg_rating %}
-                <div class="flex items-center text-yellow-400">
-                    <i class="fas fa-star"></i>
-                    <span class="text-gray-600 text-sm ml-1">{{ product.avg_rating|floatformat:1 }}/5</span>
-                </div>
-                {% endif %}
-            </div>
-            
-            <div class="space-y-2">
-                <div class="flex space-x-2">
-                    <a href="{% url 'products:product_detail' product.slug %}" 
-                       class="flex-1 bg-gray-100 text-gray-700 text-center py-2 rounded hover:bg-gray-200 transition duration-200 text-sm">
-                        View Details
-                    </a>
-                    
-                    {% if not product.is_out_of_stock %}
-                    <form action="{% url 'orders:add_to_cart' product.slug %}" method="POST" class="flex-1">
-                        {% csrf_token %}
-                        <button type="submit" 
-                                class="w-full bg-blue-600 text-white py-2 rounded hover:bg-blue-700 transition duration-200 text-sm">
-                            Add to Cart
-                        </button>
-                    </form>
-                    {% else %}
-                    <button class="w-full bg-gray-400 text-white py-2 rounded text-sm cursor-not-allowed" disabled>
-                        Out of Stock
-                    </button>
-                    {% endif %}
-                </div>
-                
-                {% if product.can_review %}
-                <button onclick="openReviewModal('{{ product.slug }}', '{{ product.products_name }}')" 
-                        class="w-full review-btn py-2 rounded transition duration-200 text-sm flex items-center justify-center">
-                    <i class="fas fa-star mr-2"></i>
-                    Add Review
-                </button>
-                {% endif %}
-            </div>
-        </div>
-    </div>
-    {% endfor %}
-</div>
 
             {% if is_paginated %}
                 <div class="flex justify-center mt-8">
                     <nav class="relative z-0 inline-flex rounded-md shadow-sm -space-x-px" aria-label="Pagination">
+                        {% comment %} Previous Page Button {% endcomment %}
                         {% if page_obj.has_previous %}
                             <a href="?{{ request.GET.urlencode|remove_query_param:'page' }}&page={{ page_obj.previous_page_number }}" 
                                class="relative inline-flex items-center px-2 py-2 rounded-l-md border border-gray-300 bg-white text-sm font-medium text-gray-500 hover:bg-gray-50">
@@ -395,6 +426,7 @@
                             </a>
                         {% endif %}
 
+                        {% comment %} Page Number Range Logic (Simplified for clarity, using Django's Paginator for cleaner logic) {% endcomment %}
                         {% for i in paginator.page_range %}
                             {% if page_obj.number == i %}
                                 <span aria-current="page" 
@@ -413,6 +445,7 @@
                             {% endif %}
                         {% endfor %}
 
+                        {% comment %} Next Page Button {% endcomment %}
                         {% if page_obj.has_next %}
                             <a href="?{{ request.GET.urlencode|remove_query_param:'page' }}&page={{ page_obj.next_page_number }}" 
                                class="relative inline-flex items-center px-2 py-2 rounded-r-md border border-gray-300 bg-white text-sm font-medium text-gray-500 hover:bg-gray-50">
@@ -437,8 +470,9 @@
             {% endif %}
         </div>
     </div>
-</div>Brands
+</div>
 
+{% comment %} REVIEW MODAL - Needs to be outside the main content flow {% endcomment %}
 <div id="reviewModal" class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center hidden z-50">
     <div class="bg-white rounded-lg p-6 w-full max-w-md mx-4">
         <div class="flex justify-between items-center mb-4">
@@ -447,49 +481,6 @@
                 <i class="fas fa-times"></i>
             </button>
         </div>
-        <form id="reviewForm" method="POST" action="#"> 
-            {% comment %} Assuming you have an 'add_review' URL name {% endcomment %}
-            {% csrf_token %}
-            <input type="hidden" id="reviewProductSlug" name="product_slug">
-            
-            <div class="mb-4">
-                <label class="block text-sm font-medium text-gray-700 mb-2">Rating</label>
-                <div class="flex space-x-1" id="ratingStars">
-                    {% for i in "12345" %}
-                    <button type="button" class="text-2xl text-gray-300 hover:text-yellow-400" 
-                            data-rating="{{ i }}" onclick="setRating({{ i }})">
-                        <i class="fas fa-star"></i>
-                    </button>
-                    {% endfor %}
-                </div>
-                <input type="hidden" id="ratingValue" name="rating" required>
-            </div>
-            
-            <div class="mb-4">
-                <label for="reviewTitle" class="block text-sm font-medium text-gray-700 mb-2">Title</label>
-                <input type="text" id="reviewTitle" name="title" 
-                        class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-                        placeholder="Brief summary of your review">
-            </div>
-            
-            <div class="mb-4">
-                <label for="reviewComment" class="block text-sm font-medium text-gray-700 mb-2">Review</label>
-                <textarea id="reviewComment" name="comment" rows="4"
-                              class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-                              placeholder="Share your experience with this product..."></textarea>
-            </div>
-            
-            <div class="flex space-x-3">
-                <button type="button" onclick="closeReviewModal()" 
-                         class="flex-1 bg-gray-300 text-gray-700 py-2 rounded-lg hover:bg-gray-400 transition duration-200">
-                    Cancel
-                </button>
-                <button type="submit" 
-                         class="flex-1 bg-green-600 text-white py-2 rounded-lg hover:bg-green-700 transition duration-200">
-                    Submit Review
-                </button>
-            </div>
-        </form>
     </div>
 </div>
 {% endblock %}
@@ -497,96 +488,29 @@
 {% block extra_js %}
 <script>
     // --- Review Modal Functions ---
-    function openReviewModal(slug, name) {
-        document.getElementById('reviewProductSlug').value = slug;
-        document.getElementById('reviewProductName').textContent = `Add Review for ${name}`;
-        document.getElementById('reviewModal').classList.remove('hidden');
-    }
+    const reviewModal = document.getElementById('reviewModal');
+    const ratingValueInput = document.getElementById('ratingValue');
+    const ratingStarsContainer = document.getElementById('ratingStars');
+    const starButtons = ratingStarsContainer ? ratingStarsContainer.querySelectorAll('button') : [];
 
-    function closeReviewModal() {
-        document.getElementById('reviewModal').classList.add('hidden');
-        // Optional: Reset form fields and rating
-        document.getElementById('reviewForm').reset();
-        setRating(0);
-    }
-
-    function setRating(value) {
-        document.getElementById('ratingValue').value = value;
-        const stars = document.getElementById('ratingStars').querySelectorAll('button');
-        stars.forEach(star => {
-            const starValue = parseInt(star.getAttribute('data-rating'));
-            if (starValue <= value) {
-                star.querySelector('i').classList.add('text-yellow-400');
-                star.querySelector('i').classList.remove('text-gray-300');
+    function setRating(rating) {
+        ratingValueInput.value = rating;
+        starButtons.forEach(button => {
+            const buttonRating = parseInt(button.dataset.rating);
+            if (buttonRating <= rating) {
+                button.classList.remove('text-gray-300');
+                button.classList.add('text-yellow-400');
             } else {
-                star.querySelector('i').classList.remove('text-yellow-400');
-                star.querySelector('i').classList.add('text-gray-300');
+                button.classList.add('text-gray-300');
+                button.classList.remove('text-yellow-400');
             }
         });
     }
 
-    // Optional: Close modal when clicking outside
-    document.getElementById('reviewModal').addEventListener('click', function(e) {
-        if (e.target === this) {
-            closeReviewModal();
-        }
+    // Initialize rating to 0 on load
+    document.addEventListener('DOMContentLoaded', () => {
+        setRating(0);
     });
 
-    // --- Add to Cart (AJAX/Functional) ---
-    document.addEventListener('DOMContentLoaded', function() {
-        // Keep your original AJAX logic for Add to Cart
-        const addToCartForms = document.querySelectorAll('form[action*="add_to_cart"]');
-        
-        addToCartForms.forEach(form => {
-            form.addEventListener('submit', function(e) {
-                e.preventDefault();
-                
-                const formData = new FormData(this);
-                const url = this.action;
-                
-                fetch(url, {
-                    method: 'POST',
-                    body: formData,
-                    headers: {
-                        'X-Requested-With': 'XMLHttpRequest',
-                    },
-                })
-                .then(response => {
-                    if (!response.ok) {
-                        return response.json().then(data => { throw new Error(data.message || 'Server error'); });
-                    }
-                    return response.json();
-                })
-                .then(data => {
-                    if (data.success) {
-                        showMessage(data.message, 'success');
-                        // Assuming you have a function to update the cart icon count in your base.html
-                        updateCartCount(data.cart_count); 
-                    } else {
-                        showMessage(data.message, 'error');
-                    }
-                })
-                .catch(error => {
-                    console.error('Error:', error);
-                    showMessage(`An error occurred: ${error.message || 'Please try again.'}`, 'error');
-                });
-            });
-        });
-    });
-    
-    // Placeholder functions (You'd implement real Toast/Notification logic)
-    function showMessage(message, type) {
-        // Replace this with your preferred notification system (e.g., Toastify, Django messages)
-        alert(`${type.toUpperCase()}: ${message}`); 
-    }
-    
-    function updateCartCount(count) {
-        // Update the cart count badge in your header/base.html
-        const cartCountElement = document.querySelector('#cart-count-badge'); 
-        if (cartCountElement) {
-            cartCountElement.textContent = count;
-        }
-    }
 </script>
-<script src="{% static 'js/global.js' %}"></script>
 {% endblock %}

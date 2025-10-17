@@ -209,3 +209,13 @@ class BulkOrderOperation(models.Model):
     
     def __str__(self):
         return f"Bulk {self.get_operation_type_display()} - {self.name}"
+    
+
+class OrderItem(models.Model):
+    order = models.ForeignKey(Order, on_delete=models.CASCADE, related_name='items')
+    product = models.ForeignKey('products.Product', on_delete=models.CASCADE, related_name='order_items')
+    quantity = models.PositiveIntegerField(default=1)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    def __str__(self):
+        return f"{self.product.products_name} (x{self.quantity})"

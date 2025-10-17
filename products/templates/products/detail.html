@@ -5,97 +5,261 @@
 
 {% block extra_css %}
 <link rel="stylesheet" href="{% static 'products/css/detail.css' %}">
+<style>
+    /* Styling for the badge container */
+    .image-container {
+        position: relative; /* Crucial for absolute positioning of badges */
+        overflow: hidden;
+    }
+    .discount-badge {
+        position: absolute;
+        top: 10px;
+        right: 10px;
+        background-color: #ef4444; /* Red */
+        color: white;
+        padding: 4px 8px;
+        border-radius: 4px;
+        font-size: 14px;
+        font-weight: bold;
+        z-index: 10; /* Ensure it's above the image */
+        box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
+    }
+    .stock-status-badge {
+        position: absolute;
+        top: 10px;
+        left: 10px;
+        color: white;
+        padding: 4px 8px;
+        border-radius: 4px;
+        font-size: 14px;
+        font-weight: bold;
+        z-index: 10;
+        box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
+    }
+    .stock-status-badge.in-stock {
+        background-color: #10b981; /* Green */
+    }
+    .stock-status-badge.out-of-stock {
+        background-color: #f59e0b; /* Amber/Orange */
+    }
+</style>
 {% endblock %}
 
 {% block content %}
 <div class="container mx-auto px-4 py-8">
-    <!-- Breadcrumbs -->
     <nav class="text-sm breadcrumbs mb-6">
-        <a href="{% url 'products:home' %}" class="text-blue-600">Home</a> > 
-        <a href="#" class="text-blue-600">{{ product.category.name }}</a> > 
-        {{ product.products_name }}
+        <a href="{% url 'products:home' %}" class="text-blue-600 hover:text-blue-800">Home</a> 
+        <span class="text-gray-400 mx-1"> > </span>
+        <a href="#" class="text-blue-600 hover:text-blue-800">{{ product.category.name }}</a> 
+        <span class="text-gray-400 mx-1"> > </span>
+        <span class="text-gray-900 font-medium">{{ product.products_name }}</span>
     </nav>
 
     <div class="grid grid-cols-1 md:grid-cols-2 gap-8">
-        <!-- Images Gallery -->
-        <div>
+        
+        <div class="image-container">
             {% if product.products_image %}
                 <img src="{{ product.products_image.url }}" alt="{{ product.products_name }}" class="w-full h-96 object-cover rounded-lg mb-4">
             {% endif %}
-            <div class="grid grid-cols-4 gap-2">
+
+            {% if product.discount_percentage %}
+                <div class="discount-badge">
+                    -{{ product.discount_percentage|floatformat:0 }}%
+                </div>
+            {% endif %}
+
+            {% if product.is_out_of_stock %}
+                <div class="stock-status-badge out-of-stock">
+                    Out of Stock
+                </div>
+            {% else %}
+                <div class="stock-status-badge in-stock">
+                    In Stock ({{ product.stock_available }})
+                </div>
+            {% endif %}
+
+            <div class="grid grid-cols-4 gap-2 mt-2">
                 {% for image in product.images.all %}
-                    <img src="{{ image.image.url }}" alt="" class="w-full h-24 object-cover rounded cursor-pointer">
+                    <img src="{{ image.image.url }}" alt="Gallery image {{ forloop.counter }}" class="w-full h-24 object-cover rounded cursor-pointer border border-gray-200 hover:border-blue-500 transition duration-200">
                 {% endfor %}
             </div>
         </div>
 
-        <!-- Product Info -->
         <div>
-            <h1 class="text-3xl font-bold mb-2">{{ product.products_name }}</h1>
+            <h1 class="text-3xl font-bold mb-2 text-gray-900">{{ product.products_name }}</h1>
 
-            <!-- Price -->
-            <p class="text-2xl text-green-600 mb-4">
-                ${{ product.current_price }}
+            <div class="text-2xl font-semibold mb-4 flex items-center space-x-3">
+                <span class="text-green-600">${{ product.current_price }}</span>
                 {% if product.sale_price and product.sale_price < product.base_price %}
-                    <span class="line-through text-gray-500">${{ product.base_price }}</span>
+                    <span class="line-through text-lg text-gray-500">${{ product.base_price }}</span>
                 {% endif %}
-            </p>
+            </div>
 
-            <!-- Ratings -->
-            <p class="mb-4">
-                Average Rating: 
+            <div class="mb-4 text-gray-700">
                 {% if average_rating %}
-                    {{ average_rating|floatformat:1 }} / 5
-                    ({{ review_count }} review{{ review_count|pluralize }})
+                    <span class="text-yellow-500">★</span> {{ average_rating|floatformat:1 }} / 5 
+                    <span class="text-sm text-gray-500"> ({{ review_count }} review{{ review_count|pluralize }})</span>
                 {% else %}
                     No reviews yet
                 {% endif %}
-            </p>
-
-            <p class="text-gray-700 mb-6">{{ product.short_description }}</p>
-            
-            <!-- Variants -->
-            <div class="mb-6">
-                <p>Color: {{ product.color|default:"N/A" }}</p>
-                <p>Size: {{ product.size|default:"N/A" }}</p>
-                <p>Weight: {{ product.weight|default:"N/A" }}</p>
             </div>
 
-            <!-- Add to Cart -->
-            <form action="{% url 'orders:add_to_cart' product.slug %}" method="POST" class="mb-6">
-                {% csrf_token %}
-                <button type="submit" class="bg-blue-600 text-white px-6 py-3 rounded hover:bg-blue-700">Add to Cart</button>
-            </form>
+            <p class="text-gray-700 mb-6">{{ product.short_description|safe}}</p>
+            
+            <div class="mb-6 space-y-1 text-gray-700">
+                <p><span class="font-semibold">Color:</span> {{ product.color|default:"N/A" }}</p>
+                <p><span class="font-semibold">Size:</span> {{ product.size|default:"N/A" }}</p>
+                <p><span class="font-semibold">Weight:</span> {{ product.weight|default:"N/A" }}</p>
+                                        {% if product.tag_list %}
+                            <div class="mb-4 flex flex-wrap gap-2">
+                                {% for tag in product.tag_list %}
+                                    <a href="{% url 'products:product_list' %}?tag={{ tag|urlencode }}" 
+                                       class="inline-block text-xs bg-gray-100 text-gray-700 px-2 py-1 rounded-full hover:bg-blue-600 hover:text-white transition">
+                                        {{ tag }}
+                                    </a>
+                                {% endfor %}
+                            </div>
+                        {% endif %}
+            </div>
 
-            <!-- Description -->
+            {% if product.is_out_of_stock %}
+                <button type="button" class="bg-gray-400 text-white px-6 py-3 rounded cursor-not-allowed" disabled>
+                    Out of Stock
+                </button>
+            {% else %}
+                <form action="{% url 'orders:add_to_cart' product.slug %}" method="POST" class="mb-6">
+                    {% csrf_token %}
+                    <button type="submit" class="bg-blue-600 text-white px-6 py-3 rounded hover:bg-blue-700 transition duration-200">
+                        Add to Cart
+                    </button>
+                </form>
+            {% endif %}
+
             <div class="border-t pt-6">
-                <h2 class="text-xl font-semibold mb-4">Description</h2>
-                {{ product.description|safe }}
+                <h2 class="text-xl font-semibold mb-4 text-gray-900">Full Description</h2>
+                <div class="prose max-w-none text-gray-600">
+                    {{ product.description|safe }}
+                </div>
             </div>
         </div>
     </div>
 
-    <!-- Reviews Section -->
     <section class="mt-12">
-        <h2 class="text-2xl font-bold mb-6">Reviews ({{ review_count }})</h2>
+        <h2 class="text-2xl font-bold mb-6 text-gray-900">Customer Reviews ({{ review_count }})</h2>
+
+        {% if can_review %}
+            <button onclick="openReviewModal('{{ product.id }}', '{{ product.products_name }}')"
+                    class="bg-green-600 text-white px-4 py-2 rounded hover:bg-green-700 transition duration-200 mb-4">
+                <i class="fas fa-star mr-2"></i> Add Review
+            </button>
+        {% endif %}
+
         {% for review in reviews %}
-            <div class="bg-white p-4 shadow rounded mb-4">
-                <p class="font-semibold">{{ review.user.username }} - 
-                    {% for i in "12345"|slice:":review.rating"|make_list %}
-                        <span class="text-yellow-500">★</span>
-                    {% endfor %}
-                    {% for i in "12345"|slice:"review.rating:"|make_list %}
-                        <span class="text-gray-300">★</span>
-                    {% endfor %}
-                </p>
-                {% if review.title %}
-                    <p class="font-medium">{{ review.title }}</p>
+            <div class="bg-white p-4 shadow-sm border border-gray-100 rounded mb-4">
+                <div class="flex items-center mb-1">
+                    <p class="font-semibold text-gray-800 mr-3">{{ review.user.username }}</p>
+                    <p class="text-yellow-500">
+                        {% for i in "12345"|slice:":review.rating"|make_list %}
+                            ★
+                        {% endfor %}
+                    </p>
+                </div>
+                {% if review.comment %}
+                    <p class="text-gray-700 mt-1">{{ review.comment }}</p>
                 {% endif %}
-                <p>{{ review.comment }}</p>
+                <p class="text-xs text-gray-500 mt-2">Reviewed on {{ review.created_at|date:"M d, Y" }}</p>
             </div>
         {% empty %}
-            <p>No reviews yet.</p>
+            <p class="text-gray-500">No reviews yet. Be the first to share your feedback!</p>
         {% endfor %}
     </section>
+
+    <div id="reviewModal" class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center hidden z-50">
+        <div class="bg-white rounded-lg p-6 w-full max-w-md mx-4 shadow-xl">
+            <div class="flex justify-between items-center mb-4">
+                <h3 class="text-xl font-semibold text-gray-900" id="reviewProductName">Add Review</h3>
+                <button onclick="closeReviewModal()" class="text-gray-500 hover:text-gray-700 text-xl">
+                    <i class="fas fa-times"></i>
+                </button>
+            </div>
+            <form id="reviewForm" method="POST" action="">
+                {% csrf_token %}
+                <input type="hidden" id="reviewProductId" name="product_id">
+                
+                <div class="mb-4">
+                    <label class="block text-sm font-medium text-gray-700 mb-2">Rating</label>
+                    <div class="flex space-x-1" id="ratingStars">
+                        {% for i in "12345" %}
+                        <button type="button" class="text-3xl text-gray-300 hover:text-yellow-400 transition"
+                                data-rating="{{ i }}" onclick="setRating({{ i }})">
+                            <i class="fas fa-star"></i>
+                        </button>
+                        {% endfor %}
+                    </div>
+                    <input type="hidden" id="ratingValue" name="rating" value="0" required>
+                </div>
+                
+                <div class="mb-4">
+                    <label for="reviewComment" class="block text-sm font-medium text-gray-700 mb-2">Comment</label>
+                    <textarea id="reviewComment" name="comment" rows="4"
+                              class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-blue-500 focus:border-blue-500 transition"
+                              placeholder="Share your experience..."></textarea>
+                </div>
+                
+                <div class="flex space-x-3 mt-5">
+                    <button type="button" onclick="closeReviewModal()" class="flex-1 bg-gray-300 text-gray-700 py-2 rounded-lg hover:bg-gray-400 transition">
+                        Cancel
+                    </button>
+                    <button type="submit" class="flex-1 bg-green-600 text-white py-2 rounded-lg hover:bg-green-700 transition">
+                        Submit Review
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
 </div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+function openReviewModal(productId, productName) {
+    document.getElementById('reviewProductId').value = productId;
+    document.getElementById('reviewProductName').textContent = `Add Review for ${productName}`;
+    // NOTE: Update this URL to your correct Django URL pattern for submitting a review
+    document.getElementById('reviewForm').action = `/products/${productId}/review/submit/`; 
+    document.getElementById('reviewModal').classList.remove('hidden');
+    document.getElementById('reviewModal').focus(); // Focus for accessibility
+}
+
+function closeReviewModal() {
+    document.getElementById('reviewModal').classList.add('hidden');
+    document.getElementById('reviewForm').reset();
+    setRating(0);
+}
+
+function setRating(value) {
+    document.getElementById('ratingValue').value = value;
+    const stars = document.getElementById('ratingStars').querySelectorAll('button');
+    stars.forEach(star => {
+        const starValue = parseInt(star.getAttribute('data-rating'));
+        const icon = star.querySelector('i');
+        if (starValue <= value) {
+            icon.classList.add('text-yellow-400', 'fa-solid');
+            icon.classList.remove('text-gray-300', 'fa-regular');
+        } else {
+            icon.classList.remove('text-yellow-400', 'fa-solid');
+            icon.classList.add('text-gray-300', 'fa-regular');
+        }
+    });
+}
+
+document.getElementById('reviewModal').addEventListener('click', function(e) {
+    if (e.target === this) closeReviewModal();
+});
+
+// Initialize stars to 0 on load
+document.addEventListener('DOMContentLoaded', () => {
+    setRating(0);
+});
+</script>
 {% endblock %}

@@ -16,26 +16,37 @@
 
     <div class="grid grid-cols-1 md:grid-cols-4 gap-6">
         <!-- Sidebar -->
-        <aside class="md:col-span-1">
-            <h2 class="text-xl font-semibold mb-4">Categories</h2>
-            <ul class="space-y-2">
-                {% for category in categories %}
-                    <li><a href="#" class="text-gray-700 hover:text-blue-600">{{ category.name }}</a></li>
-                {% empty %}
-                    <li>No categories</li>
-                {% endfor %}
-            </ul>
+<aside class="md:col-span-1">
+    <!-- Categories -->
+    <h2 class="text-xl font-semibold mb-4">Categories</h2>
+    <ul class="space-y-2">
+        {% for category in categories %}
+            <li>
+                <a href="{% url 'products:product_list' %}?category={{ category.slug }}" 
+                   class="text-gray-700 hover:text-blue-600">
+                   {{ category.name }}
+                </a>
+            </li>
+        {% empty %}
+            <li>No categories</li>
+        {% endfor %}
+    </ul>
 
-            <h2 class="text-xl font-semibold mb-4 mt-6">Brands</h2>
-            <ul class="space-y-2">
-                {% for brand in brands %}
-                    <li><a href="#" class="text-gray-700 hover:text-blue-600">{{ brand.name }}</a></li>
-                {% empty %}
-                    <li>No brands</li>
-                {% endfor %}
-            </ul>
-        </aside>
-
+    <!-- Brands -->
+    <h2 class="text-xl font-semibold mb-4 mt-6">Brands</h2>
+    <ul class="space-y-2">
+        {% for brand in brands %}
+            <li>
+                <a href="{% url 'products:product_list' %}?brand={{ brand.slug }}" 
+                   class="text-gray-700 hover:text-blue-600">
+                   {{ brand.name }}
+                </a>
+            </li>
+        {% empty %}
+            <li>No brands</li>
+        {% endfor %}
+    </ul>
+</aside>
         <!-- Main Product Grid -->
         <section class="md:col-span-3">
             <h1 class="text-3xl font-bold mb-6">Featured Products</h1>

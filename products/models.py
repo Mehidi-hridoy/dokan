@@ -120,12 +120,6 @@ class Product(models.Model):
                 counter += 1
                 self.product_code = f"{prefix}{counter:05d}-{uuid_segment}"
 
-        if self.description:
-            text = re.sub(r'<[^>]+>', '', self.description)
-            words = re.findall(r'\b[a-zA-Z]+\b', text.lower())
-            unique_words = list(dict.fromkeys(words))
-            self.tags = ', '.join(unique_words[:10])
-
         # Set sale price if not provided
         if self.sale_price is None: # Use None check for proper initialization
             self.sale_price = self.base_price
@@ -222,29 +216,3 @@ class Review(models.Model):
         return f"Review by {self.user.username} for {self.product.products_name} - {self.rating} stars"
 
 
-# --- START OF CODE TO BE REMOVED/MOVED ---
-# The following code is causing the crash and should not be in models.py
-# If you need ProductForm, move it to products/forms.py
-# If you need the AdminForm helper, that logic belongs in admin.py
-
-# from django import forms # Removed as part of cleanup
-# from .models import Product, Review # Removed as part of cleanup
-
-
-# class ProductForm(forms.ModelForm): # Removed as part of cleanup
-#     class Meta: # Removed as part of cleanup
-#         model = Product # Removed as part of cleanup
-#         fields = [ # Removed as part of cleanup
-#             'products_name', 'slug', 'product_code', 'brand', 'category', 'sub_category', # Removed as part of cleanup
-#             'short_description', 'description', 'base_price', 'sale_price', # Removed as part of cleanup
-#             'cost_price', 'color', 'size', 'weight', 'products_image', 'gallery_images', # Removed as part of cleanup
-#             'meta_title', 'meta_description', 'is_active', 'is_featured', 'is_published', 'user' # Removed as part of cleanup
-#         ] # Removed as part of cleanup
-
-
-# helpers.AdminForm( # CRASHING CODE - MUST BE REMOVED
-#     form, # CRASHING CODE - MUST BE REMOVED
-#     # ...<8 lines>... # CRASHING CODE - MUST BE REMOVED
-#     model_admin=self, # CRASHING CODE - MUST BE REMOVED
-# ) # CRASHING CODE - MUST BE REMOVED
-# --- END OF CODE TO BE REMOVED/MOVED ---

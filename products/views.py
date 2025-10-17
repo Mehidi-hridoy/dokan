@@ -3,7 +3,7 @@ from decimal import Decimal
 from typing import List, Tuple, Dict, Any
 from django.db.models import Count
 
-from django.shortcuts import render, get_object_or_404
+from django.shortcuts import render, get_object_or_404,redirect
 from django.http import JsonResponse
 from django.db.models import Q, Avg
 from django.contrib.auth.decorators import login_required
@@ -13,6 +13,10 @@ from django.views.generic import ListView, DetailView
 from products.models import Product, Review
 from store.models import Category, Brand
 from decimal import Decimal
+from orders.models import OrderItem
+from django.utils import timezone
+from datetime import timedelta
+from django.db.models import Avg
 
 
 
@@ -41,11 +45,7 @@ def _get_user_order(request):
 
 
 def home(request):
-    """
-    Home page – shows active products, categories, brands and the current cart.
-    Products in stock will be displayed first.
-    """
-    
+ 
     products_qs = Product.objects.filter(is_active=True).select_related(
         'category', 
         'brand',
@@ -53,7 +53,7 @@ def home(request):
     )
     
     # Calculate discounts for each product
-    products = [_calculate_discount(p) for p in products_qs]
+    products = [calculate_discount(p) for p in products_qs]
 
     # Sort: products in stock first, then by created_at descending
     products = sorted(
@@ -83,33 +83,38 @@ def home(request):
     return render(request, 'products/home.html', context)
 
 
+
 class ProductListView(ListView):
     model = Product
-    template_name = 'products_list.html'
+    template_name = 'products/product_list.html'
     context_object_name = 'products'
     paginate_by = 10
 
     def get_queryset(self):
         queryset = Product.objects.select_related('inventory', 'category', 'brand')\
-                                  .prefetch_related('images', 'reviews')\
-                                  .all()
+                                .prefetch_related('images', 'reviews')\
+                                .all()
 
         # Filters
         search = self.request.GET.get('search')
         category_slug = self.request.GET.get('category')
         brand_slug = self.request.GET.get('brand')
+        tag = self.request.GET.get('tag')
         min_price = self.request.GET.get('min_price')
         max_price = self.request.GET.get('max_price')
-        sort = self.request.GET.get('sort', 'name_asc')
+        sort = self.request.GET.get('sort', )
 
         if search:
             queryset = queryset.filter(
-                Q(products_name__icontains=search) | Q(description__icontains=search)
+                Q(products_name__icontains=search) |
+                Q(description__icontains=search)
             )
         if category_slug:
             queryset = queryset.filter(category__slug=category_slug)
         if brand_slug:
             queryset = queryset.filter(brand__slug=brand_slug)
+        if tag:
+            queryset = queryset.filter(tags__icontains=tag)
         if min_price:
             queryset = queryset.filter(sale_price__gte=min_price)
         if max_price:
@@ -118,7 +123,7 @@ class ProductListView(ListView):
         # Annotate avg_rating for all products
         queryset = queryset.annotate(avg_rating=Avg('reviews__rating'))
 
-        # Sorting
+        # Sorting (done while still a QuerySet)
         if sort == 'price_asc':
             queryset = queryset.order_by('sale_price')
         elif sort == 'price_desc':
@@ -129,77 +134,30 @@ class ProductListView(ListView):
             queryset = queryset.order_by('-avg_rating')
         elif sort == 'newest':
             queryset = queryset.order_by('-created_at')
+        else:
+        # Default: show highest rated items first
+            queryset = queryset.order_by('-avg_rating')
+
+        # Convert to list and calculate discount for template use
+        queryset = [calculate_discount(p) for p in queryset]
 
         return queryset
 
+
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
-        request = self.request
 
-        # Dynamic header
-        search = request.GET.get('search')
-        category_slug = request.GET.get('category')
-        brand_slug = request.GET.get('brand')
-        min_price = request.GET.get('min_price')
-        max_price = request.GET.get('max_price')
-        sort = request.GET.get('sort', 'name_asc')
-
-        if search:
-            header = f"Search results for '{search}'"
-        elif category_slug:
-            category_obj = Category.objects.filter(slug=category_slug).first()
-            header = f"Category: {category_obj.name}" if category_obj else "Category"
-        elif brand_slug:
-            brand_obj = Brand.objects.filter(slug=brand_slug).first()
-            header = f"Brand: {brand_obj.name}" if brand_obj else "Brand"
-        elif min_price or max_price:
-            min_val = min_price or "0"
-            max_val = max_price or "∞"
-            header = f"Price: ${min_val} - ${max_val}"
-        elif sort == 'newest':
-            header = "Newest Products"
-        else:
-            header = "All Products"
-
-        context['header_name'] = header
-
-        # Categories and Brands for sidebar
-        all_categories = Category.objects.all()
-        all_brands = Brand.objects.all()
-        category_counts = self.get_queryset().values('category').annotate(count=Count('category')).values_list('category', 'count')
-        brand_counts = self.get_queryset().values('brand').annotate(count=Count('brand')).values_list('brand', 'count')
-
-        context['categories'] = all_categories
-        context['category_counts'] = dict(category_counts)
-        context['brands'] = all_brands
-        context['brand_counts'] = dict(brand_counts)
-
-        # Extra product data
         for product in context['products']:
-            product.stock_available = product.inventory_reverse.available_quantity if product.inventory_reverse else 0
-            product.is_out_of_stock = product.stock_available <= 0
-            product.thumbnail = product.products_image.url if product.products_image else (
-                product.images.first().image.url if product.images.exists() else '/static/default.jpg'
-            )
-            product.avg_rating = product.avg_rating or 0
-            product.current_price_display = product.current_price  # for template display
-
-            # Calculate discount percentage
-            if product.base_price and product.current_price < product.base_price:
-                product.discount_percentage = round(
-                    (product.base_price - product.current_price) / product.base_price * 100
-                )
+            if product.tags:
+                # split tags by comma and strip whitespace
+                product.tag_list = [t.strip() for t in product.tags.split(',')]
             else:
-                product.discount_percentage = 0
+                product.tag_list = []
 
-        # Pass current filters & sort to template
-        context['selected_category'] = category_slug
-        context['selected_brand'] = brand_slug
-        context['min_price'] = min_price
-        context['max_price'] = max_price
-        context['current_sort'] = sort
-
+        # pass selected tag if filtering
+        context['selected_tag'] = self.request.GET.get('tag')
         return context
+
 
 class ProductDetailView(DetailView):
     model = Product
@@ -209,38 +167,88 @@ class ProductDetailView(DetailView):
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
         product = self.object
-        # Add average rating and review count to context
-        context['average_rating'] = product.reviews.filter(is_approved=True).aggregate(
-            avg=Avg('rating')
-        )['avg'] or 0
-        context['review_count'] = product.reviews.filter(is_approved=True).count()
+
+        # ✅ Calculate discount & stock info
+        product = calculate_discount(product)
+
+        # Reviews
+        reviews = product.reviews.filter(is_approved=True)
+        context['reviews'] = reviews
+        context['average_rating'] = reviews.aggregate(avg=Avg('rating'))['avg'] or 0
+        context['review_count'] = reviews.count()
+
+        # Can review logic (last 15 days)
+        user = self.request.user
+        can_review = False
+        if user.is_authenticated:
+            recent_purchase = OrderItem.objects.filter(
+                order__user=user,
+                product=product,
+                order__created_at__gte=timezone.now() - timedelta(days=15)
+            ).exists()
+            has_already_reviewed = product.reviews.filter(user=user).exists()
+            can_review = recent_purchase and not has_already_reviewed
+        context['can_review'] = can_review
+
+        # Tag list
+        if product.tags:
+            product.tag_list = [t.strip() for t in product.tags.split(',')]
+        else:
+            product.tag_list = []
+
+        # Pass product with discount & stock info
+        context['product'] = product
+
+        # Optional: pass selected tag if filtering
+        context['selected_tag'] = self.request.GET.get('tag')
+
         return context
 
 
 
-# def product_detail(request, slug):
-#     """
-#     Product detail page – also shows reviews and cart summary.
-#     """
-#     product = get_object_or_404(Product, slug=slug, is_active=True)
-#     product = _calculate_discount(product)
+@login_required(login_url='login')
+def submit_review(request, product_id):
+    product = get_object_or_404(Product, id=product_id)
 
-#     # Cart for anonymous users only (authenticated users get order only)
-#     if request.user.is_authenticated:
-#         cart_items, cart_total = [], Decimal('0.00')
-#         order = _get_user_order(request)
-#     else:
-#         order = None
-#         cart_items, cart_total = _get_session_cart(request)
+    if request.method == 'POST':
+        try:
+            rating = int(request.POST.get('rating', 0))
+        except ValueError:
+            rating = 0
 
-#     context = {
-#         'product': product,
-#         'reviews': product.reviews.filter(is_approved=True).select_related('user'),
-#         'order': order,
-#         'cart_items': cart_items,
-#         'cart_total': cart_total,
-#     }
-#     return render(request, 'products/product_detail.html', context)
+        comment = request.POST.get('comment', '').strip()
+
+        if rating <= 0 or rating > 5 or not comment:
+            messages.error(request, "Please provide a valid rating and comment.")
+            return redirect('products:product_detail', slug=product.slug)
+
+        # Check recent purchase (within 15 days)
+        recent_purchase = OrderItem.objects.filter(
+            order__user=request.user,
+            product=product,
+            order__created_at__gte=timezone.now() - timedelta(days=15)
+        ).exists()
+        if not recent_purchase:
+            messages.error(request, "You can only review a product within 15 days of purchasing it.")
+            return redirect('products:product_detail', slug=product.slug)
+
+        # Avoid duplicate review
+        if Review.objects.filter(product=product, user=request.user).exists():
+            messages.warning(request, "You’ve already reviewed this product.")
+            return redirect('products:product_detail', slug=product.slug)
+
+        Review.objects.create(
+            product=product,
+            user=request.user,
+            rating=rating,
+            comment=comment,
+            is_approved=False  # set True if no moderation
+        )
+
+        messages.success(request, "Thank you! Your review has been submitted.")
+        return redirect('products:product_detail', slug=product.slug)
+
+    return redirect('products:product_detail', slug=product.slug)
 
 
 def search(request):
@@ -256,7 +264,7 @@ def search(request):
             Q(description__icontains=query)
         )
 
-    products = [_calculate_discount(p) for p in products_qs]
+    products = [calculate_discount(p) for p in products_qs]
 
     # Cart handling (same logic as home page)
     if request.user.is_authenticated:
@@ -304,13 +312,7 @@ def search_suggestions(request):
     return JsonResponse({'products': suggestions})
 
 
-# In products/views.py or a utils file
-def _calculate_discount(product):
-    """
-    Adds extra attributes to product for template use:
-      - current_price
-      - discount_percentage
-    """
+def calculate_discount(product):
     # Current price logic
     product.current_price_display = product.current_price
     
@@ -327,3 +329,4 @@ def _calculate_discount(product):
     product.is_out_of_stock = product.stock_available <= 0
     
     return product
+
