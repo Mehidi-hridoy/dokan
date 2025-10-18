@@ -57,7 +57,7 @@
                         <tr class="border-b">
                             <td class="p-3">{{ order.id }}</td>
                             <td class="p-3">{{ order.created_at|date:"M d, Y" }}</td>
-                            <td class="p-3">{{ order.status|title }}</td>
+                            <td class="p-3">{{ order.order_status }}</td>
                             <td class="p-3">${{ order.total|floatformat:2|intcomma }}</td>
                         </tr>
                     {% empty %}

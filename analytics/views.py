@@ -8,6 +8,8 @@ from inventory.models import Inventory # Assuming Inventory is imported here
 from django.utils import timezone
 from datetime import timedelta
 from decimal import Decimal
+from django.db.models import Count, Sum, F, Q, ExpressionWrapper, DecimalField
+
 
 # Helper Expression for Available Stock (Total - Reserved)
 AVAILABLE_STOCK = F('quantity') - F('reserved_quantity')
@@ -122,47 +124,58 @@ class OrdersAnalyticsView(TemplateView):
 
         return context
 
+
+
 class InventoryAnalyticsView(TemplateView):
     template_name = 'analytics/inventory.html'
 
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
-        
-        # Calculate available stock expression on the Inventory model
-        available_stock_inv = F('quantity') - F('reserved_quantity')
 
-        # Inventory metrics (FIXED: Using F expressions for database computation)
-        inventory_qs = Inventory.objects.annotate(available_stock=available_stock_inv)
+        # Annotate Inventory with available stock
+        inventory_qs = Inventory.objects.annotate(
+            available_stock=F('quantity') - F('reserved_quantity')
+        )
 
+        # Total products
         context['total_products'] = Product.objects.count()
-        
-        context['total_stock'] = inventory_qs.aggregate(total=Sum('available_stock'))['total'] or 0
-        
-        # Low Stock: 0 < available_stock <= low_stock_threshold
+
+        # Total stock
+        context['total_stock'] = inventory_qs.aggregate(
+            total=Sum('available_stock')
+        )['total'] or 0
+
+        # Low stock products (0 < available_stock <= low_stock_threshold)
         context['low_stock'] = inventory_qs.filter(
             available_stock__gt=0,
             available_stock__lte=F('low_stock_threshold')
         ).count()
 
-        # Out of Stock: available_stock <= 0
-        context['out_of_stock'] = inventory_qs.filter(available_stock__lte=0).count()
+        # Out of stock products (available_stock <= 0)
+        context['out_of_stock'] = inventory_qs.filter(
+            available_stock__lte=0
+        ).count()
 
-        # Top low stock products (FIXED: Query Product, Annotate with Inventory's available stock)
+        # Top low stock products (annotate Product with available stock)
         context['low_stock_products'] = Product.objects.annotate(
-            available_stock=F('inventory_reverse__quantity') - F('inventory_reverse__reserved_quantity')
+            available_stock=Sum(
+                F('inventory__quantity') - F('inventory__reserved_quantity')
+            )
         ).filter(
             available_stock__gt=0,
-            available_stock__lte=F('inventory_reverse__low_stock_threshold')
+            available_stock__lte=F('inventory__low_stock_threshold')
         ).order_by('available_stock')[:10]
 
-        # Stock by category (FIXED: Uses F expressions to calculate total stock)
+        # Stock by category
         context['stock_by_category'] = Category.objects.annotate(
             total_stock=Sum(
-                F('product__inventory_reverse__quantity') - F('product__inventory_reverse__reserved_quantity')
+                F('products__inventory__quantity') - F('products__inventory__reserved_quantity')
             )
         ).order_by(F('total_stock').desc(nulls_last=True))
 
         return context
+
+
 
 class ProductsAnalyticsView(TemplateView):
     template_name = 'analytics/products.html'
@@ -171,24 +184,38 @@ class ProductsAnalyticsView(TemplateView):
         context = super().get_context_data(**kwargs)
         last_year = timezone.now().date() - timedelta(days=365)
 
-        # Top products by sales (FIXED: Annotating revenue on Product model via OrderItem)
+        # Top products by sales
         context['top_products'] = Product.objects.annotate(
             sales_count=Count(
-                'orderitem', 
-                filter=Q(orderitem__order__order_status='confirmed')
+                'order_items',  # related_name from OrderItem model
+                filter=Q(order_items__order__order_status='confirmed')
             ),
             total_revenue=Sum(
-                F('orderitem__quantity') * F('orderitem__price'), 
-                filter=Q(orderitem__order__order_status='confirmed')
+                ExpressionWrapper(
+                    F('order_items__quantity') * 
+                    (F('order_items__product__sale_price') + 0),  # fallback to current_price if sale_price is null
+                    output_field=DecimalField(max_digits=12, decimal_places=2)
+                ),
+                filter=Q(order_items__order__order_status='confirmed')
             )
-        ).order_by(F('sales_count').desc(nulls_last=True))[:10]
+        ).order_by('-sales_count')[:10]
 
-        # Product performance over time
-        context['monthly_sales'] = OrderItem.objects.filter(order__order_status='confirmed', order__created_at__gte=last_year).annotate(
-            month=TruncMonth('order__created_at')
-        ).values('month', 'product__products_name').annotate(count=Count('id')).order_by('month')
+        # Product performance over time (monthly sales)
+        context['monthly_sales'] = (
+            OrderItem.objects.filter(
+                order__order_status='confirmed', 
+                order__created_at__gte=last_year
+            )
+            .annotate(month=TruncMonth('order__created_at'))
+            .values('month', 'product__products_name')
+            .annotate(count=Count('id'))
+            .order_by('month')
+        )
 
         return context
+
+
+
 
 class RevenueAnalyticsView(TemplateView):
     template_name = 'analytics/revenue.html'
@@ -197,27 +224,42 @@ class RevenueAnalyticsView(TemplateView):
         context = super().get_context_data(**kwargs)
         last_year = timezone.now().date() - timedelta(days=365)
 
-        # Revenue metrics
-        context['total_revenue'] = Order.objects.filter(order_status='confirmed').aggregate(total=Sum('total'))['total'] or 0
-        context['monthly_revenue'] = Order.objects.filter(order_status='confirmed', created_at__gte=last_year).annotate(
-            month=TruncMonth('created_at')
-        ).values('month').annotate(total=Sum('total')).order_by('month')
+        # Total revenue
+        context['total_revenue'] = Order.objects.filter(order_status='confirmed').aggregate(
+            total=Sum('total')
+        )['total'] or 0
 
-        # Revenue by category (FIXED: Need to filter on OrderItem through Product)
+        # Monthly revenue
+        context['monthly_revenue'] = (
+            Order.objects.filter(order_status='confirmed', created_at__gte=last_year)
+            .annotate(month=TruncMonth('created_at'))
+            .values('month')
+            .annotate(total=Sum('total'))
+            .order_by('month')
+        )
+
+        # Revenue by category (sum quantity * price per product)
+        revenue_expr = ExpressionWrapper(
+            F('products__order_items__quantity') *
+            (F('products__sale_price') + 0),  # fallback to current_price if needed
+            output_field=DecimalField(max_digits=12, decimal_places=2)
+        )
+
         context['revenue_by_category'] = Category.objects.annotate(
             total_revenue=Sum(
-                F('products__orderitem__quantity') * F('products__orderitem__price'), 
-                filter=Q(products__orderitem__order__order_status='confirmed')
+                revenue_expr,
+                filter=Q(products__order_items__order__order_status='confirmed')
             )
         ).order_by(F('total_revenue').desc(nulls_last=True))
 
-        # Charts data
+        # Prepare chart data
         context['monthly_revenue_data'] = {
             'labels': [item['month'].strftime('%b %Y') for item in context['monthly_revenue']],
             'data': [float(item['total']) for item in context['monthly_revenue']],
         }
 
         return context
+
 
 class CustomerListView(ListView):
     model = User
@@ -233,6 +275,12 @@ class CustomerListView(ListView):
         ).order_by(F('total_spent').desc(nulls_last=True))
         return queryset
 
+
+
+
+
+
+
 class CustomerDetailView(DetailView):
     model = User
     template_name = 'analytics/customer_detail.html'
@@ -242,20 +290,28 @@ class CustomerDetailView(DetailView):
         context = super().get_context_data(**kwargs)
         customer = self.object
 
-        # Customer history
+        # Customer order history
         context['orders'] = Order.objects.filter(user=customer).order_by('-created_at')
-        context['total_spent'] = context['orders'].filter(order_status='confirmed').aggregate(total=Sum('total'))['total'] or 0
+        context['total_spent'] = (
+            context['orders']
+            .filter(order_status='confirmed')
+            .aggregate(total=Sum('total'))['total'] or 0
+        )
         context['order_count'] = context['orders'].count()
-        
-        # Favorite products (FIXED: use OrderItem)
-        context['favorite_products'] = Product.objects.filter(orderitem__order__user=customer).annotate(
-            purchase_count=Sum(
-                'orderitem__quantity', 
-                filter=Q(orderitem__order__order_status='confirmed')
-            )
-        ).order_by(F('purchase_count').desc(nulls_last=True))[:5]
 
-        # Recent activity
+        # Favorite products — using correct related name: order_items
+        context['favorite_products'] = (
+            Product.objects.filter(order_items__order__user=customer)
+            .annotate(
+                purchase_count=Sum(
+                    'order_items__quantity',
+                    filter=Q(order_items__order__order_status='confirmed')
+                )
+            )
+            .order_by(F('purchase_count').desc(nulls_last=True))[:5]
+        )
+
+        # Recent orders (last 30 days)
         last_30_days = timezone.now().date() - timedelta(days=30)
         context['recent_orders'] = context['orders'].filter(created_at__gte=last_30_days)
 

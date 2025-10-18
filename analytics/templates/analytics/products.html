@@ -1,0 +1,145 @@
+{% extends 'base.html' %}
+{% load humanize %}
+
+{% block title %}Product Analytics{% endblock %}
+
+{% block content %}
+<div class="container mx-auto px-4 py-8">
+    <h1 class="text-3xl font-bold text-gray-800 mb-6">Product Performance Analysis</h1>
+
+    <div class="bg-white p-6 rounded-lg shadow-xl mb-8">
+        <h2 class="text-xl font-semibold text-gray-700 mb-4 flex justify-between items-center">
+            Top 10 Bestselling Products (by Sales Count)
+            <i class="fas fa-trophy text-yellow-500"></i>
+        </h2>
+        <div class="overflow-x-auto">
+            <table class="min-w-full divide-y divide-gray-200 text-sm">
+                <thead>
+                    <tr class="text-left text-gray-500 uppercase tracking-wider">
+                        <th class="py-2 px-4">Rank</th>
+                        <th class="py-2 px-4">Product Name</th>
+                        <th class="py-2 px-4 text-center">Sales Count</th>
+                        <th class="py-2 px-4 text-right">Total Revenue</th>
+                    </tr>
+                </thead>
+                <tbody class="divide-y divide-gray-200">
+                    {% for product in top_products %}
+                    <tr class="hover:bg-gray-50">
+                        <td class="py-2 px-4 font-bold text-gray-700">{{ forloop.counter }}.</td>
+                        <td class="py-2 px-4 font-medium">
+                            <a href="{% url 'products:product_detail' product.slug %}" class="text-blue-600 hover:text-blue-800">{{ product.products_name }}</a>
+                        </td>
+                        <td class="py-2 px-4 text-center font-bold">{{ product.sales_count|default:0|intcomma }}</td>
+                        <td class="py-2 px-4 text-right font-bold text-green-600">${{ product.total_revenue|default:0|floatformat:2|intcomma }}</td>
+                    </tr>
+                    {% empty %}
+                    <tr><td colspan="4" class="py-4 text-center text-gray-500">No confirmed product sales data.</td></tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+    <div class="bg-white p-6 rounded-lg shadow-xl">
+        <h2 class="text-xl font-semibold text-gray-700 mb-4">Product Sales Trend (Units Sold by Month)</h2>
+        <div class="h-96">
+            <canvas id="monthlyProductSalesChart"></canvas>
+        </div>
+        <p class="text-sm text-gray-500 mt-4">Note: This chart dynamically visualizes the units sold for the top 5 products over the last year.</p>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    const monthlySalesData = JSON.parse('{{ monthly_sales|safe }}');
+    const topProducts = JSON.parse('{{ top_products|safe }}');
+    
+    // Determine the top 5 product names for the chart
+    const topProductNames = topProducts.slice(0, 5).map(p => p.products_name);
+    
+    // Process monthly sales data to prepare it for Chart.js
+    const chartData = {};
+    const labels = [];
+    
+    monthlySalesData.forEach(item => {
+        const monthLabel = item.month;
+        if (!labels.includes(monthLabel)) {
+            labels.push(monthLabel);
+        }
+        
+        const productName = item.product__products_name;
+        if (topProductNames.includes(productName)) {
+            if (!chartData[productName]) {
+                chartData[productName] = {};
+            }
+            chartData[productName][monthLabel] = item.count;
+        }
+    });
+
+    // Sort labels chronologically (if needed, but TruncMonth should order correctly)
+    // For simplicity, we assume the query order is correct.
+
+    const colorPalette = [
+        '#3B82F6', // Blue
+        '#10B981', // Green
+        '#F59E0B', // Yellow
+        '#EF4444', // Red
+        '#6366F1'  // Indigo
+    ];
+    
+    const datasets = [];
+    let colorIndex = 0;
+    
+    topProductNames.forEach(productName => {
+        const data = labels.map(label => chartData[productName]?.[label] || 0);
+        datasets.push({
+            label: productName,
+            data: data,
+            borderColor: colorPalette[colorIndex % colorPalette.length],
+            backgroundColor: colorPalette[colorIndex % colorPalette.length] + '40', // Semi-transparent fill
+            borderWidth: 2,
+            tension: 0.4,
+            fill: false,
+        });
+        colorIndex++;
+    });
+
+    // --- Monthly Product Sales Chart ---
+    const ctx = document.getElementById('monthlyProductSalesChart').getContext('2d');
+    new Chart(ctx, {
+        type: 'line',
+        data: {
+            labels: labels,
+            datasets: datasets
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            scales: {
+                y: {
+                    beginAtZero: true,
+                    title: { display: true, text: 'Units Sold' },
+                    precision: 0
+                },
+                x: {
+                    title: { display: true, text: 'Month' }
+                }
+            },
+            plugins: {
+                legend: { position: 'bottom' },
+                tooltip: {
+                    callbacks: {
+                        label: function(context) {
+                            return context.dataset.label + ': ' + context.parsed.y + ' units';
+                        }
+                    }
+                }
+            }
+        }
+    });
+});
+</script>
+{% endblock %}

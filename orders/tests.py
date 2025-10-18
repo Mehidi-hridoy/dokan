@@ -4,7 +4,7 @@ python manage.py migrate
 python manage.py runserver
 
 git add .
-git commit -m "Updated Home and the list and model "
+git commit -m "Updated Bav Bar and more "
 git push -u origin main
 python manage.py runserver
 

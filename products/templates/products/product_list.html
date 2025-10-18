@@ -358,19 +358,21 @@
                                 {% endif %}
 
                                 <div class="flex space-x-2">
+                                                                            <button type="submit" formaction="{% url 'orders:checkout_from_product' product.slug %}" 
+                                                class="checkout-btn bg-green-600 text-white px-4 py-2 rounded w-1/2 hover:bg-green-700 transition duration-200 text-sm font-medium">
+                                            Checkout
+                                        </button>
                                     {% if product.is_in_stock %}
                                         <button type="submit" class="add-to-cart-btn bg-blue-600 text-white px-4 py-2 rounded w-1/2 hover:bg-blue-700 transition duration-200 text-sm font-medium">
                                             Add to Cart
                                         </button>
-                                        <button type="submit" formaction="{% url 'orders:checkout_from_product' product.slug %}" 
-                                                class="checkout-btn bg-green-600 text-white px-4 py-2 rounded w-1/2 hover:bg-green-700 transition duration-200 text-sm font-medium">
-                                            Checkout
-                                        </button>
+
                                     {% else %}
                                         <button type="button" disabled class="bg-gray-400 text-white px-4 py-2 rounded w-full cursor-not-allowed text-sm">
                                             Out of Stock
                                         </button>
                                     {% endif %}
+                                    
                                 </div>
                             </form>
                         </div>
