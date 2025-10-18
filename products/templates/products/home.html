@@ -145,67 +145,92 @@
         <h2 class="text-2xl font-bold mb-6">Featured Products</h2>
         <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
             {% for product in products|slice:":12" %}
-                <div class="product-card">
-                    <div class="overflow-hidden">
-                        {% if product.products_image %}
-                            <img src="{{ product.products_image.url }}" alt="{{ product.products_name }}" class="product-image">
-                        {% else %}
-                            <img src="{% static 'images/placeholder.png' %}" alt="No image" class="product-image">
-                        {% endif %}
-                    </div>
-                    <div class="p-4">
-                        <h3 class="text-base font-semibold mb-2 line-clamp-1">
-                            <a href="{% url 'products:product_detail' product.slug %}" class="text-gray-900 hover:text-blue-600">
-                                {{ product.products_name }}
-                            </a>
-                        </h3>
+<div class="product-card">
+    <div class="overflow-hidden">
+        {% if product.products_image %}
+            <img src="{{ product.products_image.url }}" alt="{{ product.products_name }}" class="product-image">
+        {% else %}
+            <img src="{% static 'images/placeholder.png' %}" alt="No image" class="product-image">
+        {% endif %}
+    </div>
 
-                        <!-- Price & Discount -->
-                        <div class="flex items-center space-x-2 mb-3">
-                            <span class="text-lg text-green-600 font-medium">${{ product.current_price|floatformat:2 }}</span>
-                            {% if product.sale_price and product.sale_price < product.base_price %}
-                                <span class="text-sm text-gray-500 line-through">${{ product.base_price|floatformat:2 }}</span>
-                                <span class="bg-red-500 text-white text-xs px-2 py-1 rounded font-medium">
-                                    -{{ product.discount_percentage|default:0 }}%
-                                </span>
-                            {% endif %}
-                        </div>
+    <div class="p-4">
+        <h3 class="text-base font-semibold mb-2 line-clamp-1">
+            <a href="{% url 'products:product_detail' product.slug %}" class="text-gray-900 hover:text-blue-600">
+                {{ product.products_name }}
+            </a>
+        </h3>
 
-                        <!-- Stock Status -->
-                        <p class="text-xs mb-3 flex items-center">
-                            {% if product.is_in_stock %}
-                                <i class="fas fa-check-circle text-green-500 mr-1"></i>
-                                <span class="text-green-600">In Stock ({{ product.available_quantity }})</span>
-                            {% else %}
-                                <i class="fas fa-times-circle text-red-500 mr-1"></i>
-                                <span class="text-red-600">Out of Stock</span>
-                            {% endif %}
-                        </p>
+        <!-- Price -->
+        <div class="flex items-center space-x-2 mb-3">
+            <span class="text-lg text-green-600 font-medium">${{ product.current_price|floatformat:2 }}</span>
+            {% if product.sale_price and product.sale_price < product.base_price %}
+                <span class="text-sm text-gray-500 line-through">${{ product.base_price|floatformat:2 }}</span>
+                <span class="bg-red-500 text-white text-xs px-2 py-1 rounded font-medium">
+                    -{{ product.discount_percentage|default:0 }}%
+                </span>
+            {% endif %}
+        </div>
 
-                        <!-- Short Description -->
-                        {% if product.short_description %}
-                            <p class="text-sm text-gray-600 mb-3 line-clamp-2">{{ product.short_description|safe }}</p>
-                        {% endif %}
+        <!-- Stock -->
+        <p class="text-xs mb-3 flex items-center">
+            {% if product.is_in_stock %}
+                <i class="fas fa-check-circle text-green-500 mr-1"></i>
+                <span class="text-green-600">In Stock ({{ product.available_quantity }})</span>
+            {% else %}
+                <i class="fas fa-times-circle text-red-500 mr-1"></i>
+                <span class="text-red-600">Out of Stock</span>
+            {% endif %}
+        </p>
 
-                        <!-- Add to Cart -->
-                        <form class="add-to-cart-form" method="POST" action="{% url 'orders:add_to_cart' product.slug %}">
-                            {% csrf_token %}
-                            <input type="hidden" name="quantity" value="1">
-                            <input type="hidden" name="color" value="{{ product.color|default:'default' }}">
-                            <input type="hidden" name="size" value="{{ product.size|default:'default' }}">
-                            <input type="hidden" name="weight" value="{{ product.weight|default:'default' }}">
-                            {% if product.is_in_stock %}
-                                <button type="submit" class="bg-blue-600 text-white px-4 py-2 rounded w-full hover:bg-blue-700 transition duration-200 text-sm font-medium">
-                                    Add to Cart
-                                </button>
-                            {% else %}
-                                <button type="button" disabled class="bg-gray-400 text-white px-4 py-2 rounded w-full cursor-not-allowed text-sm">
-                                    Out of Stock
-                                </button>
-                            {% endif %}
-                        </form>
-                    </div>
-                </div>
+        <!-- Short Description -->
+        {% if product.short_description %}
+            <p class="text-sm text-gray-600 mb-3 line-clamp-2">{{ product.short_description|safe }}</p>
+        {% endif %}
+
+        <!-- Add to Cart -->
+
+          <form class="add-to-cart-form" method="POST" action="{% url 'orders:add_to_cart' product.slug %}">
+                    {% csrf_token %}
+                    <input type="hidden" name="quantity" value="1">
+                    <input type="hidden" name="weight" value="{{ product.weight|default:'default' }}">
+
+                    <!-- Color Dropdown -->
+                    {% if product.color_choices %}
+                    <select name="color" required class="border rounded-md p-2 w-full mb-2">
+                        <option value="">-- Choose a color --</option>
+                        {% for value, label in product.color_choices %}
+                            <option value="{{ value }}">{{ label }}</option>
+                        {% endfor %}
+                    </select>
+                    {% endif %}
+
+                    <!-- Size Dropdown -->
+                    {% if product.size_choices %}
+                    <select name="size" required class="border rounded-md p-2 w-full mb-2">
+                        <option value="">-- Choose a size --</option>
+                        {% for value, label in product.size_choices %}
+                            <option value="{{ value }}">{{ label }}</option>
+                        {% endfor %}
+                    </select>
+                    {% endif %}
+
+                    <!-- Add to Cart Button -->
+                    {% if product.is_in_stock %}
+                        <button type="submit" class="bg-blue-600 text-white px-4 py-2 rounded w-full hover:bg-blue-700 transition duration-200 text-sm font-medium">
+                            Add to Cart
+                        </button>
+                    {% else %}
+                        <button type="button" disabled class="bg-gray-400 text-white px-4 py-2 rounded w-full cursor-not-allowed text-sm">
+                            Out of Stock
+                        </button>
+                    {% endif %}
+                </form>
+
+
+    </div>
+</div>
+
             {% empty %}
                 <div class="col-span-full text-center py-12">
                     <p class="text-gray-500 text-lg">No products available at the moment.</p>

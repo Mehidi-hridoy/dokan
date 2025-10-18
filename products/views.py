@@ -47,21 +47,26 @@ def _get_user_order(request):
 
 
 def home(request):
- 
+    # Get active products with related data
     products_qs = Product.objects.filter(is_active=True).select_related(
         'category', 
         'brand',
         'inventory_reverse'
-    )
-    
+    ).prefetch_related('images')
+
     # Calculate discounts for each product
     products = [calculate_discount(p) for p in products_qs]
 
-    # Sort: products in stock first, then by created_at descending
+    # Sort: in-stock first, then newest
     products = sorted(
         products, 
         key=lambda p: (not p.is_in_stock, -p.created_at.timestamp())
     )
+
+    # Add color and size choices for dropdowns
+    for p in products:
+        p.color_choices = p._meta.get_field('color').choices if p.color else []
+        p.size_choices = p._meta.get_field('size').choices if p.size else []
 
     categories = Category.objects.all()
     brands = Brand.objects.all()
@@ -82,6 +87,7 @@ def home(request):
         'cart_items': cart_items,
         'cart_total': cart_total,
     }
+
     return render(request, 'products/home.html', context)
 
 
@@ -163,6 +169,7 @@ class ProductListView(ListView):
 
 
 
+
 class ProductDetailView(DetailView):
     model = Product
     template_name = 'products/detail.html'
@@ -172,7 +179,7 @@ class ProductDetailView(DetailView):
         context = super().get_context_data(**kwargs)
         product = self.object
 
-        # Discount & stock info
+        # Calculate discount
         product = calculate_discount(product)
 
         # Only approved reviews
@@ -181,20 +188,22 @@ class ProductDetailView(DetailView):
         context['average_rating'] = reviews.aggregate(avg=Avg('rating'))['avg'] or 0
         context['review_count'] = reviews.count()
 
+        # Add color/size/weight choices for dropdowns
+        product.color_choices = product._meta.get_field('color').choices if product.color else []
+        product.size_choices = product._meta.get_field('size').choices if product.size else []
+        product.weight_choices = product._meta.get_field('weight').choices if product.weight else []
+
+        # User review logic
         user = self.request.user
         can_review = False
         user_review = None
         if user.is_authenticated:
-            # Check if the user purchased this product in any order
             purchased = OrderItem.objects.filter(
                 order__user=user,
                 product=product,
-                order__payment_status='Paid'  # optional, only paid orders
+                order__payment_status='Paid'
             ).exists()
-
-            # Check if user has already reviewed this product
             existing_review = product.reviews.filter(user=user).first()
-
             can_review = purchased and (existing_review is None)
             user_review = existing_review
 
@@ -205,6 +214,7 @@ class ProductDetailView(DetailView):
         context['product'].tag_list = [t.strip() for t in (product.tags or "").split(",")]
 
         return context
+
 
 
 @login_required(login_url='login')

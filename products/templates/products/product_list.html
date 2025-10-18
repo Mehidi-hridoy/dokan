@@ -529,54 +529,36 @@ function setRating(rating) {
         button.classList.toggle('text-gray-300', buttonRating > rating);
     });
 }
+// Add-to-cart AJAX handler (integrated with base.html)
+    $(document).on('submit', '.add-to-cart-form', function(e) {
+        e.preventDefault();
+        const $form = $(this);
+        const $button = $form.find('button[type="submit"]');
+        $button.prop('disabled', true).text('Adding...');
 
-// Add-to-Cart AJAX
-$(document).on('submit', '.add-to-cart-form', function(e) {
-    e.preventDefault();
-    const $form = $(this);
-    const $button = $form.find('button[type="submit"]');
-    $button.prop('disabled', true).text('Adding...');
-
-    $.ajax({
-        url: $form.attr('action'),
-        method: 'POST',
-        data: $form.serialize(),
-        success: function(data) {
-            if (data.success) {
-                $(document).trigger('cart-updated', data);
-                $('#messageContainer').append(
-                    `<div class="alert alert-success alert-dismissible fade show flying-message show" role="alert">
-                        ${data.message}
-                        <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
-                    </div>`
-                );
-                setTimeout(() => $('.flying-message').removeClass('show').addClass('hide'), 3000);
-                $button.text('Added!').addClass('bg-green-600').removeClass('bg-blue-600');
-                setTimeout(() => {
-                    $button.text('Add to Cart').removeClass('bg-green-600').addClass('bg-blue-600').prop('disabled', false);
-                }, 1500);
-            } else {
-                $('#messageContainer').append(
-                    `<div class="alert alert-danger alert-dismissible fade show flying-message show" role="alert">
-                        ${data.message || 'Error adding to cart'}
-                        <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
-                    </div>`
-                );
-                setTimeout(() => $('.flying-message').removeClass('show').addClass('hide'), 3000);
+        $.ajax({
+            url: $form.attr('action'),
+            method: 'POST',
+            data: $form.serialize(),
+            success: function(data) {
+                if (data.success) {
+                    $(document).trigger('cart-updated', data);
+                    // Flash success animation
+                    $button.text('Added!').addClass('bg-green-600').removeClass('bg-blue-600');
+                    setTimeout(() => {
+                        $button.text('Add to Cart').removeClass('bg-green-600').addClass('bg-blue-600');
+                    }, 1500);
+                } else {
+                    $button.prop('disabled', false).text('Add to Cart');
+                    alert(data.message || 'Error adding to cart');
+                }
+            },
+            error: function() {
                 $button.prop('disabled', false).text('Add to Cart');
+                alert('Error adding to cart');
             }
-        },
-        error: function() {
-            $('#messageContainer').append(
-                `<div class="alert alert-danger alert-dismissible fade show flying-message show" role="alert">
-                    Error adding to cart
-                    <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
-                </div>`
-            );
-            setTimeout(() => $('.flying-message').removeClass('show').addClass('hide'), 3000);
-            $button.prop('disabled', false).text('Add to Cart');
-        }
+        });
     });
-});
+
 </script>
 {% endblock %}

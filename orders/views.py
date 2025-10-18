@@ -177,22 +177,37 @@ def checkout(request):
         'cart_count': sum(item['quantity'] for item in cart_items),
     })
 
-def add_to_cart(request, slug):
-    """Add product to cart (session for guests; fallback for auth)."""
-    product = get_object_or_404(Product, slug=slug, is_active=True)
-    
-    if not product.is_in_stock:
-        return JsonResponse({'success': False, 'message': f"{product.products_name} is out of stock."}, status=400)
 
+
+def add_to_cart(request, slug):
+    """Add product to cart (session-based for now)."""
+    product = get_object_or_404(Product, slug=slug, is_active=True)
+
+    # Get selected options from POST
     color = request.POST.get('color')
     size = request.POST.get('size')
     weight = request.POST.get('weight')
     quantity = int(request.POST.get('quantity', 1))
 
-    # --- Unified Session Cart Logic ---
+    # --- VALIDATION SECTION ---
+
+    # Check stock
+    if not product.is_in_stock:
+        return JsonResponse({'success': False, 'message': f"{product.products_name} is out of stock."}, status=400)
+
+    # Make sure color and size are selected if product has those options
+    if product.color and not color:
+        messages.error(request, "Please select a color before adding to cart.")
+        return redirect('products:product_detail', slug=product.slug)
+
+    if product.size and not size:
+        messages.error(request, "Please select a size before adding to cart.")
+        return redirect('products:product_detail', slug=product.slug)
+
+    # --- CART LOGIC ---
     cart = request.session.get('cart', {})
-    cart_key = f"{slug}_{color or ''}_{size or ''}_{weight or ''}"
-    
+    cart_key = f"{slug}_{color or 'default'}_{size or 'default'}_{weight or 'default'}"
+
     if cart_key in cart:
         cart[cart_key]['quantity'] += quantity
     else:
@@ -201,40 +216,34 @@ def add_to_cart(request, slug):
             'quantity': quantity,
             'color': color,
             'size': size,
-            'weight': weight
+            'weight': weight,
         }
-        
+
     request.session['cart'] = cart
     request.session.modified = True
-    
-    # Calculate the total count from the session cart
+
+    # Calculate total cart count
     cart_count = sum(item['quantity'] for item in cart.values())
-    
-    # --- Response Logic ---
-    if request.user.is_authenticated:
-        # NOTE: This still uses the session for counting until a DB cart is implemented.
-        messages.success(request, f"{product.products_name} noted for cart (DB add coming soon).")
-        response_data = {
-            'success': True,
-            'message': f"{product.products_name} added to your bucket!",
-        }
-    else:
-        response_data = {
-            'success': True,
-            'message': f"{product.products_name} added to cart!",
-        }
-        
-    # Unified response data
-    response_data.update({
+
+    # Determine correct product price
+    product_price = product.sale_price or getattr(product, 'current_price', product.base_price)
+
+    # Response payload
+    response_data = {
+        'success': True,
+        'message': f"{product.products_name} added to your cart!",
         'cart_count': cart_count,
         'product_name': product.products_name,
         'product_image': product.products_image.url if product.products_image else None,
         'quantity': quantity,
-        'subtotal': str((product.sale_price or product.current_price) * quantity),
-        'checkout_url': reverse('orders:checkout')
-    })
+        'subtotal': str(product_price * quantity),
+        'checkout_url': reverse('orders:checkout'),
+    }
 
+    messages.success(request, f"{product.products_name} added to cart successfully.")
     return JsonResponse(response_data)
+
+
 
 def view_cart(request):
     """Render the cart view with session-based cart items."""
