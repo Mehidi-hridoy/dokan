@@ -1,7 +1,7 @@
 {% extends 'base.html' %}
 {% load static humanize %}
 
-{% block title %}Sales Analytics - Dokan{% endblock %}
+{% block title %}Revenue Analytics - Dokan{% endblock %}
 
 {% block extra_css %}
 <style>
@@ -20,9 +20,9 @@
 
 {% block content %}
 <div class="container mx-auto px-4 py-8">
-    <h1 class="text-3xl font-bold mb-8 text-center">Sales Analytics</h1>
+    <h1 class="text-3xl font-bold mb-8 text-center">Revenue Analytics</h1>
 
-    <!-- Sales Metrics -->
+    <!-- Revenue Metrics -->
     <div class="grid grid-cols-1 sm:grid-cols-2 gap-6 mb-8">
         <div class="stat-card">
             <h3 class="text-lg font-semibold text-gray-700">Total Revenue</h3>
@@ -30,32 +30,26 @@
         </div>
     </div>
 
-    <!-- Top Customers -->
+    <!-- Revenue by Category -->
     <div class="bg-white rounded-lg shadow-sm p-6 mb-8">
-        <h2 class="text-2xl font-bold mb-4">Top Customers by Spend</h2>
+        <h2 class="text-2xl font-bold mb-4">Revenue by Category</h2>
         <div class="overflow-x-auto">
             <table class="w-full text-left">
                 <thead>
                     <tr class="bg-gray-100">
-                        <th class="p-3">Customer</th>
-                        <th class="p-3">Total Spent</th>
-                        <th class="p-3">Orders</th>
+                        <th class="p-3">Category</th>
+                        <th class="p-3">Total Revenue</th>
                     </tr>
                 </thead>
                 <tbody>
-                    {% for customer in top_customers %}
+                    {% for category in revenue_by_category %}
                         <tr class="border-b">
-                            <td class="p-3">
-                                <a href="{% url 'analytics:customer_detail' customer.id %}" class="text-blue-600 hover:underline">
-                                    {{ customer.username }}
-                                </a>
-                            </td>
-                            <td class="p-3">${{ customer.total_spent|floatformat:2|intcomma }}</td>
-                            <td class="p-3">{{ customer.order_count|intcomma }}</td>
+                            <td class="p-3">{{ category.name }}</td>
+                            <td class="p-3">${{ category.total_revenue|floatformat:2|intcomma }}</td>
                         </tr>
                     {% empty %}
                         <tr>
-                            <td colspan="3" class="p-3 text-center text-gray-500">No customer data available.</td>
+                            <td colspan="2" class="p-3 text-center text-gray-500">No category data available.</td>
                         </tr>
                     {% endfor %}
                 </tbody>

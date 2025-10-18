@@ -1,37 +1,83 @@
 {% extends 'base.html' %}
-{% load static %}
+{% load static humanize %}
 
-{% block title %}Sales Analytics - Dokan{% endblock %}
+{% block title %}Products Analytics - Dokan{% endblock %}
+
+{% block extra_css %}
+<style>
+    .stat-card {
+        background: white;
+        border-radius: 0.5rem;
+        padding: 1.5rem;
+        box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+    }
+</style>
+{% endblock %}
 
 {% block content %}
-<div class="container-fluid px-4 py-6">
-    <h1 class="text-3xl font-bold text-gray-900 mb-6">Sales Analytics</h1>
-    
-    <select id="periodSelect">
-        {% for opt in period_options %}
-        <option value="{{ opt }}" {% if period_days == opt %}selected{% endif %}>Last {{ opt }} Days</option>
-        {% endfor %}
-    </select>
+<div class="container mx-auto px-4 py-8">
+    <h1 class="text-3xl font-bold mb-8 text-center">Products Analytics</h1>
 
-    <div class="grid grid-cols-1 md:grid-cols-4 gap-6 mb-8">
-        <div class="bg-white rounded-xl border p-6">
-            <p>Total Orders</p>
-            <p class="text-2xl font-bold">{{ sales_data.orders.total_orders }}</p>
-        </div>
-        <div class="bg-white rounded-xl border p-6">
-            <p>Completed</p>
-            <p class="text-2xl font-bold">{{ sales_data.orders.completed_orders }}</p>
-        </div>
-        <div class="bg-white rounded-xl border p-6">
-            <p>Avg Order Value</p>
-            <p class="text-2xl font-bold">৳{{ sales_data.orders.avg_order_value }}</p>
-        </div>
-        <div class="bg-white rounded-xl border p-6">
-            <p>Total Revenue</p>
-            <p class="text-2xl font-bold">৳{{ sales_data.orders.total_revenue }}</p>
+    <!-- Top Products -->
+    <div class="bg-white rounded-lg shadow-sm p-6 mb-8">
+        <h2 class="text-2xl font-bold mb-4">Top Products by Sales</h2>
+        <div class="overflow-x-auto">
+            <table class="w-full text-left">
+                <thead>
+                    <tr class="bg-gray-100">
+                        <th class="p-3">Product</th>
+                        <th class="p-3">Sales Count</th>
+                        <th class="p-3">Total Revenue</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for product in top_products %}
+                        <tr class="border-b">
+                            <td class="p-3">
+                                <a href="{% url 'products:product_detail' product.slug %}" class="text-blue-600 hover:underline">
+                                    {{ product.products_name }}
+                                </a>
+                            </td>
+                            <td class="p-3">{{ product.sales_count|intcomma }}</td>
+                            <td class="p-3">${{ product.total_revenue|floatformat:2|intcomma }}</td>
+                        </tr>
+                    {% empty %}
+                        <tr>
+                            <td colspan="3" class="p-3 text-center text-gray-500">No product data available.</td>
+                        </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
         </div>
     </div>
 
-    <!-- Add charts or more details based on sales_data structure -->
+    <!-- Monthly Sales Performance -->
+    <div class="bg-white rounded-lg shadow-sm p-6">
+        <h2 class="text-2xl font-bold mb-4">Monthly Sales Performance (Last 12 Months)</h2>
+        <div class="overflow-x-auto">
+            <table class="w-full text-left">
+                <thead>
+                    <tr class="bg-gray-100">
+                        <th class="p-3">Month</th>
+                        <th class="p-3">Product</th>
+                        <th class="p-3">Sales Count</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for sale in monthly_sales %}
+                        <tr class="border-b">
+                            <td class="p-3">{{ sale.month|date:"M Y" }}</td>
+                            <td class="p-3">{{ sale.product__products_name }}</td>
+                            <td class="p-3">{{ sale.count|intcomma }}</td>
+                        </tr>
+                    {% empty %}
+                        <tr>
+                            <td colspan="3" class="p-3 text-center text-gray-500">No sales data available.</td>
+                        </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
 </div>
 {% endblock %}

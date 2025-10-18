@@ -1,69 +1,68 @@
 {% extends 'base.html' %}
-{% load static %}
+{% load static humanize %}
 
-{% block title %}Customer List - Analytics{% endblock %}
+{% block title %}Customer List - Dokan{% endblock %}
+
+{% block extra_css %}
+<style>
+    .table-container {
+        background: white;
+        border-radius: 0.5rem;
+        box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+    }
+</style>
+{% endblock %}
 
 {% block content %}
 <div class="container mx-auto px-4 py-8">
-    <h1 class="text-3xl font-bold mb-6">Customers ({{ total_customers }})</h1>
-    
-    <!-- Search/Sort Form -->
-    <form method="GET" class="mb-8 flex flex-wrap gap-4">
-        <input type="text" name="search" placeholder="Search by name or email..." value="{{ request.GET.search }}" class="p-2 border rounded flex-1 min-w-200">
-        <select name="sort" class="p-2 border rounded">
-            <option value="spent_desc" {% if request.GET.sort == 'spent_desc' %}selected{% endif %}>Highest Spent</option>
-            <option value="spent_asc" {% if request.GET.sort == 'spent_asc' %}selected{% endif %}>Lowest Spent</option>
-            <option value="orders_desc" {% if request.GET.sort == 'orders_desc' %}selected{% endif %}>Most Orders</option>
-            <option value="join_date" {% if request.GET.sort == 'join_date' %}selected{% endif %}>Join Date</option>
-        </select>
-        <button type="submit" class="bg-blue-600 text-white px-4 py-2 rounded">Filter</button>
-    </form>
-    
-    <!-- Customers Table -->
-    <div class="overflow-x-auto">
-        <table class="w-full table-auto border-collapse border border-gray-300">
-            <thead class="bg-gray-100">
-                <tr>
-                    <th class="border px-4 py-2">Name</th>
-                    <th class="border px-4 py-2">Email</th>
-                    <th class="border px-4 py-2">Phone</th>
-                    <th class="border px-4 py-2">Total Orders</th>
-                    <th class="border px-4 py-2">Lifetime Spent</th>
-                    <th class="border px-4 py-2">Joined</th>
-                    <th class="border px-4 py-2">Actions</th>
-                </tr>
-            </thead>
-            <tbody>
-                {% for customer in customers %}
-                <tr class="hover:bg-gray-50">
-                    <td class="border px-4 py-2">{{ customer.name }}</td>
-                    <td class="border px-4 py-2">{{ customer.email }}</td>
-                    <td class="border px-4 py-2">{{ customer.phone|default:'N/A' }}</td>
-                    <td class="border px-4 py-2">{{ customer.total_orders }}</td>
-                    <td class="border px-4 py-2">${{ customer.total_spent|floatformat:2 }}</td>
-                    <td class="border px-4 py-2">{{ customer.created_at|date:"M d, Y" }}</td>
-                    <td class="border px-4 py-2">
-                        <a href="{% url 'analytics:customer_detail' customer.pk %}" class="text-blue-600 hover:underline">View Details</a>
-                    </td>
-                </tr>
-                {% empty %}
-                <tr><td colspan="7" class="text-center py-4">No customers found.</td></tr>
-                {% endfor %}
-            </tbody>
-        </table>
-    </div>
-    
-    <!-- Pagination -->
-    {% if is_paginated %}
-    <div class="mt-8 flex justify-center">
-        {% if page_obj.has_previous %}
-        <a href="?page={{ page_obj.previous_page_number }}&search={{ request.GET.search }}&sort={{ request.GET.sort }}" class="px-4 py-2 bg-gray-200 rounded mr-2">&laquo; Prev</a>
-        {% endif %}
-        <span class="px-4 py-2">Page {{ page_obj.number }} of {{ paginator.num_pages }}</span>
-        {% if page_obj.has_next %}
-        <a href="?page={{ page_obj.next_page_number }}&search={{ request.GET.search }}&sort={{ request.GET.sort }}" class="px-4 py-2 bg-gray-200 rounded ml-2">Next &raquo;</a>
+    <h1 class="text-3xl font-bold mb-8 text-center">Customer List</h1>
+
+    <div class="table-container p-6">
+        <div class="overflow-x-auto">
+            <table class="w-full text-left">
+                <thead>
+                    <tr class="bg-gray-100">
+                        <th class="p-3">Customer</th>
+                        <th class="p-3">Order Count</th>
+                        <th class="p-3">Total Spent</th>
+                        <th class="p-3">Last Order</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for customer in customers %}
+                        <tr class="border-b">
+                            <td class="p-3">
+                                <a href="{% url 'analytics:customer_detail' customer.id %}" class="text-blue-600 hover:underline">
+                                    {{ customer.username }}
+                                </a>
+                            </td>
+                            <td class="p-3">{{ customer.order_count|intcomma }}</td>
+                            <td class="p-3">${{ customer.total_spent|floatformat:2|intcomma }}</td>
+                            <td class="p-3">{{ customer.last_order_date|date:"M d, Y" }}</td>
+                        </tr>
+                    {% empty %}
+                        <tr>
+                            <td colspan="4" class="p-3 text-center text-gray-500">No customers found.</td>
+                        </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+
+        <!-- Pagination -->
+        {% if is_paginated %}
+            <div class="mt-4 flex justify-center">
+                <nav class="inline-flex rounded-md shadow">
+                    {% if page_obj.has_previous %}
+                        <a href="?page={{ page_obj.previous_page_number }}" class="px-4 py-2 bg-gray-100 text-gray-700 rounded-l-md hover:bg-gray-200">Previous</a>
+                    {% endif %}
+                    <span class="px-4 py-2 bg-gray-100 text-gray-700">Page {{ page_obj.number }} of {{ paginator.num_pages }}</span>
+                    {% if page_obj.has_next %}
+                        <a href="?page={{ page_obj.next_page_number }}" class="px-4 py-2 bg-gray-100 text-gray-700 rounded-r-md hover:bg-gray-200">Next</a>
+                    {% endif %}
+                </nav>
+            </div>
         {% endif %}
     </div>
-    {% endif %}
 </div>
 {% endblock %}

@@ -1,12 +1,16 @@
-# analytics/views.py
 from django.views.generic import TemplateView, ListView, DetailView
-from django.db.models import Sum, Count, Avg, Q, F
+from django.db.models import Sum, Count, Avg, Q, Max, F, ExpressionWrapper, fields
 from django.db.models.functions import TruncDay, TruncMonth
-from django.contrib.auth.models import User
+from users.models import User
 from orders.models import Order, OrderItem
-from products.models import Product
-from datetime import timedelta
+from products.models import Product, Category
+from inventory.models import Inventory # Assuming Inventory is imported here
 from django.utils import timezone
+from datetime import timedelta
+from decimal import Decimal
+
+# Helper Expression for Available Stock (Total - Reserved)
+AVAILABLE_STOCK = F('quantity') - F('reserved_quantity')
 
 class AnalyticsDashboard(TemplateView):
     template_name = 'analytics/dashboard.html'
@@ -17,30 +21,42 @@ class AnalyticsDashboard(TemplateView):
         last_30_days = today - timedelta(days=30)
 
         # Overall stats
-        context['total_revenue'] = Order.objects.filter(status='completed').aggregate(total=Sum('total'))['total'] or 0
+        context['total_revenue'] = Order.objects.filter(order_status='confirmed').aggregate(total=Sum('total'))['total'] or 0
         context['total_orders'] = Order.objects.count()
-        context['average_order_value'] = Order.objects.filter(status='completed').aggregate(avg=Avg('total'))['avg'] or 0
+        context['average_order_value'] = Order.objects.filter(order_status='confirmed').aggregate(avg=Avg('total'))['avg'] or 0
         context['total_customers'] = User.objects.count()
 
         # Order statuses
-        context['completed_orders'] = Order.objects.filter(status='completed').count()
-        context['pending_orders'] = Order.objects.filter(status='pending').count()
-        context['processing_orders'] = Order.objects.filter(status='processing').count()
-        context['canceled_orders'] = Order.objects.filter(status='canceled').count()
-        context['on_delivery_orders'] = Order.objects.filter(status='on_delivery').count()  # Assuming 'on_delivery' status exists
+        context['confirmed_orders'] = Order.objects.filter(order_status='confirmed').count()
+        context['pending_orders'] = Order.objects.filter(order_status='pending').count()
+        context['processed_orders'] = Order.objects.filter(order_status='processed').count()
+        context['rejected_orders'] = Order.objects.filter(order_status='rejected').count()
+        context['hold_orders'] = Order.objects.filter(order_status='hold').count()
 
-        # Inventory stats
-        context['total_stock'] = Product.objects.aggregate(total=Sum('available_quantity'))['total'] or 0
-        context['in_stock_items'] = Product.objects.filter(is_in_stock=True).count()
-        context['low_stock_items'] = Product.objects.filter(available_quantity__lt=10, available_quantity__gt=0).count()  # Example threshold
-        context['out_of_stock_items'] = Product.objects.filter(available_quantity=0).count()
+        # Courier statuses
+        context['out_for_delivery_orders'] = Order.objects.filter(courier_status='out_for_delivery').count()
+        context['delivered_orders'] = Order.objects.filter(courier_status='delivered').count()
+
+        # Inventory stats (FIXED: Using F expressions for database computation)
+        inventory_qs = Inventory.objects.annotate(available_stock=AVAILABLE_STOCK)
+        
+        context['total_stock'] = inventory_qs.aggregate(total=Sum('available_stock'))['total'] or 0
+        
+        context['in_stock_items'] = inventory_qs.filter(available_stock__gt=0).count()
+        
+        context['low_stock_items'] = inventory_qs.filter(
+            available_stock__gt=0,
+            available_stock__lte=F('low_stock_threshold')
+        ).count()
+        
+        context['out_of_stock_items'] = inventory_qs.filter(available_stock__lte=0).count()
 
         # Recent activity (last 30 days)
         context['new_customers_last_30'] = User.objects.filter(date_joined__gte=last_30_days).count()
-        context['revenue_last_30'] = Order.objects.filter(status='completed', created_at__gte=last_30_days).aggregate(total=Sum('total'))['total'] or 0
+        context['revenue_last_30'] = Order.objects.filter(order_status='confirmed', created_at__gte=last_30_days).aggregate(total=Sum('total'))['total'] or 0
 
-        # Charts data (e.g., daily sales for last 30 days - JSON for Chart.js)
-        daily_sales = Order.objects.filter(status='completed', created_at__gte=last_30_days).annotate(
+        # Charts data (daily sales for last 30 days)
+        daily_sales = Order.objects.filter(order_status='confirmed', created_at__gte=last_30_days).annotate(
             day=TruncDay('created_at')
         ).values('day').annotate(total=Sum('total')).order_by('day')
         context['daily_sales_data'] = {
@@ -58,15 +74,15 @@ class SalesAnalyticsView(TemplateView):
         last_year = timezone.now().date() - timedelta(days=365)
 
         # Sales metrics
-        context['total_revenue'] = Order.objects.filter(status='completed').aggregate(total=Sum('total'))['total'] or 0
-        context['monthly_revenue'] = Order.objects.filter(status='completed', created_at__gte=last_year).annotate(
+        context['total_revenue'] = Order.objects.filter(order_status='confirmed').aggregate(total=Sum('total'))['total'] or 0
+        context['monthly_revenue'] = Order.objects.filter(order_status='confirmed', created_at__gte=last_year).annotate(
             month=TruncMonth('created_at')
         ).values('month').annotate(total=Sum('total')).order_by('month')
 
         # Top customers by spend
         context['top_customers'] = User.objects.annotate(
-            total_spent=Sum('order__total', filter=Q(order__status='completed'))
-        ).order_by('-total_spent')[:10]
+            total_spent=Sum('orders__total', filter=Q(orders__order_status='confirmed'))
+        ).order_by(F('total_spent').desc(nulls_last=True))[:10]
 
         # Charts data
         context['monthly_revenue_data'] = {
@@ -83,7 +99,7 @@ class OrdersAnalyticsView(TemplateView):
         context = super().get_context_data(**kwargs)
 
         # Order statuses breakdown
-        context['order_statuses'] = Order.objects.values('status').annotate(count=Count('id')).order_by('-count')
+        context['order_statuses'] = Order.objects.values('order_status').annotate(count=Count('id')).order_by('-count')
 
         # Orders over time
         last_30_days = timezone.now().date() - timedelta(days=30)
@@ -91,12 +107,12 @@ class OrdersAnalyticsView(TemplateView):
             day=TruncDay('created_at')
         ).values('day').annotate(count=Count('id')).order_by('day')
 
-        # Pending, processing, on delivery, confirmed, canceled
-        context['pending_orders'] = Order.objects.filter(status='pending').count()
-        context['processing_orders'] = Order.objects.filter(status='processing').count()
-        context['on_delivery_orders'] = Order.objects.filter(status='on_delivery').count()
-        context['confirmed_orders'] = Order.objects.filter(status='confirmed').count()
-        context['canceled_orders'] = Order.objects.filter(status='canceled').count()
+        # Pending, processed, hold, confirmed, rejected
+        context['pending_orders'] = Order.objects.filter(order_status='pending').count()
+        context['processed_orders'] = Order.objects.filter(order_status='processed').count()
+        context['hold_orders'] = Order.objects.filter(order_status='hold').count()
+        context['confirmed_orders'] = Order.objects.filter(order_status='confirmed').count()
+        context['rejected_orders'] = Order.objects.filter(order_status='rejected').count()
 
         # Charts data
         context['daily_orders_data'] = {
@@ -111,18 +127,40 @@ class InventoryAnalyticsView(TemplateView):
 
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
+        
+        # Calculate available stock expression on the Inventory model
+        available_stock_inv = F('quantity') - F('reserved_quantity')
 
-        # Inventory metrics
+        # Inventory metrics (FIXED: Using F expressions for database computation)
+        inventory_qs = Inventory.objects.annotate(available_stock=available_stock_inv)
+
         context['total_products'] = Product.objects.count()
-        context['total_stock'] = Product.objects.aggregate(total=Sum('available_quantity'))['total'] or 0
-        context['low_stock'] = Product.objects.filter(available_quantity__lt=10, available_quantity__gt=0).count()
-        context['out_of_stock'] = Product.objects.filter(available_quantity=0).count()
+        
+        context['total_stock'] = inventory_qs.aggregate(total=Sum('available_stock'))['total'] or 0
+        
+        # Low Stock: 0 < available_stock <= low_stock_threshold
+        context['low_stock'] = inventory_qs.filter(
+            available_stock__gt=0,
+            available_stock__lte=F('low_stock_threshold')
+        ).count()
 
-        # Top low stock products
-        context['low_stock_products'] = Product.objects.filter(available_quantity__lt=10).order_by('available_quantity')[:10]
+        # Out of Stock: available_stock <= 0
+        context['out_of_stock'] = inventory_qs.filter(available_stock__lte=0).count()
 
-        # Stock by category
-        context['stock_by_category'] = Category.objects.annotate(total_stock=Sum('product__available_quantity')).order_by('-total_stock')
+        # Top low stock products (FIXED: Query Product, Annotate with Inventory's available stock)
+        context['low_stock_products'] = Product.objects.annotate(
+            available_stock=F('inventory_reverse__quantity') - F('inventory_reverse__reserved_quantity')
+        ).filter(
+            available_stock__gt=0,
+            available_stock__lte=F('inventory_reverse__low_stock_threshold')
+        ).order_by('available_stock')[:10]
+
+        # Stock by category (FIXED: Uses F expressions to calculate total stock)
+        context['stock_by_category'] = Category.objects.annotate(
+            total_stock=Sum(
+                F('product__inventory_reverse__quantity') - F('product__inventory_reverse__reserved_quantity')
+            )
+        ).order_by(F('total_stock').desc(nulls_last=True))
 
         return context
 
@@ -133,14 +171,20 @@ class ProductsAnalyticsView(TemplateView):
         context = super().get_context_data(**kwargs)
         last_year = timezone.now().date() - timedelta(days=365)
 
-        # Top products by sales
+        # Top products by sales (FIXED: Annotating revenue on Product model via OrderItem)
         context['top_products'] = Product.objects.annotate(
-            sales_count=Count('orderitem', filter=Q(orderitem__order__status='completed')),
-            total_revenue=Sum('orderitem__order__total', filter=Q(orderitem__order__status='completed'))
-        ).order_by('-sales_count')[:10]
+            sales_count=Count(
+                'orderitem', 
+                filter=Q(orderitem__order__order_status='confirmed')
+            ),
+            total_revenue=Sum(
+                F('orderitem__quantity') * F('orderitem__price'), 
+                filter=Q(orderitem__order__order_status='confirmed')
+            )
+        ).order_by(F('sales_count').desc(nulls_last=True))[:10]
 
         # Product performance over time
-        context['monthly_sales'] = OrderItem.objects.filter(order__status='completed', order__created_at__gte=last_year).annotate(
+        context['monthly_sales'] = OrderItem.objects.filter(order__order_status='confirmed', order__created_at__gte=last_year).annotate(
             month=TruncMonth('order__created_at')
         ).values('month', 'product__products_name').annotate(count=Count('id')).order_by('month')
 
@@ -154,15 +198,18 @@ class RevenueAnalyticsView(TemplateView):
         last_year = timezone.now().date() - timedelta(days=365)
 
         # Revenue metrics
-        context['total_revenue'] = Order.objects.filter(status='completed').aggregate(total=Sum('total'))['total'] or 0
-        context['monthly_revenue'] = Order.objects.filter(status='completed', created_at__gte=last_year).annotate(
+        context['total_revenue'] = Order.objects.filter(order_status='confirmed').aggregate(total=Sum('total'))['total'] or 0
+        context['monthly_revenue'] = Order.objects.filter(order_status='confirmed', created_at__gte=last_year).annotate(
             month=TruncMonth('created_at')
         ).values('month').annotate(total=Sum('total')).order_by('month')
 
-        # Revenue by category
+        # Revenue by category (FIXED: Need to filter on OrderItem through Product)
         context['revenue_by_category'] = Category.objects.annotate(
-            total_revenue=Sum('product__orderitem__order__total', filter=Q(product__orderitem__order__status='completed'))
-        ).order_by('-total_revenue')
+            total_revenue=Sum(
+                F('products__orderitem__quantity') * F('products__orderitem__price'), 
+                filter=Q(products__orderitem__order__order_status='confirmed')
+            )
+        ).order_by(F('total_revenue').desc(nulls_last=True))
 
         # Charts data
         context['monthly_revenue_data'] = {
@@ -180,10 +227,10 @@ class CustomerListView(ListView):
 
     def get_queryset(self):
         queryset = User.objects.annotate(
-            order_count=Count('order'),
-            total_spent=Sum('order__total', filter=Q(order__status='completed')),
-            last_order_date=Max('order__created_at')
-        ).order_by('-total_spent')
+            order_count=Count('orders'),
+            total_spent=Sum('orders__total', filter=Q(orders__order_status='confirmed')),
+            last_order_date=Max('orders__created_at')
+        ).order_by(F('total_spent').desc(nulls_last=True))
         return queryset
 
 class CustomerDetailView(DetailView):
@@ -197,11 +244,16 @@ class CustomerDetailView(DetailView):
 
         # Customer history
         context['orders'] = Order.objects.filter(user=customer).order_by('-created_at')
-        context['total_spent'] = context['orders'].filter(status='completed').aggregate(total=Sum('total'))['total'] or 0
+        context['total_spent'] = context['orders'].filter(order_status='confirmed').aggregate(total=Sum('total'))['total'] or 0
         context['order_count'] = context['orders'].count()
+        
+        # Favorite products (FIXED: use OrderItem)
         context['favorite_products'] = Product.objects.filter(orderitem__order__user=customer).annotate(
-            purchase_count=Count('orderitem')
-        ).order_by('-purchase_count')[:5]
+            purchase_count=Sum(
+                'orderitem__quantity', 
+                filter=Q(orderitem__order__order_status='confirmed')
+            )
+        ).order_by(F('purchase_count').desc(nulls_last=True))[:5]
 
         # Recent activity
         last_30_days = timezone.now().date() - timedelta(days=30)

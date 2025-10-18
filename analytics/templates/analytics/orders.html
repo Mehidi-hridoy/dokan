@@ -1,0 +1,126 @@
+{% extends 'base.html' %}
+{% load static humanize %}
+
+{% block title %}Orders Analytics - Dokan{% endblock %}
+
+{% block extra_css %}
+<style>
+    .stat-card {
+        background: white;
+        border-radius: 0.5rem;
+        padding: 1.5rem;
+        box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+    }
+    .chart-container {
+        max-width: 100%;
+        height: 300px;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container mx-auto px-4 py-8">
+    <h1 class="text-3xl font-bold mb-8 text-center">Orders Analytics</h1>
+
+    <!-- Order Statuses -->
+    <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6 mb-8">
+        <div class="stat-card">
+            <h3 class="text-lg font-semibold text-gray-700">Pending Orders</h3>
+            <p class="text-2xl font-bold text-yellow-600">{{ pending_orders|intcomma }}</p>
+        </div>
+        <div class="stat-card">
+            <h3 class="text-lg font-semibold text-gray-700">Processing Orders</h3>
+            <p class="text-2xl font-bold text-orange-600">{{ processing_orders|intcomma }}</p>
+        </div>
+        <div class="stat-card">
+            <h3 class="text-lg font-semibold text-gray-700">On Delivery Orders</h3>
+            <p class="text-2xl font-bold text-blue-600">{{ on_delivery_orders|intcomma }}</p>
+        </div>
+        <div class="stat-card">
+            <h3 class="text-lg font-semibold text-gray-700">Confirmed Orders</h3>
+            <p class="text-2xl font-bold text-green-600">{{ confirmed_orders|intcomma }}</p>
+        </div>
+        <div class="stat-card">
+            <h3 class="text-lg font-semibold text-gray-700">Canceled Orders</h3>
+            <p class="text-2xl font-bold text-red-600">{{ canceled_orders|intcomma }}</p>
+        </div>
+    </div>
+
+    <!-- Order Status Breakdown -->
+    <div class="bg-white rounded-lg shadow-sm p-6 mb-8">
+        <h2 class="text-2xl font-bold mb-4">Order Status Breakdown</h2>
+        <div class="overflow-x-auto">
+            <table class="w-full text-left">
+                <thead>
+                    <tr class="bg-gray-100">
+                        <th class="p-3">Status</th>
+                        <th class="p-3">Count</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for status in order_statuses %}
+                        <tr class="border-b">
+                            <td class="p-3">{{ status.status|title }}</td>
+                            <td class="p-3">{{ status.count|intcomma }}</td>
+                        </tr>
+                    {% empty %}
+                        <tr>
+                            <td colspan="2" class="p-3 text-center text-gray-500">No order data available.</td>
+                        </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+    <!-- Daily Orders Chart -->
+    <div class="bg-white rounded-lg shadow-sm p-6">
+        <h2 class="text-2xl font-bold mb-4">Daily Orders (Last 30 Days)</h2>
+        <div class="chart-container">
+            ```chartjs
+            {
+                "type": "bar",
+                "data": {
+                    "labels": {{ daily_orders_data.labels|safe }},
+                    "datasets": [{
+                        "label": "Daily Orders",
+                        "data": {{ daily_orders_data.data|safe }},
+                        "backgroundColor": "#2563eb",
+                        "borderColor": "#1e40af",
+                        "borderWidth": 1
+                    }]
+                },
+                "options": {
+                    "responsive": true,
+                    "maintainAspectRatio": false,
+                    "scales": {
+                        "y": {
+                            "beginAtZero": true,
+                            "title": {
+                                "display": true,
+                                "text": "Number of Orders"
+                            }
+                        },
+                        "x": {
+                            "title": {
+                                "display": true,
+                                "text": "Date"
+                            }
+                        }
+                    }
+                }
+            }
+            ```
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+    $(document).ready(function() {
+        const ctx = document.querySelector('.chart-container canvas').getContext('2d');
+        new Chart(ctx, {{ daily_orders_data|safe }});
+    });
+</script>
+{% endblock %}

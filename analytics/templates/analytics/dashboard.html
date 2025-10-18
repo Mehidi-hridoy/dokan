@@ -1,45 +1,146 @@
 {% extends 'base.html' %}
+{% load humanize %}
 
 {% block title %}Analytics Dashboard{% endblock %}
 
 {% block content %}
 <div class="container mx-auto px-4 py-8">
-    <h1 class="text-3xl font-bold mb-8">Analytics Dashboard</h1>
-    
-    <div class="grid grid-cols-1 md:grid-cols-4 gap-6 mb-8">
-        <div class="bg-white p-6 rounded shadow"><h3 class="font-semibold">Total Revenue</h3><p class="text-2xl">${{ total_revenue|floatformat:2 }}</p></div>
-        <div class="bg-white p-6 rounded shadow"><h3 class="font-semibold">Total Orders</h3><p class="text-2xl">{{ total_orders }}</p></div>
-        <div class="bg-white p-6 rounded shadow"><h3 class="font-semibold">Low Stock</h3><p class="text-2xl">{{ low_stock_count }}</p></div>
-        <div class="bg-white p-6 rounded shadow"><h3 class="font-semibold">Active Customers</h3><p class="text-2xl">{{ active_customers }}</p></div>
-    </div>
-    
-    <div class="bg-white p-6 rounded shadow mb-8">
-        <h2 class="text-xl font-bold mb-4">Revenue Trend</h2>
-        <canvas id="revenueChart" height="200"></canvas>
-    </div>
-    
-    <div class="grid grid-cols-1 md:grid-cols-2 gap-6 mb-8">
-        <div class="bg-white p-6 rounded shadow">
-            <h2 class="text-xl font-bold mb-4">Top Products</h2>
-            <table class="w-full"><thead><tr><th>Name</th><th>Sales</th></tr></thead><tbody>{% for p in top_products %}<tr><td>{{ p.products_name }}</td><td>{{ p.sales_count }}</td></tr>{% endfor %}</tbody></table>
+    <h1 class="text-3xl font-bold text-gray-800 mb-6">Store Dashboard Analytics</h1>
+
+    <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
+        
+        <div class="bg-white p-6 rounded-lg shadow-lg border-l-4 border-blue-500">
+            <div class="flex items-center justify-between">
+                <p class="text-sm font-medium text-gray-500">Total Revenue</p>
+                <i class="fas fa-dollar-sign text-blue-500"></i>
+            </div>
+            <p class="text-2xl font-bold text-gray-900 mt-1">${{ total_revenue|floatformat:2|intcomma }}</p>
         </div>
-        <div class="bg-white p-6 rounded shadow">
-            <h2 class="text-xl font-bold mb-4">Inventory Status</h2>
-            <canvas id="inventoryPie" height="200"></canvas>
+
+        <div class="bg-white p-6 rounded-lg shadow-lg border-l-4 border-green-500">
+            <div class="flex items-center justify-between">
+                <p class="text-sm font-medium text-gray-500">Total Orders</p>
+                <i class="fas fa-shopping-cart text-green-500"></i>
+            </div>
+            <p class="text-2xl font-bold text-gray-900 mt-1">{{ total_orders|intcomma }}</p>
+        </div>
+
+        <div class="bg-white p-6 rounded-lg shadow-lg border-l-4 border-yellow-500">
+            <div class="flex items-center justify-between">
+                <p class="text-sm font-medium text-gray-500">Total Customers</p>
+                <i class="fas fa-users text-yellow-500"></i>
+            </div>
+            <p class="text-2xl font-bold text-gray-900 mt-1">{{ total_customers|intcomma }}</p>
+        </div>
+
+        <div class="bg-white p-6 rounded-lg shadow-lg border-l-4 border-red-500">
+            <div class="flex items-center justify-between">
+                <p class="text-sm font-medium text-gray-500">Average Order Value</p>
+                <i class="fas fa-chart-line text-red-500"></i>
+            </div>
+            <p class="text-2xl font-bold text-gray-900 mt-1">${{ average_order_value|floatformat:2 }}</p>
+        </div>
+    </div>
+
+    <div class="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-8">
+        <div class="lg:col-span-2 bg-white p-6 rounded-lg shadow-xl">
+            <h2 class="text-xl font-semibold text-gray-700 mb-4">Daily Revenue (Last 30 Days)</h2>
+            <div class="h-80">
+                <canvas id="dailySalesChart"></canvas>
+            </div>
+        </div>
+
+        <div class="lg:col-span-1 space-y-4">
+            <div class="bg-gray-50 p-4 rounded-lg shadow border">
+                <p class="text-lg font-semibold text-gray-700 mb-2">30-Day Snapshot</p>
+                <div class="flex justify-between items-center text-sm py-1 border-b">
+                    <span class="text-gray-600">New Customers:</span>
+                    <span class="font-medium text-green-600">{{ new_customers_last_30|intcomma }}</span>
+                </div>
+                <div class="flex justify-between items-center text-sm py-1">
+                    <span class="text-gray-600">Revenue:</span>
+                    <span class="font-medium text-blue-600">${{ revenue_last_30|floatformat:2|intcomma }}</span>
+                </div>
+            </div>
+
+            <div class="bg-white p-4 rounded-lg shadow">
+                <p class="text-lg font-semibold text-gray-700 mb-2">Order Statuses</p>
+                <div class="space-y-1 text-sm">
+                    <p>Confirmed: <span class="float-right text-green-600 font-medium">{{ confirmed_orders|intcomma }}</span></p>
+                    <p>Pending: <span class="float-right text-yellow-600 font-medium">{{ pending_orders|intcomma }}</span></p>
+                    <p>Processed: <span class="float-right text-blue-600 font-medium">{{ processed_orders|intcomma }}</span></p>
+                    <p>Hold: <span class="float-right text-gray-600 font-medium">{{ hold_orders|intcomma }}</span></p>
+                    <p>Rejected: <span class="float-right text-red-600 font-medium">{{ rejected_orders|intcomma }}</span></p>
+                </div>
+            </div>
         </div>
     </div>
     
-    <div class="bg-white p-6 rounded shadow">
-        <h2 class="text-xl font-bold mb-4">Recent Orders</h2>
-        <table class="w-full"><thead><tr><th>#</th><th>Customer</th><th>Total</th><th>Status</th></tr></thead><tbody>{% for o in recent_orders %}<tr><td>{{ o.order_number }}</td><td>{{ o.customer_name }}</td><td>${{ o.total }}</td><td>{{ o.get_order_status_display }}</td></tr>{% endfor %}</tbody></table>
+    <div class="bg-white p-6 rounded-lg shadow-xl">
+        <h2 class="text-xl font-semibold text-gray-700 mb-4">Inventory Summary</h2>
+        <div class="grid grid-cols-4 text-center border-t border-b py-3 text-sm font-medium">
+            <p>Total Stock: <span class="block text-xl text-gray-800">{{ total_stock|intcomma }}</span></p>
+            <p>In Stock Items: <span class="block text-xl text-green-600">{{ in_stock_items|intcomma }}</span></p>
+            <p>Low Stock Items: <span class="block text-xl text-yellow-600">{{ low_stock_items|intcomma }}</span></p>
+            <p>Out of Stock Items: <span class="block text-xl text-red-600">{{ out_of_stock_items|intcomma }}</span></p>
+        </div>
     </div>
+
 </div>
 {% endblock %}
 
 {% block extra_js %}
 <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 <script>
-new Chart('revenueChart', {type: 'line', data: {labels: {{ revenue_dates|safe }}, datasets: [{label: 'Revenue', data: {{ revenue_values|safe }} }]}});
-new Chart('inventoryPie', {type: 'pie', data: {labels: ['In Stock', 'Low', 'Out'], datasets: [{data: [{{ in_stock_count }}, {{ low_stock_count }}, {{ out_of_stock_count }}]}]}});
+document.addEventListener('DOMContentLoaded', function() {
+    const dailySalesData = {{ daily_sales_data|safe }};
+    
+    // --- Daily Sales Chart ---
+    const ctxSales = document.getElementById('dailySalesChart').getContext('2d');
+    new Chart(ctxSales, {
+        type: 'line',
+        data: {
+            labels: dailySalesData.labels,
+            datasets: [{
+                label: 'Revenue ($)',
+                data: dailySalesData.data,
+                borderColor: 'rgba(59, 130, 246, 1)', // blue-500
+                backgroundColor: 'rgba(59, 130, 246, 0.2)',
+                borderWidth: 2,
+                tension: 0.4,
+                fill: true,
+            }]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            scales: {
+                y: {
+                    beginAtZero: true,
+                    title: {
+                        display: true,
+                        text: 'Revenue ($)'
+                    }
+                },
+                x: {
+                    title: {
+                        display: true,
+                        text: 'Date'
+                    }
+                }
+            },
+            plugins: {
+                legend: { display: false },
+                tooltip: {
+                    callbacks: {
+                        label: function(context) {
+                            return 'Revenue: $' + context.parsed.y.toFixed(2).replace(/\B(?=(\d{3})+(?!\d))/g, ",");
+                        }
+                    }
+                }
+            }
+        }
+    });
+});
 </script>
 {% endblock %}

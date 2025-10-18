@@ -17,27 +17,35 @@ from django.http import JsonResponse
 from .models import Order, OrderItem
 from users.models import User
 
+from decimal import Decimal
+from orders.models import Order
+
 def _get_user_order(request):
-    """Get or create a single pending order for authenticated user (no items)."""
-    if request.user.is_authenticated:
-        order = Order.objects.filter(
+    """Get or create a single pending order for an authenticated user."""
+    if not request.user.is_authenticated:
+        return None
+
+    # Try to get an existing pending order
+    order = Order.objects.filter(
+        user=request.user,
+        order_status='pending'
+    ).order_by('-created_at').first()
+
+    if not order:
+        # Create a new order for the authenticated user
+        order = Order.objects.create(
             user=request.user,
-            order_status='pending'
-        ).order_by('-created_at').first()
-        if not order:
-            customer, _ = User.objects.get_or_create(
-                user=request.user,
-                defaults={'name': request.user.get_full_name() or request.user.username, 'email': request.user.email}
-            )
-            order = Order.objects.create(
-                user=request.user,
-                customer=customer,
-                order_status='pending',
-                subtotal=Decimal('0.00'),
-                total=Decimal('0.00')
-            )
-        return order
-    return None
+            order_status='pending',
+            subtotal=Decimal('0.00'),
+            total=Decimal('0.00'),
+            customer_name=request.user.get_full_name() or request.user.username,
+            email=request.user.email,
+            phone_number=getattr(request.user, 'phone_number', None)
+        )
+
+    return order
+
+
 
 def _get_session_cart(request):
     """Get cart items from session for anonymous users."""
@@ -90,34 +98,27 @@ def thank_you(request, order_id):
 
 def checkout(request):
     """Handle checkout form submission and create/update an order."""
-    if request.user.is_authenticated:
-        order = _get_user_order(request)
-        cart_items, cart_total = _get_session_cart(request)
-    else:
-        cart_items, cart_total = _get_session_cart(request)
-        order = None
-
+    
+    # Get cart from session
+    cart_items, cart_total = _get_session_cart(request)
     if not cart_items:
         messages.error(request, "Your cart is empty.")
         return redirect('products:product_list')
+
+    # Get or create order for logged-in user
+    if request.user.is_authenticated:
+        order = _get_user_order(request)
+    else:
+        order = None
 
     if request.method == 'POST':
         shipping_address = request.POST.get('shipping_address')
         email = request.POST.get('email') if not request.user.is_authenticated else None
         phone_number = request.POST.get('phone_number') if not request.user.is_authenticated else None
-        customer_name = request.POST.get('customer_name') if not request.user.is_authenticated else None
+        customer_name = request.POST.get('customer_name') if not request.user.is_authenticated else "Guest"
 
-        # Validate inputs
         if not shipping_address:
             messages.error(request, "Shipping address is required.")
-            return render(request, 'orders/checkout.html', {
-                'cart_items': cart_items,
-                'cart_total': cart_total,
-                'cart_count': sum(item['quantity'] for item in cart_items),
-            })
-
-        if not request.user.is_authenticated and not (email and customer_name):
-            messages.error(request, "Name and email are required for guest checkout.")
             return render(request, 'orders/checkout.html', {
                 'cart_items': cart_items,
                 'cart_total': cart_total,
@@ -127,27 +128,22 @@ def checkout(request):
         # Create or update order
         if request.user.is_authenticated:
             order.subtotal = cart_total
-            order.total = cart_total  # Add tax/shipping/discount if needed
+            order.total = cart_total
             order.shipping_address = shipping_address
             order.save()
         else:
-            customer, _ = User.objects.get_or_create(
-                email=email,
-                defaults={'name': customer_name, 'phone': phone_number}
-            )
             order = Order.objects.create(
                 user=None,
-                customer=customer,
-                order_status='pending',
-                subtotal=cart_total,
-                total=cart_total,
-                shipping_address=shipping_address,
                 customer_name=customer_name,
                 email=email,
-                phone_number=phone_number
+                phone_number=phone_number,
+                shipping_address=shipping_address,
+                order_status='pending',
+                subtotal=cart_total,
+                total=cart_total
             )
 
-        # Clear existing items for authenticated users
+        # Clear existing items
         if request.user.is_authenticated:
             order.items.all().delete()
 
@@ -163,11 +159,7 @@ def checkout(request):
         request.session['cart'] = {}
         request.session.modified = True
 
-        # Store guest order ID
-        if not request.user.is_authenticated:
-            request.session['guest_order_id'] = order.id
-            request.session.modified = True
-
+        # Redirect to thank you page with order id
         messages.success(request, f"Order {order.order_number} placed successfully!")
         return redirect('orders:thank_you', order_id=order.id)
 

@@ -1,0 +1,101 @@
+{% extends 'base.html' %}
+{% load static humanize %}
+
+{% block title %}Inventory Analytics - Dokan{% endblock %}
+
+{% block extra_css %}
+<style>
+    .stat-card {
+        background: white;
+        border-radius: 0.5rem;
+        padding: 1.5rem;
+        box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container mx-auto px-4 py-8">
+    <h1 class="text-3xl font-bold mb-8 text-center">Inventory Analytics</h1>
+
+    <!-- Inventory Metrics -->
+    <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
+        <div class="stat-card">
+            <h3 class="text-lg font-semibold text-gray-700">Total Products</h3>
+            <p class="text-2xl font-bold text-gray-600">{{ total_products|intcomma }}</p>
+        </div>
+        <div class="stat-card">
+            <h3 class="text-lg font-semibold text-gray-700">Total Stock</h3>
+            <p class="text-2xl font-bold text-gray-600">{{ total_stock|intcomma }}</p>
+        </div>
+        <div class="stat-card">
+            <h3 class="text-lg font-semibold text-gray-700">Low Stock Items</h3>
+            <p class="text-2xl font-bold text-yellow-600">{{ low_stock|intcomma }}</p>
+        </div>
+        <div class="stat-card">
+            <h3 class="text-lg font-semibold text-gray-700">Out of Stock Items</h3>
+            <p class="text-2xl font-bold text-red-600">{{ out_of_stock|intcomma }}</p>
+        </div>
+    </div>
+
+    <!-- Low Stock Products -->
+    <div class="bg-white rounded-lg shadow-sm p-6 mb-8">
+        <h2 class="text-2xl font-bold mb-4">Low Stock Products</h2>
+        <div class="overflow-x-auto">
+            <table class="w-full text-left">
+                <thead>
+                    <tr class="bg-gray-100">
+                        <th class="p-3">Product</th>
+                        <th class="p-3">Quantity</th>
+                        <th class="p-3">Category</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for product in low_stock_products %}
+                        <tr class="border-b">
+                            <td class="p-3">
+                                <a href="{% url 'products:product_detail' product.slug %}" class="text-blue-600 hover:underline">
+                                    {{ product.products_name }}
+                                </a>
+                            </td>
+                            <td class="p-3">{{ product.available_quantity|intcomma }}</td>
+                            <td class="p-3">{{ product.category.name }}</td>
+                        </tr>
+                    {% empty %}
+                        <tr>
+                            <td colspan="3" class="p-3 text-center text-gray-500">No low stock products.</td>
+                        </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+    <!-- Stock by Category -->
+    <div class="bg-white rounded-lg shadow-sm p-6">
+        <h2 class="text-2xl font-bold mb-4">Stock by Category</h2>
+        <div class="overflow-x-auto">
+            <table class="w-full text-left">
+                <thead>
+                    <tr class="bg-gray-100">
+                        <th class="p-3">Category</th>
+                        <th class="p-3">Total Stock</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for category in stock_by_category %}
+                        <tr class="border-b">
+                            <td class="p-3">{{ category.name }}</td>
+                            <td class="p-3">{{ category.total_stock|intcomma }}</td>
+                        </tr>
+                    {% empty %}
+                        <tr>
+                            <td colspan="2" class="p-3 text-center text-gray-500">No category data available.</td>
+                        </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+{% endblock %}
