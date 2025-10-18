@@ -15,7 +15,7 @@ from django.utils import timezone
 from products.views import calculate_discount
 from django.http import JsonResponse
 from .models import Order, OrderItem
-from analytics.models import Customer
+from users.models import User
 
 def _get_user_order(request):
     """Get or create a single pending order for authenticated user (no items)."""
@@ -25,7 +25,7 @@ def _get_user_order(request):
             order_status='pending'
         ).order_by('-created_at').first()
         if not order:
-            customer, _ = Customer.objects.get_or_create(
+            customer, _ = User.objects.get_or_create(
                 user=request.user,
                 defaults={'name': request.user.get_full_name() or request.user.username, 'email': request.user.email}
             )
@@ -131,7 +131,7 @@ def checkout(request):
             order.shipping_address = shipping_address
             order.save()
         else:
-            customer, _ = Customer.objects.get_or_create(
+            customer, _ = User.objects.get_or_create(
                 email=email,
                 defaults={'name': customer_name, 'phone': phone_number}
             )

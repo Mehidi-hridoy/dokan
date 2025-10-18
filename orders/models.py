@@ -1,7 +1,6 @@
 # orders/models.py
 from django.db import models
 from django.conf import settings
-from analytics.models import Customer
 from django.db.models.signals import post_save
 from django.dispatch import receiver
 from decimal import Decimal
@@ -71,17 +70,10 @@ PAYMENT_METHOD_CHOICES = [
 
 class Order(models.Model):
     # Basic Information
-    user = models.ForeignKey(
-        settings.AUTH_USER_MODEL, on_delete=models.CASCADE, blank=True, null=True,
+    user = models.ForeignKey(User, on_delete=models.CASCADE, blank=True, null=True,
         related_name='orders'
     )
-    
-    # Customer relationship - This is the main customer link
-    customer = models.ForeignKey(
-        'analytics.Customer',  # String reference
-        on_delete=models.SET_NULL, null=True,  blank=True,
-        related_name='orders'  # This allows Customer.orders.all() without import
-    )
+
     assigned_staff = models.ForeignKey(
         settings.AUTH_USER_MODEL,
         on_delete=models.SET_NULL,
@@ -152,7 +144,7 @@ class Order(models.Model):
             models.Index(fields=['created_at']),
             models.Index(fields=['delivery_area']),
             models.Index(fields=['assigned_staff']),
-            models.Index(fields=['customer']),
+            models.Index(fields=['user']),
         ]
 
     def save(self, *args, **kwargs):
@@ -164,24 +156,24 @@ class Order(models.Model):
             self.total = self.subtotal + self.tax_amount + self.shipping_cost - self.discount_amount
         
         # Auto-populate customer information from Customer model if available
-        if self.customer:
-            if not self.customer_name:
-                self.customer_name = self.customer.name
+        if self.user:
+            if not self.user_name:
+                self.user_name = self.user.name
             if not self.email:
-                self.email = self.customer.email
+                self.email = self.user.email
             if not self.phone_number:
-                self.phone_number = self.customer.phone
+                self.phone_number = self.user.phone
         
         super().save(*args, **kwargs)
 
     def get_customer_display(self):
         """Get customer display name with fallback"""
-        if self.customer:
-            return self.customer.name  # Changed from display_name to name (safe)
-        return self.customer_name or "Unknown Customer"
+        if self.user:
+            return self.user.name  # Changed from display_name to name (safe)
+        return self.user_name or "Unknown User"
 
     def __str__(self):
-        return f"Order {self.order_number} - {self.get_customer_display()} ({self.get_order_status_display()})"
+        return f"Order {self.order_number} - {self.user.get_full_name()} ({self.get_order_status_display()})"
 
 
 

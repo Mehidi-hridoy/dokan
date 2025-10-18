@@ -1,213 +1,210 @@
 # analytics/views.py
-from django.views.generic import TemplateView
-from django.db.models import Sum, Count, Q, Avg
-from django.utils import timezone
-from django.core.serializers.json import DjangoJSONEncoder
-import json
-from datetime import timedelta
-from orders.models import ORDER_STATUS_CHOICES
-from orders.models import Order
-from inventory.models import Inventory
+from django.views.generic import TemplateView, ListView, DetailView
+from django.db.models import Sum, Count, Avg, Q, F
+from django.db.models.functions import TruncDay, TruncMonth
+from django.contrib.auth.models import User
+from orders.models import Order, OrderItem
 from products.models import Product
-from users.models import User  # Assuming Customer is User or extend
-# analytics/views.py
-from django.views.generic import ListView, DetailView
-from django.db.models import Q, Sum
-from django.shortcuts import render
-from .models import Customer
-from orders.models import Order  # For detail view orders
+from datetime import timedelta
+from django.utils import timezone
 
-
-
-class BaseAnalyticsView(TemplateView):
-    """Base for common data."""
-    def get_context_data(self, **kwargs):
-        context = super().get_context_data(**kwargs)
-        # Common: Last 30 days filter
-        end_date = timezone.now().date()
-        start_date = end_date - timedelta(days=30)
-        context['date_range'] = {'start': start_date, 'end': end_date}
-        return context
-
-class AnalyticsDashboard(BaseAnalyticsView):
+class AnalyticsDashboard(TemplateView):
     template_name = 'analytics/dashboard.html'
 
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
-        orders = Order.objects.filter(order_status__in=['processed', 'delivered'])
-        context['total_revenue'] = orders.aggregate(Sum('total'))['total__sum'] or 0
-        context['total_orders'] = orders.count()
-        context['low_stock_count'] = Inventory.objects.low_stock().count()
-        context['out_of_stock_count'] = Inventory.objects.out_of_stock().count()
-        context['active_customers'] = User.objects.filter(order__order_status='processed').distinct().count()
+        today = timezone.now().date()
+        last_30_days = today - timedelta(days=30)
 
-        # Revenue trend
-        revenue_trend = orders.filter(created_at__date__gte=context['date_range']['start']) \
-            .extra({'day': 'date(created_at)'}).values('day').annotate(revenue=Sum('total')).order_by('day')
-        context['revenue_dates'] = json.dumps([item['day'].strftime('%Y-%m-%d') for item in revenue_trend], cls=DjangoJSONEncoder)
-        context['revenue_values'] = json.dumps([float(item['revenue'] or 0) for item in revenue_trend], cls=DjangoJSONEncoder)
+        # Overall stats
+        context['total_revenue'] = Order.objects.filter(status='completed').aggregate(total=Sum('total'))['total'] or 0
+        context['total_orders'] = Order.objects.count()
+        context['average_order_value'] = Order.objects.filter(status='completed').aggregate(avg=Avg('total'))['avg'] or 0
+        context['total_customers'] = User.objects.count()
 
-        # Top products (by order associations; placeholder)
-        context['top_products'] = Product.objects.annotate(sales_count=Count('order')).order_by('-sales_count')[:5]
+        # Order statuses
+        context['completed_orders'] = Order.objects.filter(status='completed').count()
+        context['pending_orders'] = Order.objects.filter(status='pending').count()
+        context['processing_orders'] = Order.objects.filter(status='processing').count()
+        context['canceled_orders'] = Order.objects.filter(status='canceled').count()
+        context['on_delivery_orders'] = Order.objects.filter(status='on_delivery').count()  # Assuming 'on_delivery' status exists
 
-        # Recent orders
-        context['recent_orders'] = Order.objects.order_by('-created_at')[:5]
+        # Inventory stats
+        context['total_stock'] = Product.objects.aggregate(total=Sum('available_quantity'))['total'] or 0
+        context['in_stock_items'] = Product.objects.filter(is_in_stock=True).count()
+        context['low_stock_items'] = Product.objects.filter(available_quantity__lt=10, available_quantity__gt=0).count()  # Example threshold
+        context['out_of_stock_items'] = Product.objects.filter(available_quantity=0).count()
 
-        # Inventory pie
-        context['in_stock_count'] = Inventory.objects.in_stock().count()
+        # Recent activity (last 30 days)
+        context['new_customers_last_30'] = User.objects.filter(date_joined__gte=last_30_days).count()
+        context['revenue_last_30'] = Order.objects.filter(status='completed', created_at__gte=last_30_days).aggregate(total=Sum('total'))['total'] or 0
+
+        # Charts data (e.g., daily sales for last 30 days - JSON for Chart.js)
+        daily_sales = Order.objects.filter(status='completed', created_at__gte=last_30_days).annotate(
+            day=TruncDay('created_at')
+        ).values('day').annotate(total=Sum('total')).order_by('day')
+        context['daily_sales_data'] = {
+            'labels': [item['day'].strftime('%Y-%m-%d') for item in daily_sales],
+            'data': [float(item['total']) for item in daily_sales],
+        }
+
         return context
 
-class SalesAnalyticsView(BaseAnalyticsView):
+class SalesAnalyticsView(TemplateView):
     template_name = 'analytics/sales.html'
 
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
-        start = self.request.GET.get('start_date', context['date_range']['start'])
-        end = self.request.GET.get('end_date', context['date_range']['end'])
-        orders = Order.objects.filter(created_at__date__range=[start, end], order_status__in=['processed', 'delivered'])
+        last_year = timezone.now().date() - timedelta(days=365)
 
-        context['total_sales'] = orders.count()
-        context['avg_order_value'] = orders.aggregate(Avg('total'))['total__avg	j'] or 0
-        context['top_products'] = Product.objects.annotate(sales_count=Count('order'), revenue=Sum('order__total')).order_by('-sales_count')[:10]
+        # Sales metrics
+        context['total_revenue'] = Order.objects.filter(status='completed').aggregate(total=Sum('total'))['total'] or 0
+        context['monthly_revenue'] = Order.objects.filter(status='completed', created_at__gte=last_year).annotate(
+            month=TruncMonth('created_at')
+        ).values('month').annotate(total=Sum('total')).order_by('month')
 
-        # Sales trend (bar)
-        sales_trend = orders.extra({'day': 'date(created_at)'}).values('day').annotate(sales=Count('id')).order_by('day')
-        context['sales_dates'] = json.dumps([item['day'].strftime('%Y-%m-%d') for item in sales_trend], cls=DjangoJSONEncoder)
-        context['sales_values'] = json.dumps([item['sales'] for item in sales_trend], cls=DjangoJSONEncoder)
+        # Top customers by spend
+        context['top_customers'] = User.objects.annotate(
+            total_spent=Sum('order__total', filter=Q(order__status='completed'))
+        ).order_by('-total_spent')[:10]
 
-        context['top_product'] = context['top_products'].first()
+        # Charts data
+        context['monthly_revenue_data'] = {
+            'labels': [item['month'].strftime('%b %Y') for item in context['monthly_revenue']],
+            'data': [float(item['total']) for item in context['monthly_revenue']],
+        }
+
         return context
 
-class OrdersAnalyticsView(BaseAnalyticsView):
+class OrdersAnalyticsView(TemplateView):
     template_name = 'analytics/orders.html'
 
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
-        status = self.request.GET.get('status')
-        orders = Order.objects.all()
-        if status:
-            orders = orders.filter(order_status=status)
 
-        context['order_status_choices'] = Order.ORDER_STATUS
-        context['pending_count'] = Order.objects.filter(order_status='pending').count()
-        context['processed_count'] = Order.objects.filter(order_status='processed').count()
-        context['delivered_count'] = Order.objects.filter(order_status='delivered').count()
-        context['cancelled_count'] = Order.objects.filter(order_status='cancelled').count()
+        # Order statuses breakdown
+        context['order_statuses'] = Order.objects.values('status').annotate(count=Count('id')).order_by('-count')
 
-        # Status pie
-        status_data = orders.values('order_status').annotate(count=Count('id'))
-        context['status_labels'] = json.dumps([dict(Order.ORDER_STATUS).get(s['order_status'], s['order_status']) for s in status_data], cls=DjangoJSONEncoder)
-        context['status_values'] = json.dumps([s['count'] for s in status_data], cls=DjangoJSONEncoder)
+        # Orders over time
+        last_30_days = timezone.now().date() - timedelta(days=30)
+        context['daily_orders'] = Order.objects.filter(created_at__gte=last_30_days).annotate(
+            day=TruncDay('created_at')
+        ).values('day').annotate(count=Count('id')).order_by('day')
 
-        context['recent_orders'] = orders.order_by('-created_at')[:10]
+        # Pending, processing, on delivery, confirmed, canceled
+        context['pending_orders'] = Order.objects.filter(status='pending').count()
+        context['processing_orders'] = Order.objects.filter(status='processing').count()
+        context['on_delivery_orders'] = Order.objects.filter(status='on_delivery').count()
+        context['confirmed_orders'] = Order.objects.filter(status='confirmed').count()
+        context['canceled_orders'] = Order.objects.filter(status='canceled').count()
+
+        # Charts data
+        context['daily_orders_data'] = {
+            'labels': [item['day'].strftime('%Y-%m-%d') for item in context['daily_orders']],
+            'data': [item['count'] for item in context['daily_orders']],
+        }
+
         return context
 
-class InventoryAnalyticsView(BaseAnalyticsView):
+class InventoryAnalyticsView(TemplateView):
     template_name = 'analytics/inventory.html'
 
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
-        inv = Inventory.objects.select_related('product')
-        context['total_items'] = inv.count()
-        context['low_stock_count'] = inv.low_stock().count()
-        context['out_of_stock_count'] = inv.out_of_stock().count()
-        context['total_stock_value'] = sum(i.available_quantity * i.product.current_price for i in inv if i.product.current_price) or 0
 
-        # Pie data
-        context['stock_data'] = json.dumps({
-            'in': inv.in_stock().count(),
-            'low': context['low_stock_count'],
-            'out': context['out_of_stock_count']
-        }, cls=DjangoJSONEncoder)
+        # Inventory metrics
+        context['total_products'] = Product.objects.count()
+        context['total_stock'] = Product.objects.aggregate(total=Sum('available_quantity'))['total'] or 0
+        context['low_stock'] = Product.objects.filter(available_quantity__lt=10, available_quantity__gt=0).count()
+        context['out_of_stock'] = Product.objects.filter(available_quantity=0).count()
 
-        context['low_stock_items'] = inv.low_stock()[:10]
+        # Top low stock products
+        context['low_stock_products'] = Product.objects.filter(available_quantity__lt=10).order_by('available_quantity')[:10]
+
+        # Stock by category
+        context['stock_by_category'] = Category.objects.annotate(total_stock=Sum('product__available_quantity')).order_by('-total_stock')
+
         return context
 
-class ProductsAnalyticsView(BaseAnalyticsView):
+class ProductsAnalyticsView(TemplateView):
     template_name = 'analytics/products.html'
 
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
-        products = Product.objects.select_related('inventory').annotate(
-            sales_count=Count('order'), revenue=Sum('order__total')
-        ).order_by('-sales_count')
-        context['products'] = products
-        context['out_of_stock_products'] = products.filter(inventory__quantity=0)
-        context['best_sellers'] = products[:5]
+        last_year = timezone.now().date() - timedelta(days=365)
 
-        # Bar for best sellers
-        context['product_names'] = json.dumps([p.products_name for p in context['best_sellers']], cls=DjangoJSONEncoder)
-        context['product_sales'] = json.dumps([p.sales_count for p in context['best_sellers']], cls=DjangoJSONEncoder)
+        # Top products by sales
+        context['top_products'] = Product.objects.annotate(
+            sales_count=Count('orderitem', filter=Q(orderitem__order__status='completed')),
+            total_revenue=Sum('orderitem__order__total', filter=Q(orderitem__order__status='completed'))
+        ).order_by('-sales_count')[:10]
+
+        # Product performance over time
+        context['monthly_sales'] = OrderItem.objects.filter(order__status='completed', order__created_at__gte=last_year).annotate(
+            month=TruncMonth('order__created_at')
+        ).values('month', 'product__products_name').annotate(count=Count('id')).order_by('month')
+
         return context
 
-class RevenueAnalyticsView(BaseAnalyticsView):
+class RevenueAnalyticsView(TemplateView):
     template_name = 'analytics/revenue.html'
 
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
-        orders = Order.objects.filter(order_status__in=['processed', 'delivered'])
-        context['total_revenue'] = orders.aggregate(Sum('total'))['total__sum'] or 0
+        last_year = timezone.now().date() - timedelta(days=365)
 
-        # Monthly
-        monthly = orders.extra({'month': "strftime('%%Y-%%m', created_at)"}).values('month').annotate(revenue=Sum('total')).order_by('month')
-        context['monthly_labels'] = json.dumps([m['month'] for m in monthly], cls=DjangoJSONEncoder)
-        context['monthly_values'] = json.dumps([float(m['revenue'] or 0) for m in monthly], cls=DjangoJSONEncoder)
+        # Revenue metrics
+        context['total_revenue'] = Order.objects.filter(status='completed').aggregate(total=Sum('total'))['total'] or 0
+        context['monthly_revenue'] = Order.objects.filter(status='completed', created_at__gte=last_year).annotate(
+            month=TruncMonth('created_at')
+        ).values('month').annotate(total=Sum('total')).order_by('month')
 
-        # By payment
-        payment_data = orders.values('payment_method').annotate(revenue=Sum('total'))
-        context['payment_labels'] = json.dumps([dict(Order.PAYMENT_METHODS).get(p['payment_method'], p['payment_method']) for p in payment_data], cls=DjangoJSONEncoder)
-        context['payment_values'] = json.dumps([float(p['revenue'] or 0) for p in payment_data], cls=DjangoJSONEncoder)
+        # Revenue by category
+        context['revenue_by_category'] = Category.objects.annotate(
+            total_revenue=Sum('product__orderitem__order__total', filter=Q(product__orderitem__order__status='completed'))
+        ).order_by('-total_revenue')
 
-        # Daily trend
-        daily = orders.filter(created_at__date__gte=context['date_range']['start']).extra({'day': 'date(created_at)'}).values('day').annotate(revenue=Sum('total')).order_by('day')
-        context['daily_dates'] = json.dumps([d['day'].strftime('%Y-%m-%d') for d in daily], cls=DjangoJSONEncoder)
-        context['daily_values'] = json.dumps([float(d['revenue'] or 0) for d in daily], cls=DjangoJSONEncoder)
+        # Charts data
+        context['monthly_revenue_data'] = {
+            'labels': [item['month'].strftime('%b %Y') for item in context['monthly_revenue']],
+            'data': [float(item['total']) for item in context['monthly_revenue']],
+        }
+
         return context
-    
-
 
 class CustomerListView(ListView):
-    model = Customer
+    model = User
     template_name = 'analytics/customer_list.html'
     context_object_name = 'customers'
-    paginate_by = 10  # 10 customers per page
+    paginate_by = 20
 
     def get_queryset(self):
-        queryset = Customer.objects.all().order_by('-total_spent')  # Default: high-value first
-        
-        # Search by name/email
-        search = self.request.GET.get('search')
-        if search:
-            queryset = queryset.filter(Q(name__icontains=search) | Q(email__icontains=search))
-        
-        # Sort
-        sort = self.request.GET.get('sort', 'spent_desc')
-        if sort == 'spent_desc':
-            queryset = queryset.order_by('-total_spent')
-        elif sort == 'spent_asc':
-            queryset = queryset.order_by('total_spent')
-        elif sort == 'orders_desc':
-            queryset = queryset.order_by('-total_orders')
-        elif sort == 'join_date':
-            queryset = queryset.order_by('created_at')
-        
+        queryset = User.objects.annotate(
+            order_count=Count('order'),
+            total_spent=Sum('order__total', filter=Q(order__status='completed')),
+            last_order_date=Max('order__created_at')
+        ).order_by('-total_spent')
         return queryset
 
-    def get_context_data(self, **kwargs):
-        context = super().get_context_data(**kwargs)
-        # Add any extra (e.g., total customers count)
-        context['total_customers'] = Customer.objects.count()
-        return context
-
 class CustomerDetailView(DetailView):
-    model = Customer
+    model = User
     template_name = 'analytics/customer_detail.html'
     context_object_name = 'customer'
-    
+
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
-        # Fetch related orders (paginated)
-        context['orders'] = self.object.orders.select_related('inventory').order_by('-created_at')[:20]  # Last 20 orders
-        # Recalculate spent if needed (fallback to DB sum)
-        context['lifetime_value'] = self.object.orders.aggregate(total=Sum('total'))['total'] or 0
+        customer = self.object
+
+        # Customer history
+        context['orders'] = Order.objects.filter(user=customer).order_by('-created_at')
+        context['total_spent'] = context['orders'].filter(status='completed').aggregate(total=Sum('total'))['total'] or 0
+        context['order_count'] = context['orders'].count()
+        context['favorite_products'] = Product.objects.filter(orderitem__order__user=customer).annotate(
+            purchase_count=Count('orderitem')
+        ).order_by('-purchase_count')[:5]
+
+        # Recent activity
+        last_30_days = timezone.now().date() - timedelta(days=30)
+        context['recent_orders'] = context['orders'].filter(created_at__gte=last_30_days)
+
         return context
