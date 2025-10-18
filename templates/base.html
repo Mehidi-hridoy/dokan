@@ -17,7 +17,7 @@
     
     <style>
         /* Dropdown Styling */
-        .cart-dropdown, .notification-dropdown, #userMenu, #searchBar {
+        .cart-dropdown, .notification-dropdown, .user-menu, .analytics-dropdown, #searchBar {
             z-index: 1000;
         }
         .notification-dropdown {
@@ -56,6 +56,26 @@
         .cart-dropdown-content.show {
             display: block;
         }
+        /* User Menu Dropdown */
+        .user-menu {
+            min-width: 200px;
+        }
+        /* Analytics Dropdown */
+        .analytics-dropdown {
+            min-width: 220px;
+        }
+        /* Dropdown Animations */
+        .dropdown-content {
+            opacity: 0;
+            visibility: hidden;
+            transform: translateY(-10px);
+            transition: all 0.3s ease;
+        }
+        .dropdown-content.show {
+            opacity: 1;
+            visibility: visible;
+            transform: translateY(0);
+        }
         /* Search Suggestions */
         #searchSuggestions {
             position: absolute;
@@ -82,6 +102,25 @@
             align-items: center;
             justify-content: center;
         }
+        /* Navigation Links */
+        .nav-link {
+            position: relative;
+            transition: all 0.3s ease;
+        }
+        .nav-link:hover {
+            transform: translateY(-2px);
+        }
+        /* Mobile Menu Improvements */
+        .mobile-menu-item {
+            transition: background-color 0.2s ease;
+        }
+        .mobile-menu-item:hover {
+            background-color: #f8fafc;
+        }
+        /* Dropdown Trigger */
+        .dropdown-trigger {
+            cursor: pointer;
+        }
     </style>
 </head>
 
@@ -93,64 +132,98 @@
     <div id="messageContainer" class="fixed top-20 right-4 z-50 space-y-2" style="max-width: 400px;"></div>
 
     <!-- Navigation Bar -->
-    <nav class="bg-blue-600 text-white py-4 shadow-lg sticky top-0 z-50">
+    <nav class="bg-gradient-to-r from-blue-600 to-blue-700 text-white py-3 shadow-lg sticky top-0 z-50">
         <div class="container mx-auto px-4 flex justify-between items-center">
             <!-- Logo -->
-            <a href="{% url 'products:home' %}" class="text-2xl font-bold tracking-wide flex items-center no-underline text-white">
+            <a href="{% url 'products:home' %}" class="text-2xl font-bold tracking-wide flex items-center no-underline text-white hover:text-blue-100 transition-colors duration-200">
                 <i class="fas fa-store mr-2"></i>Dokan
             </a>
 
             <!-- Desktop Menu -->
-            <div class="hidden md:flex items-center space-x-2">
-                <a href="{% url 'products:home' %}" class="px-3 py-2 rounded-md text-white hover:bg-blue-500 transition duration-200 no-underline">Home</a>
-                {% if request.user.is_authenticated %}
-                    <a href="{% url 'analytics:dashboard' %}" class="px-3 py-2 rounded-md text-white hover:bg-blue-500 transition duration-200 no-underline">Dashboard</a>
-                    <a href="{% url 'analytics:sales' %}"  class="px-3 py-2 rounded-md text-white hover:bg-blue-500 transition duration-200 no-underline">Sales Analytics</a>
-                    <a href="{% url 'analytics:orders' %}" class="px-3 py-2 rounded-md text-white hover:bg-blue-500 transition duration-200 no-underline">Orders</a>
-                    <a href="{% url 'analytics:inventory' %}" class="px-3 py-2 rounded-md text-white hover:bg-blue-500 transition duration-200 no-underline">Inventory</a>
-                    <a href="{% url 'analytics:products' %}" class="px-3 py-2 rounded-md text-white hover:bg-blue-500 transition duration-200 no-underline">Products</a>
-                    <a href="{% url 'analytics:revenue' %}" class="px-3 py-2 rounded-md text-white hover:bg-blue-500 transition duration-200 no-underline">Revenue</a>
+            <div class="hidden lg:flex items-center space-x-1">
+                <a href="{% url 'products:home' %}" class="nav-link px-4 py-2 rounded-lg text-white hover:bg-blue-500 transition-all duration-200 no-underline font-medium">
+                    <i class="fas fa-home mr-2"></i>Home
+                </a>
+                
+                <!-- Analytics Menu (for staff users) -->
+                {% if request.user.is_authenticated and request.user.is_staff %}
+                <div class="relative" id="analyticsDropdown">
+                    <button class="dropdown-trigger nav-link px-4 py-2 rounded-lg text-white hover:bg-blue-500 transition-all duration-200 font-medium flex items-center">
+                        <i class="fas fa-chart-bar mr-2"></i>Analytics
+                        <i class="fas fa-chevron-down ml-1 text-sm"></i>
+                    </button>
+                    <div class="analytics-dropdown absolute top-full left-0 mt-1 bg-white rounded-lg shadow-xl border border-gray-200 dropdown-content">
+                        <a href="{% url 'analytics:dashboard' %}" class="block px-4 py-3 text-gray-700 hover:bg-blue-50 hover:text-blue-600 transition-colors duration-150 border-b border-gray-100">
+                            <i class="fas fa-tachometer-alt mr-2"></i>Dashboard
+                        </a>
+                        <a href="{% url 'analytics:sales' %}" class="block px-4 py-3 text-gray-700 hover:bg-blue-50 hover:text-blue-600 transition-colors duration-150 border-b border-gray-100">
+                            <i class="fas fa-chart-line mr-2"></i>Sales Analytics
+                        </a>
+                        <a href="{% url 'analytics:orders' %}" class="block px-4 py-3 text-gray-700 hover:bg-blue-50 hover:text-blue-600 transition-colors duration-150 border-b border-gray-100">
+                            <i class="fas fa-shopping-bag mr-2"></i>Orders
+                        </a>
+                        <a href="{% url 'analytics:inventory' %}" class="block px-4 py-3 text-gray-700 hover:bg-blue-50 hover:text-blue-600 transition-colors duration-150 border-b border-gray-100">
+                            <i class="fas fa-boxes mr-2"></i>Inventory
+                        </a>
+                        <a href="{% url 'analytics:products' %}" class="block px-4 py-3 text-gray-700 hover:bg-blue-50 hover:text-blue-600 transition-colors duration-150 border-b border-gray-100">
+                            <i class="fas fa-cube mr-2"></i>Products
+                        </a>
+                        <a href="{% url 'analytics:revenue' %}" class="block px-4 py-3 text-gray-700 hover:bg-blue-50 hover:text-blue-600 transition-colors duration-150">
+                            <i class="fas fa-money-bill-wave mr-2"></i>Revenue
+                        </a>
+                    </div>
+                </div>
                 {% endif %}
-                <a href="{% url 'products:product_list' %}" class="px-3 py-2 rounded-md text-white hover:bg-blue-500 transition duration-200 no-underline">Shop</a>
-                <a href="{% url 'analytics:customer_list' %}" class="px-3 py-2 rounded-md text-white hover:bg-blue-500 transition duration-200 no-underline">Customer List</a>
+
+                <a href="{% url 'products:product_list' %}" class="nav-link px-4 py-2 rounded-lg text-white hover:bg-blue-500 transition-all duration-200 no-underline font-medium">
+                    <i class="fas fa-shopping-bag mr-2"></i>Shop
+                </a>
+
+                {% if request.user.is_authenticated and request.user.is_staff %}
+                <a href="{% url 'analytics:customer_list' %}" class="nav-link px-4 py-2 rounded-lg text-white hover:bg-blue-500 transition-all duration-200 no-underline font-medium">
+                    <i class="fas fa-users mr-2"></i>Customers
+                </a>
+                {% endif %}
+
                 {% if request.user.is_authenticated %}
-                    <a href="{% url 'orders:order_history' %}" class="px-3 py-2 rounded-md text-white hover:bg-blue-500 transition duration-200 no-underline">Orders</a>
+                <a href="{% url 'orders:order_history' %}" class="nav-link px-4 py-2 rounded-lg text-white hover:bg-blue-500 transition-all duration-200 no-underline font-medium">
+                    <i class="fas fa-history mr-2"></i>My Orders
+                </a>
                 {% endif %}
             </div>
 
             <!-- Right Side Icons -->
-            <div class="flex items-center space-x-4">
+            <div class="flex items-center space-x-3">
                 <!-- Search -->
                 <div class="relative">
-                    <button onclick="toggleSearch()" class="p-2 hover:bg-blue-500 rounded-full transition duration-200">
+                    <button onclick="toggleSearch()" class="p-2 hover:bg-blue-500 rounded-full transition duration-200 text-white">
                         <i class="fas fa-search"></i>
                     </button>
-                    <div id="searchBar" class="absolute top-12 left-0 right-0 bg-white shadow-lg p-4 z-50 hidden">
-                        <form action="{% url 'products:search' %}" method="GET" class="container mx-auto flex relative">
+                    <div id="searchBar" class="absolute top-12 right-0 bg-white shadow-xl rounded-lg p-4 z-50 hidden min-w-96">
+                        <form action="{% url 'products:search' %}" method="GET" class="flex relative">
                             <input type="text" id="searchInput" name="q" placeholder="Search products..." 
-                                   class="flex-1 px-4 py-2 border border-gray-300 rounded-l-lg focus:outline-none focus:ring-2 focus:ring-blue-500">
-                            <button type="submit" class="bg-blue-600 text-white px-6 py-2 rounded-r-lg hover:bg-blue-700 transition duration-200">
-                                Search
+                                   class="flex-1 px-4 py-3 border border-gray-300 rounded-l-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent">
+                            <button type="submit" class="bg-blue-600 text-white px-6 py-3 rounded-r-lg hover:bg-blue-700 transition duration-200 font-medium">
+                                <i class="fas fa-search mr-2"></i>Search
                             </button>
-                            <div id="searchSuggestions" class="bg-white"></div>
+                            <div id="searchSuggestions" class="absolute top-full left-0 right-0 bg-white border border-gray-200 rounded-lg mt-1 shadow-lg"></div>
                         </form>
                     </div>
                 </div>
 
                 <!-- Notifications -->
                 <div class="relative">
-                    <button onclick="toggleNotifications()" class="flex items-center space-x-2 p-2 hover:bg-blue-500 rounded-lg transition duration-200 relative">
+                    <button onclick="toggleNotifications()" class="flex items-center space-x-2 p-2 hover:bg-blue-500 rounded-lg transition duration-200 text-white relative">
                         <i class="fas fa-bell"></i>
-                        <span>Notifications</span>
                         {% if messages %}
-                            <span class="absolute -top-1 -right-1 bg-red-500 text-white rounded-full w-5 h-5 flex items-center justify-center text-xs">
+                            <span class="absolute -top-1 -right-1 bg-red-500 text-white rounded-full w-5 h-5 flex items-center justify-center text-xs font-bold">
                                 {{ messages|length }}
                             </span>
                         {% endif %}
                     </button>
                     <div id="notificationDropdown" class="absolute top-12 right-0 bg-white text-gray-800 shadow-2xl rounded-lg notification-dropdown hidden border border-gray-200">
                         <div class="p-4">
-                            <h3 class="font-semibold text-lg border-b pb-2 mb-3">Notifications</h3>
+                            <h3 class="font-semibold text-lg border-b pb-2 mb-3 text-gray-900">Notifications</h3>
                             {% include 'includes/message.html' %}
                         </div>
                     </div>
@@ -158,10 +231,9 @@
 
                 <!-- Cart Dropdown -->
                 <div class="relative" id="cartDropdown">
-                    <button onclick="toggleCart()" class="flex items-center space-x-2 p-2 hover:bg-blue-500 rounded-lg transition duration-200 relative">
+                    <button onclick="toggleCart()" class="flex items-center space-x-2 p-2 hover:bg-blue-500 rounded-lg transition duration-200 text-white relative">
                         <i class="fas fa-shopping-cart"></i>
-                        <span>Cart</span>
-                        <span id="cart-count-badge" class="absolute -top-1 -right-1 bg-red-500 text-white rounded-full w-5 h-5 flex items-center justify-center text-xs cart-count-badge">
+                        <span id="cart-count-badge" class="absolute -top-1 -right-1 bg-red-500 text-white rounded-full w-5 h-5 flex items-center justify-center text-xs font-bold cart-count-badge">
                             {{ cart_count|default:0 }}
                         </span>
                     </button>
@@ -170,26 +242,40 @@
 
                 <!-- User Menu -->
                 {% if request.user.is_authenticated %}
-                    <div class="relative">
-                        <button onclick="toggleUserMenu()" class="flex items-center space-x-2 p-2 hover:bg-blue-500 rounded-lg transition duration-200">
-                            <i class="fas fa-user"></i>
-                            <span>{{ request.user.username }}</span>
+                    <div class="relative" id="userDropdown">
+                        <button onclick="toggleUserMenu()" class="flex items-center space-x-2 p-2 hover:bg-blue-500 rounded-lg transition duration-200 text-white">
+                            <div class="w-8 h-8 bg-blue-400 rounded-full flex items-center justify-center text-white font-semibold text-sm">
+                                {{ request.user.username|first|upper }}
+                            </div>
+                            <span class="font-medium">{{ request.user.username }}</span>
+                            <i class="fas fa-chevron-down text-sm"></i>
                         </button>
-                        <div id="userMenu" class="absolute top-12 right-0 bg-white text-gray-800 shadow-lg rounded-lg w-48 hidden z-50">
-                            <a href="{% url 'orders:order_history' %}" class="block px-4 py-3 hover:bg-gray-100 border-b transition duration-150">
-                                <i class="fas fa-history mr-2"></i>Order History
+                        <div id="userMenu" class="user-menu absolute top-12 right-0 bg-white text-gray-800 shadow-xl rounded-lg border border-gray-200 py-2 dropdown-content">
+                            <div class="px-4 py-2 border-b border-gray-100">
+                                <p class="text-sm font-semibold text-gray-900">Hello, {{ request.user.username }}</p>
+                                <p class="text-xs text-gray-500">{{ request.user.email }}</p>
+                            </div>
+                            <a href="{% url 'orders:order_history' %}" class="block px-4 py-3 hover:bg-blue-50 transition duration-150 text-gray-700">
+                                <i class="fas fa-history mr-3 text-gray-400"></i>Order History
                             </a>
-                            <form method="POST" action="{% url 'logout' %}" class="block">
-                                {% csrf_token %}
-                                <button type="submit" class="w-full text-left px-4 py-3 hover:bg-gray-100 text-red-600 transition duration-150 flex items-center">
-                                    <i class="fas fa-sign-out-alt mr-2"></i>Logout
-                                </button>
-                            </form>
+                            {% if request.user.is_staff %}
+                            <a href="{% url 'analytics:dashboard' %}" class="block px-4 py-3 hover:bg-blue-50 transition duration-150 text-gray-700">
+                                <i class="fas fa-chart-bar mr-3 text-gray-400"></i>Analytics Dashboard
+                            </a>
+                            {% endif %}
+                            <div class="border-t border-gray-100 mt-2 pt-2">
+                                <form method="POST" action="{% url 'logout' %}" class="block">
+                                    {% csrf_token %}
+                                    <button type="submit" class="w-full text-left px-4 py-3 hover:bg-red-50 text-red-600 transition duration-150 flex items-center font-medium">
+                                        <i class="fas fa-sign-out-alt mr-3"></i>Logout
+                                    </button>
+                                </form>
+                            </div>
                         </div>
                     </div>
                 {% else %}
-                    <a href="{% url 'login' %}" class="bg-white text-blue-600 px-4 py-2 rounded-lg hover:bg-gray-100 transition duration-200 font-medium no-underline">
-                        Login
+                    <a href="{% url 'login' %}" class="bg-white text-blue-600 px-6 py-2 rounded-lg hover:bg-gray-100 transition duration-200 font-medium no-underline shadow-sm hover:shadow-md">
+                        <i class="fas fa-sign-in-alt mr-2"></i>Login
                     </a>
                 {% endif %}
             </div>
@@ -197,21 +283,58 @@
     </nav>
 
     <!-- Mobile Menu -->
-    <div class="md:hidden bg-blue-600 text-white p-2">
-        <button onclick="toggleMobileMenu()" class="w-full text-center py-2">
-            <i class="fas fa-bars mr-2"></i>Menu
+    <div class="lg:hidden bg-blue-600 text-white p-3">
+        <button onclick="toggleMobileMenu()" class="w-full text-center py-2 flex items-center justify-center font-medium">
+            <i class="fas fa-bars mr-3"></i>Menu
         </button>
     </div>
-    <div id="mobileMenu" class="md:hidden bg-white shadow-lg hidden">
+    <div id="mobileMenu" class="lg:hidden bg-white shadow-lg hidden">
         <div class="container mx-auto py-4">
-            <a href="{% url 'products:home' %}" class="block py-3 px-4 hover:bg-gray-100 border-b">Home</a>
-            <a href="{% url 'products:product_list' %}" class="block py-3 px-4 hover:bg-gray-100 border-b">Shop</a>
+            <a href="{% url 'products:home' %}" class="mobile-menu-item block py-4 px-6 hover:bg-gray-50 border-b border-gray-100 text-gray-700 font-medium">
+                <i class="fas fa-home mr-3 text-blue-500"></i>Home
+            </a>
+            <a href="{% url 'products:product_list' %}" class="mobile-menu-item block py-4 px-6 hover:bg-gray-50 border-b border-gray-100 text-gray-700 font-medium">
+                <i class="fas fa-shopping-bag mr-3 text-blue-500"></i>Shop
+            </a>
+            
             {% if request.user.is_authenticated %}
-                <a href="{% url 'orders:order_history' %}" class="block py-3 px-4 hover:bg-gray-100 border-b">Orders</a>
-                <a href="{% url 'orders:view_cart' %}" class="block py-3 px-4 hover:bg-gray-100 border-b">Cart</a>
-                <a href="{% url 'logout' %}" class="block py-3 px-4 hover:bg-gray-100 text-red-600">Logout</a>
+                {% if request.user.is_staff %}
+                <div class="border-b border-gray-100">
+                    <p class="px-6 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wider">Analytics</p>
+                    <a href="{% url 'analytics:dashboard' %}" class="mobile-menu-item block py-3 px-6 hover:bg-gray-50 text-gray-700 pl-9">
+                        <i class="fas fa-tachometer-alt mr-3 text-green-500"></i>Dashboard
+                    </a>
+                    <a href="{% url 'analytics:sales' %}" class="mobile-menu-item block py-3 px-6 hover:bg-gray-50 text-gray-700 pl-9">
+                        <i class="fas fa-chart-line mr-3 text-green-500"></i>Sales Analytics
+                    </a>
+                    <a href="{% url 'analytics:orders' %}" class="mobile-menu-item block py-3 px-6 hover:bg-gray-50 text-gray-700 pl-9">
+                        <i class="fas fa-shopping-bag mr-3 text-green-500"></i>Orders
+                    </a>
+                    <a href="{% url 'analytics:inventory' %}" class="mobile-menu-item block py-3 px-6 hover:bg-gray-50 text-gray-700 pl-9">
+                        <i class="fas fa-boxes mr-3 text-green-500"></i>Inventory
+                    </a>
+                    <a href="{% url 'analytics:customer_list' %}" class="mobile-menu-item block py-3 px-6 hover:bg-gray-50 text-gray-700 pl-9">
+                        <i class="fas fa-users mr-3 text-green-500"></i>Customers
+                    </a>
+                </div>
+                {% endif %}
+                
+                <a href="{% url 'orders:order_history' %}" class="mobile-menu-item block py-4 px-6 hover:bg-gray-50 border-b border-gray-100 text-gray-700 font-medium">
+                    <i class="fas fa-history mr-3 text-purple-500"></i>My Orders
+                </a>
+                <a href="{% url 'orders:view_cart' %}" class="mobile-menu-item block py-4 px-6 hover:bg-gray-50 border-b border-gray-100 text-gray-700 font-medium">
+                    <i class="fas fa-shopping-cart mr-3 text-orange-500"></i>Cart
+                </a>
+                <form method="POST" action="{% url 'logout' %}" class="block">
+                    {% csrf_token %}
+                    <button type="submit" class="mobile-menu-item w-full text-left py-4 px-6 hover:bg-red-50 text-red-600 font-medium border-b border-gray-100">
+                        <i class="fas fa-sign-out-alt mr-3"></i>Logout
+                    </button>
+                </form>
             {% else %}
-                <a href="{% url 'login' %}" class="block py-3 px-4 hover:bg-gray-100 border-b">Login</a>
+                <a href="{% url 'login' %}" class="mobile-menu-item block py-4 px-6 hover:bg-gray-50 border-b border-gray-100 text-gray-700 font-medium">
+                    <i class="fas fa-sign-in-alt mr-3 text-blue-500"></i>Login
+                </a>
             {% endif %}
         </div>
     </div>
@@ -230,23 +353,63 @@
     <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
 
     <script>
-        // Toggle Functions
+        // Enhanced Toggle Functions
         function toggleSearch() {
             const searchBar = document.getElementById('searchBar');
-            searchBar.classList.toggle('hidden');
-            document.querySelectorAll('.cart-dropdown-content, #notificationDropdown, #userMenu').forEach(el => el.classList.add('d-none', 'hidden'));
+            const isVisible = !searchBar.classList.contains('hidden');
+            
+            // Close all other dropdowns
+            closeAllDropdowns();
+            
+            if (!isVisible) {
+                searchBar.classList.remove('hidden');
+                // Focus on search input when opened
+                setTimeout(() => {
+                    const searchInput = document.getElementById('searchInput');
+                    if (searchInput) searchInput.focus();
+                }, 100);
+            } else {
+                searchBar.classList.add('hidden');
+            }
         }
 
         function toggleNotifications() {
             const dropdown = document.getElementById('notificationDropdown');
-            dropdown.classList.toggle('hidden');
-            document.querySelectorAll('.cart-dropdown-content, #searchBar, #userMenu').forEach(el => el.classList.add('d-none', 'hidden'));
+            const isVisible = !dropdown.classList.contains('hidden');
+            
+            closeAllDropdowns();
+            
+            if (!isVisible) {
+                dropdown.classList.remove('hidden');
+            } else {
+                dropdown.classList.add('hidden');
+            }
         }
 
         function toggleUserMenu() {
             const userMenu = document.getElementById('userMenu');
-            userMenu.classList.toggle('hidden');
-            document.querySelectorAll('.cart-dropdown-content, #notificationDropdown, #searchBar').forEach(el => el.classList.add('d-none', 'hidden'));
+            const isVisible = userMenu.classList.contains('show');
+            
+            closeAllDropdowns();
+            
+            if (!isVisible) {
+                userMenu.classList.add('show');
+            } else {
+                userMenu.classList.remove('show');
+            }
+        }
+
+        function toggleAnalyticsMenu() {
+            const analyticsMenu = document.querySelector('#analyticsDropdown .analytics-dropdown');
+            const isVisible = analyticsMenu.classList.contains('show');
+            
+            closeAllDropdowns();
+            
+            if (!isVisible) {
+                analyticsMenu.classList.add('show');
+            } else {
+                analyticsMenu.classList.remove('show');
+            }
         }
 
         function toggleMobileMenu() {
@@ -254,7 +417,17 @@
             menu.classList.toggle('hidden');
         }
 
-        // Load Cart Dropdown
+        function closeAllDropdowns() {
+            // Close all dropdowns
+            document.querySelectorAll('.dropdown-content').forEach(el => {
+                el.classList.remove('show');
+            });
+            document.querySelectorAll('#searchBar, #notificationDropdown, .cart-dropdown-content').forEach(el => {
+                el.classList.add('hidden', 'd-none');
+            });
+        }
+
+        // Enhanced Cart Functionality
         function loadCartDropdown() {
             $.ajax({
                 url: "{% url 'orders:cart_dropdown_content' %}",
@@ -265,129 +438,160 @@
                     $('#cart-count-badge').text(cartCount);
                 },
                 error: function() {
-                    $('#cartDropdownContent').html('<div class="p-4 text-center"><i class="fas fa-exclamation-triangle text-danger me-2"></i>Error loading cart</div>');
+                    $('#cartDropdownContent').html(
+                        '<div class="p-6 text-center text-red-600">' +
+                        '<i class="fas fa-exclamation-triangle text-2xl mb-2"></i>' +
+                        '<p class="text-sm">Error loading cart</p>' +
+                        '</div>'
+                    );
                 }
             });
         }
 
-        // Toggle Cart Dropdown
         function toggleCart() {
             const dropdown = document.getElementById('cartDropdownContent');
             const isVisible = !dropdown.classList.contains('d-none');
-            document.querySelectorAll('.cart-dropdown-content, #notificationDropdown, #userMenu, #searchBar').forEach(el => {
-                if (el !== dropdown) el.classList.add('d-none', 'hidden');
-            });
-            dropdown.classList.toggle('d-none');
-            dropdown.classList.toggle('show', !isVisible);
+            
+            closeAllDropdowns();
+            
             if (!isVisible) {
+                dropdown.classList.remove('d-none', 'hidden');
+                dropdown.classList.add('show');
                 loadCartDropdown();
+            } else {
+                dropdown.classList.add('d-none', 'hidden');
+                dropdown.classList.remove('show');
             }
         }
 
-        // Handle Add to Cart
+        // Event Listeners for Dropdowns
+        document.addEventListener('DOMContentLoaded', function() {
+            // Analytics dropdown
+            const analyticsTrigger = document.querySelector('#analyticsDropdown .dropdown-trigger');
+            if (analyticsTrigger) {
+                analyticsTrigger.addEventListener('click', function(e) {
+                    e.stopPropagation();
+                    toggleAnalyticsMenu();
+                });
+            }
+
+            // User dropdown
+            const userTrigger = document.querySelector('#userDropdown button');
+            if (userTrigger) {
+                userTrigger.addEventListener('click', function(e) {
+                    e.stopPropagation();
+                    toggleUserMenu();
+                });
+            }
+
+            // Close dropdowns when clicking outside
+            document.addEventListener('click', function(e) {
+                if (!e.target.closest('#analyticsDropdown') && !e.target.closest('#userDropdown') && 
+                    !e.target.closest('#cartDropdown') && !e.target.closest('#searchBar') && 
+                    !e.target.closest('#notificationDropdown')) {
+                    closeAllDropdowns();
+                }
+            });
+
+            // Prevent dropdown close when clicking inside dropdown
+            document.querySelectorAll('.dropdown-content').forEach(dropdown => {
+                dropdown.addEventListener('click', function(e) {
+                    e.stopPropagation();
+                });
+            });
+        });
+
+        // Enhanced Add to Cart with better UX
         $(document).on('submit', '.add-to-cart-form', function(e) {
             e.preventDefault();
             const $form = $(this);
+            const $button = $form.find('button[type="submit"]');
+            const originalText = $button.html();
+            
+            // Show loading state
+            $button.prop('disabled', true).html('<i class="fas fa-spinner fa-spin mr-2"></i>Adding...');
+
             $.ajax({
                 url: $form.attr('action'),
                 method: 'POST',
                 data: $form.serialize(),
+                headers: {
+                    'X-Requested-With': 'XMLHttpRequest'
+                },
                 success: function(data) {
                     if (data.success) {
+                        // Update cart badge
+                        $('#cart-count-badge').text(data.cart_count || 0);
+                        
+                        // Show success message
+                        showFlyingMessage(data.message || 'Product added to cart!', 'success');
+                        
+                        // Trigger cart update event
                         $(document).trigger('cart-updated', data);
-                        $('#messageContainer').append(
-                            `<div class="alert alert-success alert-dismissible fade show flying-message show" role="alert">
-                                ${data.message}
-                                <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
-                            </div>`
-                        );
-                        setTimeout(() => $('.flying-message').removeClass('show').addClass('hide'), 3000);
+                        
+                        // If cart dropdown is open, refresh it
+                        if (!$('#cartDropdownContent').hasClass('d-none')) {
+                            loadCartDropdown();
+                        }
+                        
+                        // Button success animation
+                        $button.html('<i class="fas fa-check mr-2"></i>Added!')
+                               .removeClass('bg-blue-600 hover:bg-blue-700')
+                               .addClass('bg-green-600');
+                        
+                        setTimeout(() => {
+                            $button.html(originalText)
+                                   .removeClass('bg-green-600')
+                                   .addClass('bg-blue-600 hover:bg-blue-700')
+                                   .prop('disabled', false);
+                        }, 2000);
                     } else {
-                        $('#messageContainer').append(
-                            `<div class="alert alert-danger alert-dismissible fade show flying-message show" role="alert">
-                                ${data.message || 'Error adding to cart'}
-                                <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
-                            </div>`
-                        );
-                        setTimeout(() => $('.flying-message').removeClass('show').addClass('hide'), 3000);
+                        showFlyingMessage(data.message || 'Error adding product to cart', 'error');
+                        $button.html(originalText).prop('disabled', false);
                     }
                 },
-                error: function() {
-                    $('#messageContainer').append(
-                        `<div class="alert alert-danger alert-dismissible fade show flying-message show" role="alert">
-                            Error adding to cart
-                            <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
-                        </div>`
-                    );
-                    setTimeout(() => $('.flying-message').removeClass('show').addClass('hide'), 3000);
+                error: function(xhr, status, error) {
+                    showFlyingMessage('Error adding product to cart. Please try again.', 'error');
+                    $button.html(originalText).prop('disabled', false);
                 }
             });
         });
 
-        // Handle Remove from Cart
-        $(document).on('submit', '#cartDropdownContent form', function(e) {
-            e.preventDefault();
-            const $form = $(this);
-            const $item = $form.closest('.d-flex');
-            $.ajax({
-                url: $form.attr('action'),
-                method: 'POST',
-                data: $form.serialize(),
-                success: function(data) {
-                    if (data.success) {
-                        loadCartDropdown();
-                        $(document).trigger('cart-updated', data);
-                        $item.fadeOut(300, function() {
-                            $(this).remove();
-                            if ($('#cartDropdownContent .cart-items-list').children().length === 0) {
-                                loadCartDropdown();
-                            }
-                        });
-                        $('#messageContainer').append(
-                            `<div class="alert alert-success alert-dismissible fade show flying-message show" role="alert">
-                                ${data.message}
-                                <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
-                            </div>`
-                        );
-                        setTimeout(() => $('.flying-message').removeClass('show').addClass('hide'), 3000);
-                    } else {
-                        $('#messageContainer').append(
-                            `<div class="alert alert-danger alert-dismissible fade show flying-message show" role="alert">
-                                ${data.message || 'Error removing item'}
-                                <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
-                            </div>`
-                        );
-                        setTimeout(() => $('.flying-message').removeClass('show').addClass('hide'), 3000);
-                    }
-                },
-                error: function() {
-                    $('#messageContainer').append(
-                        `<div class="alert alert-danger alert-dismissible fade show flying-message show" role="alert">
-                            Error removing item
-                            <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
-                        </div>`
-                    );
-                    setTimeout(() => $('.flying-message').removeClass('show').addClass('hide'), 3000);
-                }
+        // Enhanced flying message function
+        function showFlyingMessage(message, type = 'success') {
+            const messageId = 'msg-' + Date.now();
+            const bgColor = type === 'success' ? 'bg-green-500' : 'bg-red-500';
+            const icon = type === 'success' ? 'fa-check-circle' : 'fa-exclamation-triangle';
+            
+            const messageHtml = `
+                <div id="${messageId}" class="flying-message show ${bgColor} text-white p-4 rounded-lg shadow-lg">
+                    <div class="flex items-center justify-between">
+                        <div class="flex items-center">
+                            <i class="fas ${icon} mr-3 text-lg"></i>
+                            <span class="font-medium">${message}</span>
+                        </div>
+                        <button type="button" class="ml-4 text-white hover:text-gray-200 focus:outline-none transition-colors duration-150" onclick="closeFlyingMessage('${messageId}')">
+                            <i class="fas fa-times"></i>
+                        </button>
+                    </div>
+                </div>
+            `;
+            
+            $('#messageContainer').append(messageHtml);
+            
+            // Auto remove after 5 seconds
+            setTimeout(() => {
+                closeFlyingMessage(messageId);
+            }, 5000);
+        }
+
+        function closeFlyingMessage(messageId) {
+            $(`#${messageId}`).fadeOut(300, function() {
+                $(this).remove();
             });
-        });
+        }
 
-        // Cart Update Listener
-        $(document).on('cart-updated', function(e, data) {
-            $('#cart-count-badge').text(data.cart_count || 0);
-            if ($('#cartDropdownContent').hasClass('show')) {
-                loadCartDropdown();
-            }
-        });
-
-        // Close Dropdowns on Outside Click
-        $(document).on('click', function(e) {
-            if (!$(e.target).closest('#cartDropdown, #notificationDropdown, #userMenu, #searchBar').length) {
-                $('#cartDropdownContent, #notificationDropdown, #userMenu, #searchBar').addClass('d-none hidden');
-            }
-        });
-
-        // Search Suggestions
+        // Search suggestions
         const searchInput = document.getElementById('searchInput');
         const suggestionsDiv = document.getElementById('searchSuggestions');
         if (searchInput) {
@@ -398,19 +602,27 @@
                     suggestionsDiv.style.display = 'none';
                     return;
                 }
+                
                 fetch(`/products/search-suggestions/?q=${encodeURIComponent(query)}`)
                     .then(response => response.json())
                     .then(data => {
                         suggestionsDiv.innerHTML = '';
-                        if (data.products.length > 0) {
+                        if (data.products && data.products.length > 0) {
                             data.products.forEach(product => {
                                 const item = document.createElement('div');
-                                item.className = 'suggestion-item flex items-center space-x-2 p-2';
+                                item.className = 'suggestion-item flex items-center space-x-3 p-3 hover:bg-blue-50 cursor-pointer border-b border-gray-100 last:border-b-0';
                                 item.innerHTML = `
-                                    ${product.image ? `<img src="${product.image}" alt="${product.name}" class="w-8 h-8 object-cover rounded">` : ''}
-                                    <span>${product.name} - $${product.price}</span>
+                                    ${product.image ? `<img src="${product.image}" alt="${product.name}" class="w-10 h-10 object-cover rounded">` : '<div class="w-10 h-10 bg-gray-200 rounded flex items-center justify-center"><i class="fas fa-image text-gray-400"></i></div>'}
+                                    <div class="flex-1">
+                                        <div class="font-medium text-gray-900">${product.name}</div>
+                                        <div class="text-sm text-gray-600">$${product.price}</div>
+                                    </div>
                                 `;
-                                item.onclick = () => location.href = `/products/${product.slug}/`;
+                                item.onclick = () => {
+                                    if (product.slug) {
+                                        location.href = `/products/${product.slug}/`;
+                                    }
+                                };
                                 suggestionsDiv.appendChild(item);
                             });
                             suggestionsDiv.style.display = 'block';
@@ -424,14 +636,7 @@
             });
         }
 
-        // Close Search Suggestions on Outside Click
-        document.addEventListener('click', function(e) {
-            if (searchInput && suggestionsDiv && !searchInput.contains(e.target) && !suggestionsDiv.contains(e.target)) {
-                suggestionsDiv.style.display = 'none';
-            }
-        });
-
-        // Initialize Cart Count
+        // Initialize cart count
         $(document).ready(function() {
             $('#cart-count-badge').text($('#initialCartCount').val());
         });
