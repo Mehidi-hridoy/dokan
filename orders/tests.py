@@ -4,7 +4,7 @@ python manage.py migrate
 python manage.py runserver
 
 git add .
-git commit -m "Updated Produtcs  list styling  "
+git commit -m "Updated Home and the list "
 git push -u origin main
 python manage.py runserver
 

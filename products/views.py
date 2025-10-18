@@ -2,7 +2,7 @@
 from decimal import Decimal
 from typing import List, Tuple, Dict, Any
 from django.db.models import Count
-
+from .models import Product, Review,  COLOR_CHOICES, SIZE_CHOICES
 from django.shortcuts import render, get_object_or_404,redirect
 from django.http import JsonResponse
 from django.db.models import Q, Avg
@@ -90,8 +90,6 @@ def home(request):
 
     return render(request, 'products/home.html', context)
 
-
-
 class ProductListView(ListView):
     model = Product
     template_name = 'products/product_list.html'
@@ -166,7 +164,32 @@ class ProductListView(ListView):
             queryset = queryset.order_by('-avg_rating')
 
         return queryset
+    
+    # --- START OF NEW/MODIFIED CODE ---
+    
+    def get_context_data(self, **kwargs):
+        """
+        Adds the COLOR_CHOICES and SIZE_CHOICES to each product object 
+        in the context for template rendering of dropdowns.
+        """
+        # Call the base implementation first to get the context
+        context = super().get_context_data(**kwargs)
+        
+        # Access the list of products from the context
+        products = context.get(self.context_object_name)
+        
+        if products:
+            # Iterate through the queryset results and manually attach the choices.
+            # This is necessary because Django's ORM doesn't easily allow 
+            # adding attributes to model instances in bulk after fetching.
+            for product in products:
+                # Assuming COLOR_CHOICES and SIZE_CHOICES are imported from .models
+                product.color_choices = COLOR_CHOICES 
+                product.size_choices = SIZE_CHOICES
+                
+        return context
 
+    # --- END OF NEW/MODIFIED CODE ---
 
 
 

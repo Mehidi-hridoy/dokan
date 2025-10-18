@@ -3,7 +3,7 @@
 {% load humanize %}
 {% load product_filters %}
 
-{% block title %}Shop - Dokan{% endblock %}
+{% block title %}Product List - Dokan{% endblock %}
 
 {% block extra_css %}
 <link rel="stylesheet" href="{% static 'products/css/product_list.css' %}">
@@ -41,7 +41,7 @@
         font-weight: 600;
         z-index: 10;
     }
-    /* Sidebar */
+    /* Filter Sidebar */
     .filter-sidebar {
         background: white;
         border-radius: 0.5rem;
@@ -81,18 +81,7 @@
         border-radius: 1rem;
         font-size: 0.75rem;
     }
-    /* Sorting */
-    .sort-button {
-        padding: 0.5rem 1rem;
-        border-radius: 0.375rem;
-        font-size: 0.875rem;
-        transition: all 0.2s;
-    }
-    .sort-active {
-        background-color: #e5e7eb;
-        font-weight: 600;
-    }
-    /* Active Filters */
+    /* Filter Badge */
     .filter-badge {
         background-color: #dbeafe;
         color: #2563eb;
@@ -105,17 +94,16 @@
     .filter-badge:hover {
         background-color: #bfdbfe;
     }
-    /* Review Modal */
-    .review-modal {
-        max-height: 90vh;
-        overflow-y: auto;
+    /* Flying Message */
+    .flying-message {
+        position: relative;
+        animation: fly-in-out 5s ease-in-out forwards;
     }
-    .star-button {
-        font-size: 1.25rem;
-        transition: color 0.2s;
-    }
-    .star-button:hover {
-        color: #f59e0b;
+    @keyframes fly-in-out {
+        0% { transform: translateX(100%); opacity: 0; }
+        20% { transform: translateX(0); opacity: 1; }
+        80% { transform: translateX(0); opacity: 1; }
+        100% { transform: translateX(100%); opacity: 0; }
     }
 </style>
 {% endblock %}
@@ -131,7 +119,7 @@
                     <span class="text-gray-400 mx-2">/</span>
                     <span class="text-gray-600">Shop</span>
                 </li>
-                {% if selected_category or selected_brand or search_query or selected_tag %}
+                {% if search_query or selected_category or selected_brand or selected_tag %}
                     <li class="flex items-center">
                         <span class="text-gray-400 mx-2">/</span>
                         <span class="text-gray-900 font-medium">{{ header_name|default:"All Products" }}</span>
@@ -145,7 +133,7 @@
 
     <!-- Main Content -->
     <div class="grid grid-cols-1 lg:grid-cols-4 gap-6">
-        <!-- Sidebar -->
+        <!-- Filter Sidebar -->
         <aside class="lg:col-span-1 filter-sidebar sticky top-24">
             <!-- Price Filter -->
             <div class="filter-section">
@@ -155,7 +143,7 @@
                     <input type="hidden" name="category" value="{{ selected_category|default_if_none:'' }}">
                     <input type="hidden" name="brand" value="{{ selected_brand|default_if_none:'' }}">
                     <input type="hidden" name="tag" value="{{ selected_tag|default_if_none:'' }}">
-                    <input type="hidden" name="sort" value="{{ current_sort|default_if_none:'' }}">
+                    <input type="hidden" name="sort" value="{{ current_sort|default_if_none:'rating_desc' }}">
                     <div class="flex space-x-3">
                         <input type="number" name="min_price" placeholder="Min $" value="{{ request.GET.min_price|default_if_none:'' }}"
                                class="w-1/2 px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500">
@@ -167,9 +155,6 @@
                     </button>
                 </form>
             </div>
-
-            <!-- Tags Filter -->
-
 
             <!-- Categories Filter -->
             {% if categories %}
@@ -185,7 +170,7 @@
                             <a href="{% url 'products:product_list' %}?{% if request.GET.urlencode %}{{ request.GET.urlencode|remove_query_param:'category' }}{% if category.slug %}&category={{ category.slug }}{% endif %}{% else %}{% if category.slug %}category={{ category.slug }}{% endif %}{% endif %}"
                                class="filter-link {% if selected_category == category.slug %}filter-active{% endif %}">
                                 {{ category.name }}
-                                <span class="count-badge">{{ category_counts|lookup:category.id|default:"0" }}</span>
+                                <span class="count-badge">{{ category.product_count|default:'#' }}</span>
                             </a>
                         {% endfor %}
                     </div>
@@ -206,7 +191,7 @@
                             <a href="{% url 'products:product_list' %}?{% if request.GET.urlencode %}{{ request.GET.urlencode|remove_query_param:'brand' }}{% if brand.slug %}&brand={{ brand.slug }}{% endif %}{% else %}{% if brand.slug %}brand={{ brand.slug }}{% endif %}{% endif %}"
                                class="filter-link {% if selected_brand == brand.slug %}filter-active{% endif %}">
                                 {{ brand.name }}
-                                <span class="count-badge">{{ brand_counts|lookup:brand.id|default:"0" }}</span>
+                                <span class="count-badge">{{ brand.product_count|default:'#' }}</span>
                             </a>
                         {% endfor %}
                     </div>
@@ -214,7 +199,7 @@
             {% endif %}
 
             <!-- Active Filters -->
-            {% if selected_category or selected_brand or request.GET.min_price or request.GET.max_price or search_query or selected_tag %}
+            {% if search_query or selected_category or selected_brand or request.GET.min_price or request.GET.max_price or selected_tag %}
                 <div class="filter-section">
                     <h3 class="font-semibold text-lg mb-3 text-gray-900">Active Filters</h3>
                     <div class="flex flex-wrap gap-2">
@@ -265,188 +250,151 @@
         <div class="lg:col-span-3">
             <!-- Sorting -->
             <div class="bg-white rounded-lg shadow-sm border p-4 mb-6">
-                <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+                <form method="GET" action="{% url 'products:product_list' %}" class="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
                     <div class="flex items-center space-x-4 flex-wrap">
-                        <span class="text-gray-700 font-medium">Sort by:</span>
-                        <div class="flex flex-wrap gap-2">
-                            <a href="{% url 'products:product_list' %}?{% if request.GET.urlencode %}{{ request.GET.urlencode|remove_query_param:'sort' }}&sort=name_asc{% else %}sort=name_asc{% endif %}"
-                               class="sort-button {% if current_sort == 'name_asc' or not current_sort %}sort-active{% endif %} bg-gray-100 hover:bg-gray-200">
-                                Name (A-Z)
-                            </a>
-                            <a href="{% url 'products:product_list' %}?{% if request.GET.urlencode %}{{ request.GET.urlencode|remove_query_param:'sort' }}&sort=price_asc{% else %}sort=price_asc{% endif %}"
-                               class="sort-button {% if current_sort == 'price_asc' %}sort-active{% endif %} bg-gray-100 hover:bg-gray-200">
-                                Price: Low to High
-                            </a>
-                            <a href="{% url 'products:product_list' %}?{% if request.GET.urlencode %}{{ request.GET.urlencode|remove_query_param:'sort' }}&sort=price_desc{% else %}sort=price_desc{% endif %}"
-                               class="sort-button {% if current_sort == 'price_desc' %}sort-active{% endif %} bg-gray-100 hover:bg-gray-200">
-                                Price: High to Low
-                            </a>
-                            <a href="{% url 'products:product_list' %}?{% if request.GET.urlencode %}{{ request.GET.urlencode|remove_query_param:'sort' }}&sort=rating_desc{% else %}sort=rating_desc{% endif %}"
-                               class="sort-button {% if current_sort == 'rating_desc' %}sort-active{% endif %} bg-gray-100 hover:bg-gray-200">
-                                Top Rated
-                            </a>
-                            <a href="{% url 'products:product_list' %}?{% if request.GET.urlencode %}{{ request.GET.urlencode|remove_query_param:'sort' }}&sort=newest{% else %}sort=newest{% endif %}"
-                               class="sort-button {% if current_sort == 'newest' %}sort-active{% endif %} bg-gray-100 hover:bg-gray-200">
-                                Newest
-                            </a>
-                        </div>
+                        <input type="text" name="search" placeholder="Search products..." 
+                               value="{{ search_query|default_if_none:'' }}" 
+                               class="border p-2 rounded-md text-sm w-64 focus:outline-none focus:ring-2 focus:ring-blue-500">
+                        <select name="sort" onchange="this.form.submit()" class="border p-2 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-blue-500">
+                            <option value="rating_desc" {% if current_sort == 'rating_desc' or not current_sort %}selected{% endif %}>Best Rating</option>
+                            <option value="newest" {% if current_sort == 'newest' %}selected{% endif %}>Newest</option>
+                            <option value="price_asc" {% if current_sort == 'price_asc' %}selected{% endif %}>Price: Low to High</option>
+                            <option value="price_desc" {% if current_sort == 'price_desc' %}selected{% endif %}>Price: High to Low</option>
+                        </select>
+                        <button type="submit" class="bg-blue-600 text-white px-4 py-2 rounded-md hover:bg-blue-700 transition duration-200 text-sm">
+                            Filter
+                        </button>
                     </div>
                     <div class="text-sm text-gray-600">
                         Showing {{ page_obj.start_index }}-{{ page_obj.end_index }} of {{ page_obj.paginator.count }} results
                     </div>
-                </div>
+                </form>
             </div>
 
-            <!-- Products -->
+            <!-- Products Grid -->
             {% if products %}
-
-            <div class="grid grid-cols-2 md:grid-cols-3 xl:grid-cols-4 gap-4 sm:gap-6">
-    {% for product in products %}
-        <div class="bg-white rounded-xl shadow-sm hover:shadow-md transition overflow-hidden flex flex-col">
-            <div class="relative">
-                <img src="{% if product.products_image %}{{ product.products_image.url }}{% else %}{% static 'images/placeholder.png' %}{% endif %}"
-                     alt="{{ product.products_name }}" class="w-full h-48 object-cover">
-                
-                {% if product.sale_price and product.sale_price < product.base_price %}
-                    <span class="absolute top-2 right-2 bg-red-500 text-white text-xs font-semibold px-2 py-0.5 rounded">
-                        -{{ product.discount_percentage|floatformat:0 }}%
-                    </span>
-                {% endif %}
-
-                {% if product.is_in_stock %}
-                    <span class="absolute top-2 left-2 bg-green-500 text-white text-xs font-medium px-2 py-0.5 rounded">
-                        In Stock ({{ product.available_quantity }})
-                    </span>
-                {% else %}
-                    <span class="absolute top-2 left-2 bg-gray-500 text-white text-xs font-medium px-2 py-0.5 rounded">
-                        Out of Stock
-                    </span>
-                {% endif %}
-            </div>
-
-            <div class="flex-1 p-3 sm:p-4 flex flex-col justify-between">
-                <div>
-                    <h3 class="text-sm font-semibold text-gray-900 truncate mb-1">
-                        <a href="{% url 'products:product_detail' product.slug %}" class="hover:text-blue-600">
-                            {{ product.products_name }}
-                        </a>
-                    </h3>
-
-                    {% if product.brand %}
-                        <p class="text-xs text-gray-500 mb-1">by {{ product.brand.name }}</p>
-                    {% endif %}
-
-                    {% if product.short_description %}
-                        <p class="text-xs text-gray-600 mb-2 line-clamp-2">{{ product.short_description|safe|truncatewords:12 }}</p>
-                    {% endif %}
-
-                    {% if product.tag_list %}
-                        <div class="flex flex-wrap gap-1 mt-1">
-                            {% for tag in product.tag_list %}
-                                <a href="{% url 'products:product_list' %}?tag={{ tag|urlencode }}"
-                                   class="bg-gray-100 text-gray-600 hover:bg-blue-100 hover:text-blue-600 text-[11px] px-2 py-0.5 rounded transition">
-                                    #{{ tag }}
-                                </a>
-                            {% endfor %}
-                        </div>
-                    {% endif %}
-                </div>
-
-                <div class="mt-auto space-y-2">
-                    <div class="flex items-center justify-between">
-                        <div class="flex items-baseline space-x-1">
-                            <span class="text-base font-bold text-green-600">${{ product.current_price|floatformat:2 }}</span>
+                <div class="grid grid-cols-2 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-3 xl:grid-cols-4 gap-6">
+                    {% for product in products %}
+                    <div class="product-card">
+                        <div class="relative overflow-hidden h-48">
+                            {% if product.products_image %}
+                                <img src="{{ product.products_image.url }}" alt="{{ product.products_name }}" class="product-image">
+                            {% else %}
+                                <img src="{% static 'images/placeholder.png' %}" alt="No image" class="product-image">
+                            {% endif %}
                             {% if product.sale_price and product.sale_price < product.base_price %}
-                                <span class="text-xs text-gray-400 line-through">${{ product.base_price|floatformat:2 }}</span>
+                                <span class="discount-badge">
+                                    -{{ product.discount_percentage|default:0 }}%
+                                </span>
                             {% endif %}
                         </div>
 
-                        {% if product.avg_rating %}
-                            <div class="flex items-center text-yellow-400 text-xs">
-                                <i class="fas fa-star mr-1"></i>{{ product.avg_rating|floatformat:1 }}
+                        <div class="p-4">
+                            <h3 class="text-lg font-semibold mb-2 line-clamp-1">
+                                <a href="{% url 'products:product_detail' product.slug %}" class="text-gray-900 hover:text-blue-600">
+                                    {{ product.products_name }}
+                                </a>
+                            </h3>
+
+                            <div class="flex items-center space-x-2 mb-3">
+                                <span class="text-xl text-green-600 font-medium">${{ product.current_price|floatformat:2 }}</span>
+                                {% if product.sale_price and product.sale_price < product.base_price %}
+                                    <span class="text-sm text-gray-500 line-through">${{ product.base_price|floatformat:2 }}</span>
+                                {% endif %}
                             </div>
-                        {% endif %}
+
+                            <div class="flex justify-between items-center text-sm mb-3">
+                                <p class="text-xs flex items-center">
+                                    {% if product.is_in_stock %}
+                                        <i class="fas fa-check-circle text-green-500 mr-1"></i>
+                                        <span class="text-green-600">In Stock ({{ product.available_quantity }})</span>
+                                    {% else %}
+                                        <i class="fas fa-times-circle text-red-500 mr-1"></i>
+                                        <span class="text-red-600">Out of Stock</span>
+                                    {% endif %}
+                                </p>
+                                <div class="flex items-center">
+                                    {% if product.avg_rating %}
+                                        <i class="fas fa-star text-yellow-400 mr-1"></i>
+                                        <span class="text-gray-600">{{ product.avg_rating|floatformat:1 }}</span>
+                                    {% else %}
+                                        <span class="text-gray-400">No reviews</span>
+                                    {% endif %}
+                                </div>
+                            </div>
+
+                            <form class="add-to-cart-form" method="POST" action="{% url 'orders:add_to_cart' product.slug %}">
+                                {% csrf_token %}
+                                <input type="hidden" name="weight" value="{{ product.weight|default:'default' }}">
+                                <input type="hidden" name="next" value="{{ request.get_full_path }}">
+
+                                <div class="flex items-center justify-between mb-3 border rounded-md">
+                                    <button type="button" class="decrease-btn p-2 text-gray-600 hover:text-gray-800" data-product-id="{{ product.slug }}">
+                                        <i class="fas fa-minus"></i>
+                                    </button>
+                                    <input type="number" name="quantity" class="quantity-input w-full text-center border-none focus:ring-0 text-sm" 
+                                           value="1" min="1" max="3" readonly data-product-id="{{ product.slug }}">
+                                    <button type="button" class="increase-btn p-2 text-gray-600 hover:text-gray-800" data-product-id="{{ product.slug }}">
+                                        <i class="fas fa-plus"></i>
+                                    </button>
+                                </div>
+
+                                {% if product.color_choices %}
+                                    <select name="color" required class="border rounded-md p-2 w-full mb-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500">
+                                        <option value="">-- Choose a color --</option>
+                                        {% for value, label in product.color_choices %}
+                                            <option value="{{ value }}">{{ label }}</option>
+                                        {% endfor %}
+                                    </select>
+                                {% endif %}
+
+                                {% if product.size_choices %}
+                                    <select name="size" required class="border rounded-md p-2 w-full mb-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500">
+                                        <option value="">-- Choose a size --</option>
+                                        {% for value, label in product.size_choices %}
+                                            <option value="{{ value }}">{{ label }}</option>
+                                        {% endfor %}
+                                    </select>
+                                {% endif %}
+
+                                <div class="flex space-x-2">
+                                    {% if product.is_in_stock %}
+                                        <button type="submit" class="add-to-cart-btn bg-blue-600 text-white px-4 py-2 rounded w-1/2 hover:bg-blue-700 transition duration-200 text-sm font-medium">
+                                            Add to Cart
+                                        </button>
+                                        <button type="submit" formaction="{% url 'orders:checkout_from_product' product.slug %}" 
+                                                class="checkout-btn bg-green-600 text-white px-4 py-2 rounded w-1/2 hover:bg-green-700 transition duration-200 text-sm font-medium">
+                                            Checkout
+                                        </button>
+                                    {% else %}
+                                        <button type="button" disabled class="bg-gray-400 text-white px-4 py-2 rounded w-full cursor-not-allowed text-sm">
+                                            Out of Stock
+                                        </button>
+                                    {% endif %}
+                                </div>
+                            </form>
+                        </div>
                     </div>
-
-                    <div class="flex space-x-2">
-                        <a href="{% url 'products:product_detail' product.slug %}"
-                           class="flex-1 bg-gray-100 text-gray-700 text-center py-1.5 rounded hover:bg-gray-200 transition text-xs font-medium">
-                            View
-                        </a>
-
-                        <form action="{% url 'orders:add_to_cart' product.slug %}" method="POST" class="flex-1">
-                            {% csrf_token %}
-                            <input type="hidden" name="quantity" value="1">
-                            <input type="hidden" name="color" value="{{ product.color|default:'default' }}">
-                            <input type="hidden" name="size" value="{{ product.size|default:'default' }}">
-                            <input type="hidden" name="weight" value="{{ product.weight|default:'default' }}">
-                            <button type="submit" {% if not product.is_in_stock %}disabled{% endif %}
-                                    class="w-full py-1.5 rounded text-xs font-medium transition
-                                    {% if product.is_in_stock %}bg-blue-600 text-white hover:bg-blue-700{% else %}bg-gray-400 text-white cursor-not-allowed{% endif %}">
-                                {% if product.is_in_stock %}Add{% else %}Out{% endif %}
-                            </button>
-                        </form>
-                    </div>
-
-{% if request.user.is_authenticated and product.user_can_review and not product.user_has_reviewed %}
-    <button onclick="openReviewModal('{{ product.slug }}', '{{ product.products_name|escapejs }}')"
-            class="w-full bg-green-500 text-white py-1.5 rounded hover:bg-green-600 transition text-xs font-medium flex items-center justify-center">
-        <i class="fas fa-star mr-1"></i>Review
-    </button>
-{% elif request.user.is_authenticated and not product.user_can_review %}
-    <button disabled
-            class="w-full bg-gray-400 text-white py-1.5 rounded text-xs font-medium cursor-not-allowed">
-        Review available after 15 days
-    </button>
-{% endif %}
-
+                    {% empty %}
+                        <div class="col-span-full text-center py-12 bg-white rounded-lg shadow-sm border">
+                            <i class="fas fa-search text-4xl text-gray-300 mb-4"></i>
+                            <h3 class="text-xl font-semibold text-gray-700 mb-2">No Products Found</h3>
+                            <p class="text-gray-500 mb-6">Try adjusting your filters or search terms.</p>
+                            <a href="{% url 'products:product_list' %}" class="bg-blue-600 text-white px-6 py-2 rounded-lg hover:bg-blue-700 transition">
+                                Browse All Products
+                            </a>
+                        </div>
+                    {% endfor %}
                 </div>
-            </div>
-        </div>
-    {% endfor %}
-</div>
-
 
                 <!-- Pagination -->
                 {% if is_paginated %}
                     <div class="flex justify-center mt-8">
-                        <nav class="inline-flex rounded-md shadow-sm -space-x-px" aria-label="Pagination">
-                            {% if page_obj.has_previous %}
-                                <a href="{% url 'products:product_list' %}?{% if request.GET.urlencode %}{{ request.GET.urlencode|remove_query_param:'page' }}&page={{ page_obj.previous_page_number }}{% else %}page={{ page_obj.previous_page_number }}{% endif %}"
-                                   class="inline-flex items-center px-3 py-2 rounded-l-md border border-gray-300 bg-white text-sm text-gray-500 hover:bg-gray-50">
-                                    <i class="fas fa-chevron-left"></i>
-                                </a>
-                            {% endif %}
-                            {% for i in paginator.page_range %}
-                                {% if page_obj.number == i %}
-                                    <span class="inline-flex items-center px-4 py-2 border border-blue-500 bg-blue-50 text-sm font-medium text-blue-600">
-                                        {{ i }}
-                                    </span>
-                                {% elif i >= page_obj.number|add:'-2' and i <= page_obj.number|add:'2' %}
-                                    <a href="{% url 'products:product_list' %}?{% if request.GET.urlencode %}{{ request.GET.urlencode|remove_query_param:'page' }}&page={{ i }}{% else %}page={{ i }}{% endif %}"
-                                       class="inline-flex items-center px-4 py-2 border border-gray-300 bg-white text-sm text-gray-700 hover:bg-gray-50">
-                                        {{ i }}
-                                    </a>
-                                {% elif i == 1 or i == paginator.num_pages %}
-                                    <a href="{% url 'products:product_list' %}?{% if request.GET.urlencode %}{{ request.GET.urlencode|remove_query_param:'page' }}&page={{ i }}{% else %}page={{ i }}{% endif %}"
-                                       class="inline-flex items-center px-4 py-2 border border-gray-300 bg-white text-sm text-gray-700 hover:bg-gray-50">
-                                        {{ i }}
-                                    </a>
-                                {% elif i == page_obj.number|add:'-3' or i == page_obj.number|add:'3' %}
-                                    <span class="inline-flex items-center px-4 py-2 border border-gray-300 bg-white text-sm text-gray-700">...</span>
-                                {% endif %}
-                            {% endfor %}
-                            {% if page_obj.has_next %}
-                                <a href="{% url 'products:product_list' %}?{% if request.GET.urlencode %}{{ request.GET.urlencode|remove_query_param:'page' }}&page={{ page_obj.next_page_number }}{% else %}page={{ page_obj.next_page_number }}{% endif %}"
-                                   class="inline-flex items-center px-3 py-2 rounded-r-md border border-gray-300 bg-white text-sm text-gray-500 hover:bg-gray-50">
-                                    <i class="fas fa-chevron-right"></i>
-                                </a>
-                            {% endif %}
-                        </nav>
+                        {% include 'partials/pagination.html' %}
                     </div>
                 {% endif %}
             {% else %}
-                <div class="text-center py-16 bg-white rounded-lg shadow-sm border">
+                <div class="col-span-full text-center py-12 bg-white rounded-lg shadow-sm border">
                     <i class="fas fa-search text-4xl text-gray-300 mb-4"></i>
                     <h3 class="text-xl font-semibold text-gray-700 mb-2">No Products Found</h3>
                     <p class="text-gray-500 mb-6">Try adjusting your filters or search terms.</p>
@@ -457,108 +405,157 @@
             {% endif %}
         </div>
     </div>
-</div>
 
-<!-- Review Modal -->
-<div id="reviewModal" class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center hidden z-50">
-    <div class="bg-white rounded-lg p-6 w-full max-w-md mx-4 review-modal">
-        <div class="flex justify-between items-center mb-4">
-            <h3 class="text-lg font-semibold" id="reviewProductName">Add Review</h3>
-            <button onclick="closeReviewModal()" class="text-gray-500 hover:text-gray-700">
-                <i class="fas fa-times"></i>
-            </button>
-        </div>
-        <form id="reviewForm" method="POST" action="{% url 'products:add_review' %}">
-            {% csrf_token %}
-            <input type="hidden" name="product_slug" id="reviewProductSlug">
-            <div class="mb-4">
-                <label for="ratingValue" class="block text-sm font-medium text-gray-700 mb-2">Rating</label>
-                <div id="ratingStars" class="flex space-x-1">
-                    {% for i in "12345" %}
-                        <button type="button" class="star-button text-gray-300" data-rating="{{ forloop.counter }}"
-                                onclick="setRating({{ forloop.counter }})">
-                            <i class="fas fa-star"></i>
+    <!-- Message Container -->
+    <div id="messageContainer" class="fixed top-4 right-4 z-50">
+        {% if messages %}
+            {% for message in messages %}
+                <div class="flying-message show bg-green-500 text-white p-4 rounded-lg shadow-lg mb-2">
+                    <div class="flex items-center">
+                        <i class="fas fa-check-circle mr-3"></i>
+                        <span>{{ message }}</span>
+                        <button type="button" class="ml-auto text-white hover:text-gray-200" onclick="$(this).closest('.flying-message').remove()">
+                            <i class="fas fa-times"></i>
                         </button>
-                    {% endfor %}
+                    </div>
                 </div>
-                <input type="hidden" name="rating" id="ratingValue" value="0">
-            </div>
-            <div class="mb-4">
-                <label for="reviewTitle" class="block text-sm font-medium text-gray-700 mb-2">Title</label>
-                <input type="text" name="title" id="reviewTitle" class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500" required>
-            </div>
-            <div class="mb-4">
-                <label for="reviewComment" class="block text-sm font-medium text-gray-700 mb-2">Comment</label>
-                <textarea name="comment" id="reviewComment" rows="4" class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500" required></textarea>
-            </div>
-            <div class="flex justify-end space-x-2">
-                <button type="button" onclick="closeReviewModal()" class="px-4 py-2 bg-gray-200 text-gray-700 rounded-lg hover:bg-gray-300">
-                    Cancel
-                </button>
-                <button type="submit" class="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700">
-                    Submit Review
-                </button>
-            </div>
-        </form>
+            {% endfor %}
+        {% endif %}
     </div>
 </div>
 {% endblock %}
 
 {% block extra_js %}
 <script>
-// Review Modal Functions
-function openReviewModal(slug, name) {
-    document.getElementById('reviewModal').classList.remove('hidden');
-    document.getElementById('reviewProductSlug').value = slug;
-    document.getElementById('reviewProductName').textContent = `Review: ${name}`;
-    setRating(0); // Reset rating
-    document.getElementById('reviewForm').reset();
-}
+    // --- UTILITY FUNCTIONS ---
+    function showFlyingMessage(message, type = 'success') {
+        const messageId = 'msg-' + Date.now();
+        const bgColor = type === 'success' ? 'bg-green-500' : 'bg-red-500';
+        const icon = type === 'success' ? 'fa-check-circle' : 'fa-exclamation-triangle';
 
-function closeReviewModal() {
-    document.getElementById('reviewModal').classList.add('hidden');
-}
+        const messageHtml = `
+            <div id="${messageId}" class="flying-message show ${bgColor} text-white p-4 rounded-lg shadow-lg">
+                <div class="flex items-center">
+                    <i class="fas ${icon} mr-3"></i>
+                    <span>${message}</span>
+                    <button type="button" class="ml-auto text-white hover:text-gray-200" onclick="$(this).closest('.flying-message').remove()">
+                        <i class="fas fa-times"></i>
+                    </button>
+                </div>
+            </div>
+        `;
 
-function setRating(rating) {
-    const ratingValueInput = document.getElementById('ratingValue');
-    const starButtons = document.querySelectorAll('.star-button');
-    ratingValueInput.value = rating;
-    starButtons.forEach(button => {
-        const buttonRating = parseInt(button.dataset.rating);
-        button.classList.toggle('text-yellow-400', buttonRating <= rating);
-        button.classList.toggle('text-gray-300', buttonRating > rating);
-    });
-}
-// Add-to-cart AJAX handler (integrated with base.html)
-    $(document).on('submit', '.add-to-cart-form', function(e) {
-        e.preventDefault();
-        const $form = $(this);
-        const $button = $form.find('button[type="submit"]');
-        $button.prop('disabled', true).text('Adding...');
+        $('#messageContainer').append(messageHtml);
 
-        $.ajax({
-            url: $form.attr('action'),
-            method: 'POST',
-            data: $form.serialize(),
-            success: function(data) {
-                if (data.success) {
-                    $(document).trigger('cart-updated', data);
-                    // Flash success animation
-                    $button.text('Added!').addClass('bg-green-600').removeClass('bg-blue-600');
-                    setTimeout(() => {
-                        $button.text('Add to Cart').removeClass('bg-green-600').addClass('bg-blue-600');
-                    }, 1500);
-                } else {
-                    $button.prop('disabled', false).text('Add to Cart');
-                    alert(data.message || 'Error adding to cart');
-                }
-            },
-            error: function() {
-                $button.prop('disabled', false).text('Add to Cart');
-                alert('Error adding to cart');
+        // Auto remove after 5 seconds
+        setTimeout(() => {
+            $(`#${messageId}`).remove();
+        }, 5000);
+    }
+
+    function updateButtonState(productId, currentValue) {
+        const decreaseBtn = $(`.decrease-btn[data-product-id="${productId}"]`);
+        const increaseBtn = $(`.increase-btn[data-product-id="${productId}"]`);
+
+        // Disable decrease button if quantity is 1
+        decreaseBtn.prop('disabled', currentValue <= 1).css('opacity', currentValue <= 1 ? '0.5' : '1');
+
+        // Disable increase button if quantity is 3
+        increaseBtn.prop('disabled', currentValue >= 3).css('opacity', currentValue >= 3 ? '0.5' : '1');
+    }
+
+    // --- MAIN DOCUMENT READY & EVENT HANDLERS ---
+    $(document).ready(function() {
+        // Initialize quantity buttons
+        $('.quantity-input').each(function() {
+            const productId = $(this).data('product-id');
+            const currentValue = parseInt($(this).val());
+            updateButtonState(productId, currentValue);
+        });
+
+        // Increase quantity
+        $(document).on('click', '.increase-btn', function() {
+            const productId = $(this).data('product-id');
+            const input = $(`.quantity-input[data-product-id="${productId}"]`);
+            let currentValue = parseInt(input.val());
+            if (currentValue < 3) {
+                input.val(currentValue + 1);
+                updateButtonState(productId, currentValue + 1);
             }
         });
-    });
 
+        // Decrease quantity
+        $(document).on('click', '.decrease-btn', function() {
+            const productId = $(this).data('product-id');
+            const input = $(`.quantity-input[data-product-id="${productId}"]`);
+            let currentValue = parseInt(input.val());
+            if (currentValue > 1) {
+                input.val(currentValue - 1);
+                updateButtonState(productId, currentValue - 1);
+            }
+        });
+
+        // Handle Add to Cart and Checkout forms
+        $(document).on('submit', '.add-to-cart-form', function(e) {
+            e.preventDefault();
+            const $form = $(this);
+            const $button = $form.find('.add-to-cart-btn, .checkout-btn');
+            const originalText = $button.html();
+            const originalClass = $button.attr('class');
+            const isCheckout = $button.hasClass('checkout-btn');
+
+            // Show loading state
+            $button.prop('disabled', true)
+                   .removeClass('bg-blue-600 hover:bg-blue-700 bg-green-600 hover:bg-green-700')
+                   .addClass('bg-gray-400')
+                   .html('<i class="fas fa-spinner fa-spin mr-2"></i>' + (isCheckout ? 'Processing...' : 'Adding...'));
+
+            $.ajax({
+                url: $form.attr('action'),
+                method: 'POST',
+                data: $form.serialize(),
+                headers: {
+                    'X-Requested-With': 'XMLHttpRequest',
+                    'X-CSRFToken': '{{ csrf_token }}'
+                },
+                success: function(data) {
+                    if (data.success) {
+                        // Update cart badge
+                        $('#cart-count-badge').text(data.cart_count || 0);
+
+                        // Show flying message
+                        showFlyingMessage(data.message || (isCheckout ? 'Added to cart, redirecting to checkout...' : 'Product added to cart!'), 'success');
+
+                        // Button success animation
+                        $button.removeClass('bg-gray-400')
+                               .addClass('bg-green-600')
+                               .html('<i class="fas fa-check mr-2"></i>' + (isCheckout ? 'Redirecting...' : 'Added!'));
+
+                        // For checkout, redirect after a short delay
+                        if (isCheckout) {
+                            setTimeout(() => {
+                                window.location.href = '{% url 'orders:checkout' %}';
+                            }, 1500);
+                        } else {
+                            setTimeout(() => {
+                                $button.attr('class', originalClass).html(originalText).prop('disabled', false);
+                            }, 2000);
+                        }
+                    } else {
+                        showFlyingMessage(data.message || 'Error processing request', 'error');
+                        $button.attr('class', originalClass).html(originalText).prop('disabled', false);
+                    }
+                },
+                error: function(xhr) {
+                    let errorMessage = 'Error processing request. Please try again.';
+                    if (xhr.responseJSON && xhr.responseJSON.message) {
+                        errorMessage = xhr.responseJSON.message;
+                    }
+                    showFlyingMessage(errorMessage, 'error');
+                    $button.attr('class', originalClass).html(originalText).prop('disabled', false);
+                }
+            });
+        });
+    });
 </script>
 {% endblock %}
