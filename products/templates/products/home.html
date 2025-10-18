@@ -6,151 +6,319 @@
 
 {% block extra_css %}
 <link rel="stylesheet" href="{% static 'products/css/home.css' %}">
+<style>
+    /* Hero Section (Inspired by Salamat's New Arrivals banner) */
+    .hero-section {
+        background-image: linear-gradient(rgba(0, 0, 0, 0.4), rgba(0, 0, 0, 0.4)), url('{% static "images/hero-banner.jpg" %}');
+        background-size: cover;
+        background-position: center;
+        height: 60vh;
+        min-height: 400px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        text-align: center;
+        color: white;
+        position: relative;
+    }
+    .hero-overlay {
+        background: rgba(0, 0, 0, 0.3);
+        padding: 2rem;
+        border-radius: 0.5rem;
+    }
+    .hero-section h1 {
+        font-size: 3.5rem;
+        font-weight: 700;
+        margin-bottom: 1rem;
+        text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.5);
+    }
+    .hero-section p {
+        font-size: 1.25rem;
+        margin-bottom: 2rem;
+        max-width: 600px;
+    }
+    /* Product Card (Minimalist, with subtle hover) */
+    .product-card {
+        transition: transform 0.3s ease, box-shadow 0.3s ease;
+        border-radius: 0.5rem;
+        overflow: hidden;
+        background: white;
+        box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+    }
+    .product-card:hover {
+        transform: translateY(-4px);
+        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+    }
+    .product-image {
+        height: 220px;
+        object-fit: cover;
+        width: 100%;
+    }
+    /* Brand/Category Links (Grid like Salamat's Featured Brands) */
+    .brand-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+        gap: 1rem;
+    }
+    .brand-link {
+        text-align: center;
+        padding: 1rem;
+        border: 1px solid #e5e7eb;
+        border-radius: 0.5rem;
+        transition: background-color 0.2s;
+    }
+    .brand-link:hover {
+        background-color: #f9fafb;
+    }
+    /* Get To Know Section (Like Salamat's image grid) */
+    .know-section {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+        gap: 1.5rem;
+    }
+    .know-card {
+        text-align: center;
+        padding: 1.5rem;
+        background: white;
+        border-radius: 0.5rem;
+        box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+    }
+    .know-card img {
+        height: 60px;
+        width: auto;
+        margin-bottom: 1rem;
+    }
+    /* Coming Soon Teaser (Direct from Salamat) */
+    .coming-soon {
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        color: white;
+        padding: 3rem 2rem;
+        border-radius: 0.5rem;
+        text-align: center;
+    }
+    /* Responsive adjustments */
+    @media (max-width: 768px) {
+        .hero-section h1 {
+            font-size: 2.5rem;
+        }
+        .space-y-2 {
+            line-height: 1.5;
+        }
+    }
+</style>
 {% endblock %}
 
 {% block content %}
+<!-- Hero Section (New Arrivals - Inspired by Salamat) -->
+<section class="hero-section">
+    <div class="hero-overlay">
+        <h1>New Arrivals: Discover the Latest Tech!</h1>
+        <p>Explore our brand-new collection of cutting-edge gadgets. Fresh arrivals, premium quality, and the newest innovations.</p>
+        <a href="{% url 'products:product_list' %}" class="bg-white text-blue-600 px-8 py-3 rounded-lg font-semibold hover:bg-gray-100 transition duration-200 inline-block">
+            Shop Now
+        </a>
+    </div>
+</section>
+
+<!-- Main Container -->
 <div class="container mx-auto px-4 py-8">
-    <nav class="text-sm breadcrumbs mb-6">
-        <a href="{% url 'products:home' %}" class="text-blue-600">Home</a>
-    </nav>
-
-    <div class="grid grid-cols-1 md:grid-cols-4 gap-6">
-        <!-- Sidebar -->
-<aside class="md:col-span-1">
-    <!-- Categories -->
-    <h2 class="text-xl font-semibold mb-4">Categories</h2>
-    <ul class="space-y-2">
-        {% for category in categories %}
-            <li>
-                <a href="{% url 'products:product_list' %}?category={{ category.slug }}" 
-                   class="text-gray-700 hover:text-blue-600">
-                   {{ category.name }}
+    <!-- Featured Brands/Sections (Like Salamat's Featured Products) -->
+    <section class="mb-8">
+        <h2 class="text-2xl font-bold mb-6 text-center">Explore by Category & Brand</h2>
+        <div class="brand-grid">
+            <!-- Categories -->
+            {% for category in categories|slice:":6" %}
+                <a href="{% url 'products:product_list' %}?category={{ category.slug }}" class="brand-link">
+                    <img src="{% static 'images/category-placeholder.png' %}" alt="{{ category.name }}" class="mx-auto mb-2" style="height: 40px;">
+                    <p class="text-sm font-medium">{{ category.name }}</p>
                 </a>
-            </li>
-        {% empty %}
-            <li>No categories</li>
-        {% endfor %}
-    </ul>
-
-    <!-- Brands -->
-    <h2 class="text-xl font-semibold mb-4 mt-6">Brands</h2>
-    <ul class="space-y-2">
-        {% for brand in brands %}
-            <li>
-                <a href="{% url 'products:product_list' %}?brand={{ brand.slug }}" 
-                   class="text-gray-700 hover:text-blue-600">
-                   {{ brand.name }}
+            {% empty %}
+                <div class="brand-link text-center">
+                    <p class="text-gray-500">No categories available</p>
                 </a>
-            </li>
-        {% empty %}
-            <li>No brands</li>
-        {% endfor %}
-    </ul>
-</aside>
-        <!-- Main Product Grid -->
-        <section class="md:col-span-3">
-            <h1 class="text-3xl font-bold mb-6">Featured Products</h1>
-            <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
-                {% for product in products %}
-                    <div class="bg-white shadow-md rounded-lg overflow-hidden hover:shadow-xl transition duration-300">
+            {% endfor %}
+        </div>
+    </section>
+
+    <!-- Featured Products Grid -->
+    <section class="mb-8">
+        <h2 class="text-2xl font-bold mb-6">Featured Products</h2>
+        <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
+            {% for product in products|slice:":12" %}
+                <div class="product-card">
+                    <div class="overflow-hidden">
                         {% if product.products_image %}
-                            <img src="{{ product.products_image.url }}" alt="{{ product.products_name }}" class="w-full h-48 object-cover">
+                            <img src="{{ product.products_image.url }}" alt="{{ product.products_name }}" class="product-image">
+                        {% else %}
+                            <img src="{% static 'images/placeholder.png' %}" alt="No image" class="product-image">
+                        {% endif %}
+                    </div>
+                    <div class="p-4">
+                        <h3 class="text-base font-semibold mb-2 line-clamp-1">
+                            <a href="{% url 'products:product_detail' product.slug %}" class="text-gray-900 hover:text-blue-600">
+                                {{ product.products_name }}
+                            </a>
+                        </h3>
+
+                        <!-- Price & Discount -->
+                        <div class="flex items-center space-x-2 mb-3">
+                            <span class="text-lg text-green-600 font-medium">${{ product.current_price|floatformat:2 }}</span>
+                            {% if product.sale_price and product.sale_price < product.base_price %}
+                                <span class="text-sm text-gray-500 line-through">${{ product.base_price|floatformat:2 }}</span>
+                                <span class="bg-red-500 text-white text-xs px-2 py-1 rounded font-medium">
+                                    -{{ product.discount_percentage|default:0 }}%
+                                </span>
+                            {% endif %}
+                        </div>
+
+                        <!-- Stock Status -->
+                        <p class="text-xs mb-3 flex items-center">
+                            {% if product.is_in_stock %}
+                                <i class="fas fa-check-circle text-green-500 mr-1"></i>
+                                <span class="text-green-600">In Stock ({{ product.available_quantity }})</span>
+                            {% else %}
+                                <i class="fas fa-times-circle text-red-500 mr-1"></i>
+                                <span class="text-red-600">Out of Stock</span>
+                            {% endif %}
+                        </p>
+
+                        <!-- Short Description -->
+                        {% if product.short_description %}
+                            <p class="text-sm text-gray-600 mb-3 line-clamp-2">{{ product.short_description|safe }}</p>
                         {% endif %}
 
-                        <div class="p-4">
-                            <h3 class="text-lg font-semibold mb-2">
-                                <a href="{% url 'products:product_detail' product.slug %}">{{ product.products_name }}</a>
-                            </h3>
-
-                            <!-- Price & Discount -->
-                            <p class="text-2xl text-green-600 mb-4 flex items-center space-x-2">
-                                <span>${{ product.current_price_display|intcomma }}</span>
-                                {% if product.discount_percentage %}
-                                    <span class="line-through text-gray-500">${{ product.base_price|intcomma }}</span>
-                                    <span class="discount-badge bg-red-500 text-white px-2 py-1 rounded text-sm">
-                                        -{{ product.discount_percentage }}%
-                                    </span>
-                                {% endif %}
-                            </p>
-
-                            <!-- Stock Status -->
+                        <!-- Add to Cart -->
+                        <form class="add-to-cart-form" method="POST" action="{% url 'orders:add_to_cart' product.slug %}">
+                            {% csrf_token %}
+                            <input type="hidden" name="quantity" value="1">
+                            <input type="hidden" name="color" value="{{ product.color|default:'default' }}">
+                            <input type="hidden" name="size" value="{{ product.size|default:'default' }}">
+                            <input type="hidden" name="weight" value="{{ product.weight|default:'default' }}">
                             {% if product.is_in_stock %}
-                                <p class="text-sm {% if product.is_low_stock %}text-red-500 font-medium{% else %}text-green-600{% endif %} mb-2 flex items-center">
-                                    <i class="fas fa-box-open mr-1"></i>
-                                    In Stock ({{ product.available_quantity }} left)
-                                </p>
+                                <button type="submit" class="bg-blue-600 text-white px-4 py-2 rounded w-full hover:bg-blue-700 transition duration-200 text-sm font-medium">
+                                    Add to Cart
+                                </button>
                             {% else %}
-                                <p class="text-sm text-red-700 font-medium mb-2 flex items-center">
-                                    <i class="fas fa-times-circle mr-1"></i>
+                                <button type="button" disabled class="bg-gray-400 text-white px-4 py-2 rounded w-full cursor-not-allowed text-sm">
                                     Out of Stock
-                                </p>
+                                </button>
                             {% endif %}
-
-{% if product.short_description|striptags %}
-    <p class="text-sm text-gray-500 mb-4">{{ product.short_description|safe }}</p>
-{% endif %}
-
-                            <!-- Add to Cart -->
-                            <form class="add-to-cart-form" action="{% url 'orders:add_to_cart' product.slug %}" method="POST">
-                                {% csrf_token %}
-                                <input type="hidden" name="quantity" value="1">
-                                {% if product.is_in_stock %}
-                                    <button type="submit" class="bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700 w-full transition duration-200">
-                                        Add to Cart
-                                    </button>
-                                {% else %}
-                                    <button type="button" disabled class="bg-gray-400 text-white px-4 py-2 rounded cursor-not-allowed w-full">
-                                        Out of Stock
-                                    </button>
-                                {% endif %}
-                            </form>
-                        </div>
+                        </form>
                     </div>
-                {% empty %}
-                    <p>No products available.</p>
-                {% endfor %}
+                </div>
+            {% empty %}
+                <div class="col-span-full text-center py-12">
+                    <p class="text-gray-500 text-lg">No products available at the moment.</p>
+                    <a href="{% url 'products:product_list' %}" class="mt-4 inline-block bg-blue-600 text-white px-6 py-2 rounded hover:bg-blue-700">
+                        View All Products
+                    </a>
+                </div>
+            {% endfor %}
+        </div>
+    </section>
+
+    <!-- Get To Know Us (Inspired by Salamat's image grid) -->
+    <section class="mb-8">
+        <h2 class="text-2xl font-bold mb-6 text-center">Get To Know Us</h2>
+        <div class="know-section">
+            <div class="know-card">
+                <img src="{% static 'images/icon-quality.png' %}" alt="Quality Assurance">
+                <h3 class="text-lg font-semibold mb-2">Premium Quality</h3>
+                <p class="text-gray-600">Authentic products with rigorous quality checks.</p>
             </div>
-        </section>
-    </div>
+            <div class="know-card">
+                <img src="{% static 'images/icon-fast-delivery.png' %}" alt="Fast Delivery">
+                <h3 class="text-lg font-semibold mb-2">Fast Delivery</h3>
+                <p class="text-gray-600">Nationwide shipping within 2-3 business days.</p>
+            </div>
+            <div class="know-card">
+                <img src="{% static 'images/icon-support.png' %}" alt="Customer Support">
+                <h3 class="text-lg font-semibold mb-2">24/7 Support</h3>
+                <p class="text-gray-600">Dedicated customer service for all your queries.</p>
+            </div>
+        </div>
+    </section>
+
+    <!-- Coming Soon Teaser (Direct from Salamat) -->
+    <section class="coming-soon mb-8">
+        <h2 class="text-2xl font-bold mb-2">Coming Soon</h2>
+        <p class="mb-4 text-lg">Get ready to explore cutting-edge tech, premium gadgets, and smart solutions — all in one place. We're building something exciting to elevate your digital lifestyle.</p>
+        <a href="{% url 'products:product_list' %}" class="bg-white text-purple-600 px-6 py-3 rounded-lg font-semibold hover:bg-gray-100 transition duration-200 inline-block">
+            Stay Tuned
+        </a>
+    </section>
 </div>
 
+<!-- Customer Reviews Section (Optional, minimalist) -->
+<section class="bg-gray-50 py-12">
+    <div class="container mx-auto px-4">
+        <h2 class="text-2xl font-bold mb-6 text-center">What Our Customers Say</h2>
+        <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+            {% for product in products|slice:":3" %}
+                {% with product.reviews.all|first as review %}
+                    {% if review %}
+                        <div class="bg-white p-6 rounded-lg shadow-sm text-center">
+                            <div class="flex justify-center mb-3">
+                                {% for i in "12345" %}
+                                    <i class="fas fa-star text-yellow-400 {% if forloop.counter <= review.rating %}filled{% endif %}"></i>
+                                {% endfor %}
+                            </div>
+                            <p class="text-gray-600 mb-3 italic">"{{ review.comment|truncatewords:20|default:'Great product!' }}"</p>
+                            <p class="font-semibold text-blue-600">- {{ review.user.username }}</p>
+                        </div>
+                    {% endif %}
+                {% endwith %}
+            {% empty %}
+                <div class="col-span-3 text-center py-8">
+                    <p class="text-gray-500">No reviews yet. Be the first!</p>
+                </div>
+            {% endfor %}
+        </div>
+    </div>
+</section>
+{% endblock %}
+
+{% block extra_js %}
 <script>
-$(document).ready(function() {
-    $('.add-to-cart-form').on('submit', function(e) {
-        e.preventDefault();
-        const form = $(this);
-        const submitButton = form.find('button[type="submit"]');
-        const url = form.attr('action');
-        const data = form.serialize();
-
-        submitButton.prop('disabled', true).text('Adding...');
-
-        $.ajax({
-            url: url,
-            method: 'POST',
-            data: data,
-            dataType: 'json',
-            success: function(response) {
-                if (response.success) {
-                    $('#cart-count-badge').text(response.cart_count);
-                    submitButton.text('Added!');
-                    setTimeout(() => submitButton.text('Add to Cart'), 2000);
-                } else {
-                    alert('Error: ' + response.message);
-                    submitButton.prop('disabled', false).text('Add to Cart');
-                }
-            },
-            error: function(xhr) {
-                let msg = "An unknown error occurred.";
-                try {
-                    const res = JSON.parse(xhr.responseText);
-                    msg = res.message || msg;
-                } catch {}
-                alert('Failed to add to cart: ' + msg);
-                submitButton.prop('disabled', false).text('Add to Cart');
+    // Custom CSS for star ratings
+    document.addEventListener('DOMContentLoaded', function() {
+        const stars = document.querySelectorAll('.fa-star');
+        stars.forEach(star => {
+            if (star.classList.contains('filled')) {
+                star.style.color = '#fbbf24';
             }
         });
     });
-});
+
+    // Add-to-cart AJAX handler (integrated with base.html)
+    $(document).on('submit', '.add-to-cart-form', function(e) {
+        e.preventDefault();
+        const $form = $(this);
+        const $button = $form.find('button[type="submit"]');
+        $button.prop('disabled', true).text('Adding...');
+
+        $.ajax({
+            url: $form.attr('action'),
+            method: 'POST',
+            data: $form.serialize(),
+            success: function(data) {
+                if (data.success) {
+                    $(document).trigger('cart-updated', data);
+                    // Flash success animation
+                    $button.text('Added!').addClass('bg-green-600').removeClass('bg-blue-600');
+                    setTimeout(() => {
+                        $button.text('Add to Cart').removeClass('bg-green-600').addClass('bg-blue-600');
+                    }, 1500);
+                } else {
+                    $button.prop('disabled', false).text('Add to Cart');
+                    alert(data.message || 'Error adding to cart');
+                }
+            },
+            error: function() {
+                $button.prop('disabled', false).text('Add to Cart');
+                alert('Error adding to cart');
+            }
+        });
+    });
 </script>
 {% endblock %}

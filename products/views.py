@@ -17,6 +17,8 @@ from orders.models import OrderItem
 from django.utils import timezone
 from datetime import timedelta
 from django.db.models import Avg
+from .utils import calculate_discount
+from django.db.models import Exists, OuterRef
 
 
 
@@ -88,26 +90,48 @@ class ProductListView(ListView):
     model = Product
     template_name = 'products/product_list.html'
     context_object_name = 'products'
-    paginate_by = 10
+    paginate_by = 12
 
     def get_queryset(self):
-        queryset = Product.objects.select_related('inventory', 'category', 'brand')\
-                                .prefetch_related('images', 'reviews')\
-                                .all()
+        queryset = Product.objects.filter(is_active=True).select_related(
+            'category', 'brand', 'inventory_reverse'
+        ).prefetch_related('images', 'reviews')
 
-        # Filters
-        search = self.request.GET.get('search')
-        category_slug = self.request.GET.get('category')
-        brand_slug = self.request.GET.get('brand')
-        tag = self.request.GET.get('tag')
-        min_price = self.request.GET.get('min_price')
-        max_price = self.request.GET.get('max_price')
-        sort = self.request.GET.get('sort', )
+        queryset = queryset.annotate(avg_rating=Avg('reviews__rating'))
 
-        if search:
+        # Check if user has reviewed this product
+        if self.request.user.is_authenticated:
+            user_reviews = Review.objects.filter(product=OuterRef('pk'), user=self.request.user)
+            queryset = queryset.annotate(user_has_reviewed=Exists(user_reviews))
+
+            # Check if user purchased this product AND 15 days have passed
+            fifteen_days_ago = timezone.now() - timedelta(days=15)
+            purchased_items = OrderItem.objects.filter(
+                product=OuterRef('pk'),
+                order__user=self.request.user,
+                order__created_at__lte=fifteen_days_ago
+            )
+            queryset = queryset.annotate(user_can_review=Exists(purchased_items))
+
+        else:
+            queryset = queryset.annotate(
+                user_has_reviewed=Exists(Product.objects.none()),
+                user_can_review=Exists(Product.objects.none())
+            )
+
+        # --- Existing filter logic (unchanged) ---
+        search_query = self.request.GET.get('search', '')
+        category_slug = self.request.GET.get('category', '')
+        brand_slug = self.request.GET.get('brand', '')
+        tag = self.request.GET.get('tag', '')
+        min_price = self.request.GET.get('min_price', '')
+        max_price = self.request.GET.get('max_price', '')
+
+        if search_query:
             queryset = queryset.filter(
-                Q(products_name__icontains=search) |
-                Q(description__icontains=search)
+                Q(products_name__icontains=search_query) |
+                Q(description__icontains=search_query) |
+                Q(short_description__icontains=search_query)
             )
         if category_slug:
             queryset = queryset.filter(category__slug=category_slug)
@@ -116,47 +140,27 @@ class ProductListView(ListView):
         if tag:
             queryset = queryset.filter(tags__icontains=tag)
         if min_price:
-            queryset = queryset.filter(sale_price__gte=min_price)
+            queryset = queryset.filter(sale_price__gte=Decimal(min_price))
         if max_price:
-            queryset = queryset.filter(sale_price__lte=max_price)
+            queryset = queryset.filter(sale_price__lte=Decimal(max_price))
 
-        # Annotate avg_rating for all products
-        queryset = queryset.annotate(avg_rating=Avg('reviews__rating'))
-
-        # Sorting (done while still a QuerySet)
-        if sort == 'price_asc':
+        # Sorting
+        sort = self.request.GET.get('sort', 'rating_desc')
+        if sort == 'name_asc':
+            queryset = queryset.order_by('products_name')
+        elif sort == 'price_asc':
             queryset = queryset.order_by('sale_price')
         elif sort == 'price_desc':
             queryset = queryset.order_by('-sale_price')
-        elif sort == 'name_asc':
-            queryset = queryset.order_by('products_name')
         elif sort == 'rating_desc':
             queryset = queryset.order_by('-avg_rating')
         elif sort == 'newest':
             queryset = queryset.order_by('-created_at')
         else:
-        # Default: show highest rated items first
             queryset = queryset.order_by('-avg_rating')
-
-        # Convert to list and calculate discount for template use
-        queryset = [calculate_discount(p) for p in queryset]
 
         return queryset
 
-
-    def get_context_data(self, **kwargs):
-        context = super().get_context_data(**kwargs)
-
-        for product in context['products']:
-            if product.tags:
-                # split tags by comma and strip whitespace
-                product.tag_list = [t.strip() for t in product.tags.split(',')]
-            else:
-                product.tag_list = []
-
-        # pass selected tag if filtering
-        context['selected_tag'] = self.request.GET.get('tag')
-        return context
 
 
 class ProductDetailView(DetailView):
@@ -168,42 +172,39 @@ class ProductDetailView(DetailView):
         context = super().get_context_data(**kwargs)
         product = self.object
 
-        # ✅ Calculate discount & stock info
+        # Discount & stock info
         product = calculate_discount(product)
 
-        # Reviews
+        # Only approved reviews
         reviews = product.reviews.filter(is_approved=True)
         context['reviews'] = reviews
         context['average_rating'] = reviews.aggregate(avg=Avg('rating'))['avg'] or 0
         context['review_count'] = reviews.count()
 
-        # Can review logic (last 15 days)
         user = self.request.user
         can_review = False
+        user_review = None
         if user.is_authenticated:
-            recent_purchase = OrderItem.objects.filter(
+            # Check if the user purchased this product in any order
+            purchased = OrderItem.objects.filter(
                 order__user=user,
                 product=product,
-                order__created_at__gte=timezone.now() - timedelta(days=15)
+                order__payment_status='Paid'  # optional, only paid orders
             ).exists()
-            has_already_reviewed = product.reviews.filter(user=user).exists()
-            can_review = recent_purchase and not has_already_reviewed
+
+            # Check if user has already reviewed this product
+            existing_review = product.reviews.filter(user=user).first()
+
+            can_review = purchased and (existing_review is None)
+            user_review = existing_review
+
         context['can_review'] = can_review
+        context['user_review'] = user_review
 
-        # Tag list
-        if product.tags:
-            product.tag_list = [t.strip() for t in product.tags.split(',')]
-        else:
-            product.tag_list = []
-
-        # Pass product with discount & stock info
-        context['product'] = product
-
-        # Optional: pass selected tag if filtering
-        context['selected_tag'] = self.request.GET.get('tag')
+        # Tags
+        context['product'].tag_list = [t.strip() for t in (product.tags or "").split(",")]
 
         return context
-
 
 
 @login_required(login_url='login')
@@ -330,3 +331,31 @@ def calculate_discount(product):
     
     return product
 
+
+def add_review(request):
+    if not request.user.is_authenticated:
+        messages.error(request, "Please log in to submit a review.")
+        return redirect('login')
+    if request.method == 'POST':
+        product_slug = request.POST.get('product_slug')
+        rating = request.POST.get('rating')
+        title = request.POST.get('title')
+        comment = request.POST.get('comment')
+        try:
+            product = Product.objects.get(slug=product_slug)
+            if Review.objects.filter(user=request.user, product=product).exists():
+                messages.error(request, "You have already reviewed this product.")
+            else:
+                Review.objects.create(
+                    user=request.user,
+                    product=product,
+                    rating=rating,
+                    title=title,
+                    comment=comment,
+                    is_approved=False
+                )
+                messages.success(request, "Review submitted. It will appear after approval.")
+        except Product.DoesNotExist:
+            messages.error(request, "Product not found.")
+        return redirect('products:product_list')
+    return redirect('products:product_list')

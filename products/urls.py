@@ -12,6 +12,7 @@ urlpatterns = [
     path('product/<int:product_id>/review/', views.submit_review, name='submit_review'),
     path('search/', views.search, name='search'),
     path('search-suggestions/', views.search_suggestions, name='search_suggestions'),
+    path('add-review/', views.add_review, name='add_review'),
 ]
 
 # ✅ Serve media files in development

@@ -4,53 +4,84 @@
 {% block title %}Checkout - Dokan{% endblock %}
 
 {% block content %}
-<div class="container mx-auto px-4 py-8">
-    <h1 class="text-3xl font-bold mb-6">Checkout</h1>
-    
+<div class="container my-4">
+    <h1 class="mb-4">Checkout</h1>
+
     {% if messages %}
         {% for message in messages %}
-            <div class="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded mb-4">{{ message }}</div>
+            <div class="alert alert-{{ message.tags }} alert-dismissible fade show" role="alert">
+                {{ message }}
+                <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+            </div>
         {% endfor %}
     {% endif %}
 
-    <form method="POST" action="{% url 'orders:checkout' %}" class="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        {% csrf_token %}
-        <div>
-            <h2 class="text-xl font-semibold mb-4">Shipping Information</h2>
-            <input type="text" name="customer_name" placeholder="Full Name" value="{{ order.customer_name|default:'' }}" class="w-full p-2 border rounded mb-3" required>
-            <input type="email" name="email" placeholder="Email" value="{{ order.email|default:'' }}" class="w-full p-2 border rounded mb-3" required>
-            <input type="tel" name="phone_number" placeholder="Phone" value="{{ order.phone_number|default:'' }}" class="w-full p-2 border rounded mb-3" required>
-            <textarea name="shipping_address" placeholder="Shipping Address" class="w-full p-2 border rounded mb-3" required>{{ order.shipping_address|default:'' }}</textarea>
-            <input type="text" name="city" placeholder="City" class="w-full p-2 border rounded mb-3">
-            <input type="text" name="zip_code" placeholder="Zip Code" class="w-full p-2 border rounded mb-3">
-            <textarea name="order_note" placeholder="Order Notes (optional)" class="w-full p-2 border rounded mb-3">{{ order.order_note|default:'' }}</textarea>
-        </div>
-        
-        <div>
-            <h2 class="text-xl font-semibold mb-4">Order Summary</h2>
-            {% if is_guest and cart_items %}
-                {% for item in cart_items %}
-                    <div class="flex justify-between mb-2">
-                        <span>{{ item.product.products_name }} x {{ item.quantity }}</span>
-                        <span>${{ item.total }}</span>
+    <div class="row">
+        <!-- Cart Summary -->
+        <div class="col-md-6">
+            <h3>Your Cart</h3>
+            {% if cart_items %}
+                <div class="card mb-4">
+                    <div class="card-body">
+                        {% for item in cart_items %}
+                            <div class="d-flex align-items-center border-bottom py-2">
+                                <div class="me-3">
+                                    {% if item.product.products_image %}
+                                        <img src="{{ item.product.products_image.url }}" alt="{{ item.product.products_name }}" class="rounded" style="width: 60px; height: 60px; object-fit: cover;">
+                                    {% else %}
+                                        <img src="{% static 'images/placeholder.png' %}" alt="No image" class="rounded" style="width: 60px; height: 60px; object-fit: cover;">
+                                    {% endif %}
+                                </div>
+                                <div class="flex-grow-1">
+                                    <h6 class="mb-1">{{ item.product.products_name }}</h6>
+                                    <small class="text-muted">
+                                        {% if item.color %}Color: {{ item.color }}<br>{% endif %}
+                                        {% if item.size %}Size: {{ item.size }}<br>{% endif %}
+                                        {% if item.weight %}Weight: {{ item.weight }}<br>{% endif %}
+                                        Qty: {{ item.quantity }}<br>
+                                        ${{ item.total|floatformat:2 }}
+                                    </small>
+                                </div>
+                            </div>
+                        {% endfor %}
+                        <div class="d-flex justify-content-between fw-bold mt-3 pt-2 border-top">
+                            <span>Total:</span>
+                            <span>${{ cart_total|floatformat:2 }}</span>
+                        </div>
                     </div>
-                {% endfor %}
+                </div>
+            {% else %}
+                <p class="text-muted">Your cart is empty.</p>
+                <a href="{% url 'products:product_list' %}" class="btn btn-primary">Shop Now</a>
             {% endif %}
-            <hr class="my-4">
-            <div class="flex justify-between"><span>Subtotal</span><span>${{ subtotal }}</span></div>
-            <div class="flex justify-between"><span>Tax</span><span>${{ tax_amount }}</span></div>
-            <div class="flex justify-between"><span>Shipping</span><span>${{ shipping_cost }}</span></div>
-            <div class="flex justify-between font-bold text-lg"><span>Total</span><span>${{ total }}</span></div>
-            
-            <h2 class="text-xl font-semibold mb-4 mt-6">Payment Method</h2>
-            <select name="payment_method" class="w-full p-2 border rounded mb-3">
-                <option value="cod">Cash on Delivery</option>
-                <option value="card">Credit/Debit Card</option>
-                <!-- Add more -->
-            </select>
-            
-            <button type="submit" class="w-full bg-blue-600 text-white py-3 rounded hover:bg-blue-700">Place Order</button>
         </div>
-    </form>
+
+        <!-- Checkout Form -->
+        <div class="col-md-6">
+            <h3>Shipping Details</h3>
+            <form method="POST" action="{% url 'orders:checkout' %}" class="card p-4">
+                {% csrf_token %}
+                <div class="mb-3">
+                    <label for="shipping_address" class="form-label">Shipping Address</label>
+                    <textarea id="shipping_address" name="shipping_address" class="form-control" rows="4" required></textarea>
+                </div>
+                {% if not request.user.is_authenticated %}
+                    <div class="mb-3">
+                        <label for="customer_name" class="form-label">Full Name</label>
+                        <input type="text" id="customer_name" name="customer_name" class="form-control" required>
+                    </div>
+                    <div class="mb-3">
+                        <label for="email" class="form-label">Email Address</label>
+                        <input type="email" id="email" name="email" class="form-control" required>
+                    </div>
+                    <div class="mb-3">
+                        <label for="phone_number" class="form-label">Phone Number</label>
+                        <input type="text" id="phone_number" name="phone_number" class="form-control">
+                    </div>
+                {% endif %}
+                <button type="submit" class="btn btn-success w-100">Place Order</button>
+            </form>
+        </div>
+    </div>
 </div>
 {% endblock %}

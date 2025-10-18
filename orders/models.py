@@ -72,19 +72,14 @@ PAYMENT_METHOD_CHOICES = [
 class Order(models.Model):
     # Basic Information
     user = models.ForeignKey(
-        settings.AUTH_USER_MODEL,
-        on_delete=models.CASCADE,
-        blank=True,
-        null=True,
+        settings.AUTH_USER_MODEL, on_delete=models.CASCADE, blank=True, null=True,
         related_name='orders'
     )
     
     # Customer relationship - This is the main customer link
     customer = models.ForeignKey(
         'analytics.Customer',  # String reference
-        on_delete=models.SET_NULL,
-        null=True,
-        blank=True,
+        on_delete=models.SET_NULL, null=True,  blank=True,
         related_name='orders'  # This allows Customer.orders.all() without import
     )
     assigned_staff = models.ForeignKey(
@@ -189,6 +184,17 @@ class Order(models.Model):
         return f"Order {self.order_number} - {self.get_customer_display()} ({self.get_order_status_display()})"
 
 
+
+class OrderItem(models.Model):
+    order = models.ForeignKey(Order, on_delete=models.CASCADE, related_name='items')
+    product = models.ForeignKey('products.Product', on_delete=models.CASCADE, related_name='order_items')
+    quantity = models.PositiveIntegerField(default=1)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    def __str__(self):
+        return f"{self.product.products_name} (x{self.quantity})"
+
+
 class BulkOrderOperation(models.Model):
     """Model to track bulk order operations"""
     OPERATION_CHOICES = [
@@ -210,12 +216,3 @@ class BulkOrderOperation(models.Model):
     def __str__(self):
         return f"Bulk {self.get_operation_type_display()} - {self.name}"
     
-
-class OrderItem(models.Model):
-    order = models.ForeignKey(Order, on_delete=models.CASCADE, related_name='items')
-    product = models.ForeignKey('products.Product', on_delete=models.CASCADE, related_name='order_items')
-    quantity = models.PositiveIntegerField(default=1)
-    created_at = models.DateTimeField(auto_now_add=True)
-
-    def __str__(self):
-        return f"{self.product.products_name} (x{self.quantity})"

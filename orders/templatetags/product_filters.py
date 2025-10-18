@@ -1,19 +1,7 @@
 from django import template
-from django.http import QueryDict
-
-
-from django import template
 from urllib.parse import urlencode, parse_qs
 
 register = template.Library()
-
-
-
-
-@register.filter
-def get_item(dictionary, key):
-    return dictionary.get(key)
-
 
 @register.filter
 def remove_query_param(querystring, param):
