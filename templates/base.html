@@ -353,6 +353,23 @@
     <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
 
     <script>
+        // CSRF helper for AJAX POST requests
+        function getCookie(name) {
+            let cookieValue = null;
+            if (document.cookie && document.cookie !== '') {
+                const cookies = document.cookie.split(';');
+                for (let i = 0; i < cookies.length; i++) {
+                    const cookie = cookies[i].trim();
+                    if (cookie.substring(0, name.length + 1) === (name + '=')) {
+                        cookieValue = decodeURIComponent(cookie.substring(name.length + 1));
+                        break;
+                    }
+                }
+            }
+            return cookieValue;
+        }
+        const csrftoken = getCookie('csrftoken');
+
         // Enhanced Toggle Functions
         function toggleSearch() {
             const searchBar = document.getElementById('searchBar');
@@ -434,7 +451,8 @@
                 method: "GET",
                 success: function(data) {
                     $('#cartDropdownContent').html(data);
-                    const cartCount = $('#cart-count', data).data('count') || 0;
+                    const $html = $('<div>').html(data);
+                    const cartCount = $html.find('#cart-count').data('count') || 0;
                     $('#cart-count-badge').text(cartCount);
                 },
                 error: function() {
@@ -463,6 +481,50 @@
                 dropdown.classList.remove('show');
             }
         }
+
+        // AJAX: Remove cart item in dropdown without redirect
+        $(document).on('click', '.remove-cart-item-ajax', function(e) {
+            e.preventDefault();
+
+            const $button = $(this);
+            const cartKey = $button.data('cart-key');
+            const removeUrl = $button.data('remove-url');
+            const $cartItemContainer = $button.closest('.cart-item-row');
+
+            if (!cartKey || !removeUrl) {
+                showFlyingMessage('Error: Missing item details for removal.', 'error');
+                return;
+            }
+
+            $button.prop('disabled', true).html('<i class="fas fa-spinner fa-spin"></i>');
+
+            $.ajax({
+                type: 'POST',
+                url: removeUrl,
+                data: { cart_key: cartKey },
+                headers: {
+                    'X-Requested-With': 'XMLHttpRequest',
+                    'X-CSRFToken': csrftoken
+                },
+                success: function(response) {
+                    if (response.success) {
+                        $cartItemContainer.slideUp(200, function() {
+                            $(this).remove();
+                            loadCartDropdown();
+                        });
+                        $('#cart-count-badge').text(response.cart_count || 0);
+                        showFlyingMessage(response.message || 'Item removed from cart.', 'success');
+                    } else {
+                        showFlyingMessage(response.message || 'Error removing item.', 'error');
+                        $button.prop('disabled', false).html('<i class="fas fa-trash"></i>');
+                    }
+                },
+                error: function() {
+                    showFlyingMessage('A server error occurred during removal.', 'error');
+                    $button.prop('disabled', false).html('<i class="fas fa-trash"></i>');
+                }
+            });
+        });
 
         // Event Listeners for Dropdowns
         document.addEventListener('DOMContentLoaded', function() {
