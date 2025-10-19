@@ -179,17 +179,14 @@ class ProductListView(ListView):
         products = context.get(self.context_object_name)
         
         if products:
-            # Iterate through the queryset results and manually attach the choices.
-            # This is necessary because Django's ORM doesn't easily allow 
-            # adding attributes to model instances in bulk after fetching.
+            
             for product in products:
                 # Assuming COLOR_CHOICES and SIZE_CHOICES are imported from .models
                 product.color_choices = COLOR_CHOICES 
                 product.size_choices = SIZE_CHOICES
                 
         return context
-
-    # --- END OF NEW/MODIFIED CODE ---
+    
 
 
 

@@ -169,30 +169,28 @@ def checkout(request):
         'cart_count': sum(item['quantity'] for item in cart_items),
     })
 
-# orders/views.py
+
 def checkout_from_product(request, product_slug):
+    product = get_object_or_404(Product, slug=product_slug)
+
     if request.method == 'POST':
-        product = get_object_or_404(Product, slug=product_slug)
         quantity = int(request.POST.get('quantity', 1))
         color = request.POST.get('color', '')
         size = request.POST.get('size', '')
         weight = request.POST.get('weight', 'default')
+        action = request.POST.get('action')  # "add_to_cart" or "checkout"
 
-        # Add to cart logic (same as add_to_cart)
+        # Add to cart logic
         if request.user.is_authenticated:
-            order, created = Order.objects.get_or_create(user=request.user, status='cart')
+            order, _ = Order.objects.get_or_create(user=request.user, order_status='cart')
             order_item, created = OrderItem.objects.get_or_create(
                 order=order,
                 product=product,
-                color=color,
-                size=size,
-                defaults={'quantity': quantity, 'weight': weight}
-            )
+                defaults={'quantity': quantity}
+)
             if not created:
                 order_item.quantity += quantity
                 order_item.save()
-            cart_items = order.orderitem_set.count()
-            cart_total = order.get_total()
         else:
             cart = request.session.get('cart', {})
             product_key = f"{product.id}_{color}_{size}_{weight}"
@@ -201,25 +199,17 @@ def checkout_from_product(request, product_slug):
             else:
                 cart[product_key] = {'quantity': quantity, 'color': color, 'size': size, 'weight': weight}
             request.session['cart'] = cart
-            cart_items = sum(item['quantity'] for item in cart.values())
-            cart_total = sum(
-                Decimal(item['quantity']) * product.sale_price
-                for item in cart.values()
-            )
 
-        # Check if it's an AJAX request
-        if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
-            return JsonResponse({
-                'success': True,
-                'message': 'Added to cart, redirecting to checkout...',
-                'cart_count': cart_items,
-                'cart_total': str(cart_total),
-            })
+        # Redirect based on button clicked
+        if action == 'checkout':
+            return redirect('orders:checkout')
         else:
             messages.success(request, 'Product added to cart!')
-            return redirect('orders:checkout')
-    
+            return redirect('products:product_list')
+
     return redirect('products:product_list')
+
+
 
 def add_to_cart(request, slug):
     """Add product to cart (session-based for now)."""

@@ -10,88 +10,124 @@
         <p class="text-gray-600">{{ page_obj.paginator.count }} products found</p>
     </div>
 
-    <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
-        {% for product in products %}
-        <div class="bg-white rounded-xl shadow-md hover:shadow-lg border border-gray-100 transition-all p-4 flex flex-col justify-between">
-            <!-- Image -->
-            <a href="{% url 'products:product_detail' product.slug %}" class="relative">
-                {% if product.products_image %}
-                    <img src="{{ product.products_image.url }}" alt="{{ product.products_name }}"
-                         class="w-full h-52 object-cover rounded-lg mb-3 hover:scale-105 transition duration-200">
-                {% else %}
-                    <div class="w-full h-52 bg-gray-200 flex items-center justify-center rounded-lg mb-3">
-                        <i class="fas fa-image text-gray-400 text-3xl"></i>
-                    </div>
-                {% endif %}
+<div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
+    {% for product in products %}
+    <div class="bg-white rounded-xl shadow-md hover:shadow-lg border border-gray-100 transition-all p-4 flex flex-col justify-between">
+
+        <!-- Product Image -->
+        <a href="{% url 'products:product_detail' product.slug %}" class="relative">
+            {% if product.products_image %}
+                <img src="{{ product.products_image.url }}" alt="{{ product.products_name }}"
+                     class="w-full h-52 object-cover rounded-lg mb-3 hover:scale-105 transition duration-200">
+            {% else %}
+                <div class="w-full h-52 bg-gray-200 flex items-center justify-center rounded-lg mb-3">
+                    <i class="fas fa-image text-gray-400 text-3xl"></i>
+                </div>
+            {% endif %}
+            {% if product.discount_percentage > 0 %}
+            <span class="absolute top-3 left-3 bg-red-500 text-white px-2 py-1 rounded-full text-xs font-semibold">
+                -{{ product.discount_percentage }}%
+            </span>
+            {% endif %}
+        </a>
+
+        <!-- Product Info -->
+        <div>
+            <h3 class="font-semibold text-lg mb-1 text-gray-800 truncate">{{ product.products_name }}</h3>
+            <p class="text-gray-500 text-sm line-clamp-2 mb-2">{{ product.short_description|truncatewords:12 }}</p>
+
+            <div class="flex items-center justify-between mb-3">
                 {% if product.discount_percentage > 0 %}
-                <span class="absolute top-3 left-3 bg-red-500 text-white px-2 py-1 rounded-full text-xs font-semibold">
-                    -{{ product.discount_percentage }}%
+                    <div class="flex items-center gap-2">
+                        <span class="text-lg font-bold text-gray-900">${{ product.current_price_display }}</span>
+                        <span class="text-sm text-gray-500 line-through">${{ product.base_price }}</span>
+                    </div>
+                {% else %}
+                    <span class="text-lg font-bold text-gray-900">${{ product.base_price }}</span>
+                {% endif %}
+                {% if product.avg_rating %}
+                <span class="text-sm text-yellow-500">
+                    <i class="fas fa-star"></i> {{ product.avg_rating|floatformat:1 }}
                 </span>
                 {% endif %}
-            </a>
-
-            <!-- Info -->
-            <div>
-                <h3 class="font-semibold text-lg mb-1 text-gray-800 truncate">{{ product.products_name }}</h3>
-                <p class="text-gray-500 text-sm line-clamp-2 mb-2">{{ product.short_description|truncatewords:12 }}</p>
-
-                <div class="flex items-center justify-between mb-3">
-                    {% if product.discount_percentage > 0 %}
-                        <div class="flex items-center gap-2">
-                            <span class="text-lg font-bold text-gray-900">${{ product.current_price_display }}</span>
-                            <span class="text-sm text-gray-500 line-through">${{ product.base_price }}</span>
-                        </div>
-                    {% else %}
-                        <span class="text-lg font-bold text-gray-900">${{ product.base_price }}</span>
-                    {% endif %}
-                    {% if product.avg_rating %}
-                    <span class="text-sm text-yellow-500">
-                        <i class="fas fa-star"></i> {{ product.avg_rating|floatformat:1 }}
-                    </span>
-                    {% endif %}
-                </div>
             </div>
-
-            <!-- Actions -->
-            <div class="flex gap-2 mt-auto">
-                <!-- View Details -->
-                <a href="{% url 'products:product_detail' product.slug %}"
-                   class="flex-1 text-center bg-gray-100 text-gray-700 py-2 rounded-lg text-sm font-semibold hover:bg-gray-200 transition">
-                    View Details
-                </a>
-
-                <!-- Add to Cart -->
-                <form action="{% url 'orders:add_to_cart' product.slug %}" method="POST" class="add-to-cart-form flex-1">
-                    {% csrf_token %}
-                    <input type="hidden" name="quantity" value="1">
-                    <button type="submit"
-                            class="w-full bg-blue-600 text-white py-2 rounded-lg text-sm font-semibold hover:bg-blue-700 transition disabled:opacity-50"
-                            {% if product.is_out_of_stock %}disabled{% endif %}>
-                        {% if product.is_out_of_stock %}
-                            Out of Stock
-                        {% else %}
-                            Add to Cart
-                        {% endif %}
-                    </button>
-                </form>
-            </div>
-
-            <!-- Checkout link -->
-            <a href="{% url 'orders:checkout' %}?product={{ product.id }}"
-               class="block mt-3 w-full text-center bg-green-600 text-white py-2 rounded-lg text-sm font-semibold hover:bg-green-700 transition">
-                Checkout This Product
-            </a>
         </div>
-        {% empty %}
-        <div class="col-span-full text-center py-16">
-            <i class="fas fa-box-open text-gray-400 text-5xl mb-4"></i>
-            <h3 class="text-xl font-semibold text-gray-600 mb-2">No products found</h3>
-            <a href="{% url 'products:product_list' %}" class="bg-blue-600 text-white px-5 py-2 rounded-lg hover:bg-blue-700">
-                Reset Filters
-            </a>
-        </div>
-        {% endfor %}
+
+        <!-- Add to Cart Form with Color, Size, Quantity -->
+<form action="{% url 'orders:checkout_from_product' product.slug %}" method="POST" class="mt-2">
+    {% csrf_token %}
+
+    <!-- Color -->
+    {% if product.color_choices %}
+    <div class="mb-2">
+        <label class="text-sm text-gray-600 mb-1">Color:</label>
+        <select name="color" required class="w-full border border-gray-300 rounded p-1 text-sm">
+            <option value="">Select Color</option>
+            {% for value, label in product.color_choices %}
+            <option value="{{ value }}">{{ label }}</option>
+            {% endfor %}
+        </select>
     </div>
+    {% endif %}
+
+    <!-- Size -->
+    {% if product.size_choices %}
+    <div class="mb-2">
+        <label class="text-sm text-gray-600 mb-1">Size:</label>
+        <select name="size" required class="w-full border border-gray-300 rounded p-1 text-sm">
+            <option value="">Select Size</option>
+            {% for value, label in product.size_choices %}
+            <option value="{{ value }}">{{ label }}</option>
+            {% endfor %}
+        </select>
+    </div>
+    {% endif %}
+
+    <!-- Quantity -->
+    <div class="flex items-center gap-2 mb-2">
+        <label class="text-sm text-gray-600">Qty:</label>
+        <div class="flex items-center border rounded overflow-hidden">
+            <button type="button"
+                    class="px-2 py-1 bg-gray-200 hover:bg-gray-300"
+                    onclick="let q=this.nextElementSibling; q.value=Math.max(1, parseInt(q.value)-1)">-</button>
+            <input type="number" name="quantity" value="1" min="1"
+                   class="w-12 text-center border-l border-r border-gray-300">
+            <button type="button"
+                    class="px-2 py-1 bg-gray-200 hover:bg-gray-300"
+                    onclick="let q=this.previousElementSibling; q.value=parseInt(q.value)+1">+</button>
+        </div>
+    </div>
+
+    <!-- Buttons -->
+    <div class="flex gap-2">
+        <!-- Add to Cart -->
+        <button type="submit" name="action" value="add_to_cart"
+                class="flex-1 bg-blue-600 text-white py-2 rounded-lg text-sm font-semibold hover:bg-blue-700 transition"
+                {% if product.is_out_of_stock %}disabled{% endif %}>
+            {% if product.is_out_of_stock %}Out of Stock{% else %}Add to Cart{% endif %}
+        </button>
+
+        <!-- Checkout -->
+        <button type="submit" name="action" value="checkout"
+                class="flex-1 bg-green-600 text-white py-2 rounded-lg text-sm font-semibold hover:bg-green-700 transition"
+                {% if product.is_out_of_stock %}disabled{% endif %}>
+            Checkout This Product
+        </button>
+    </div>
+</form>
+
+    </div>
+    {% empty %}
+    <div class="col-span-full text-center py-16">
+        <i class="fas fa-box-open text-gray-400 text-5xl mb-4"></i>
+        <h3 class="text-xl font-semibold text-gray-600 mb-2">No products found</h3>
+        <a href="{% url 'products:product_list' %}" class="bg-blue-600 text-white px-5 py-2 rounded-lg hover:bg-blue-700">
+            Reset Filters
+        </a>
+    </div>
+    {% endfor %}
+</div>
+
 
     <!-- Pagination -->
     {% if page_obj.has_other_pages %}
