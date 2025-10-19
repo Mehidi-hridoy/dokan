@@ -4,7 +4,7 @@ python manage.py migrate
 python manage.py runserver
 
 git add .
-git commit -m "Updated Bav Bar  "
+git commit -m "Updated List  "
 git push -u origin main
 python manage.py runserver
 

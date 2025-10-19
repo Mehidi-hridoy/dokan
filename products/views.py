@@ -21,8 +21,6 @@ from .utils import calculate_discount
 from django.db.models import Exists, OuterRef
 
 
-
-
 def _get_session_cart(request) -> Tuple[List[Dict[str, Any]], Decimal]:
     """
     Return cart items and total for anonymous users.
@@ -187,7 +185,6 @@ class ProductListView(ListView):
                 
         return context
     
-
 
 
 class ProductDetailView(DetailView):

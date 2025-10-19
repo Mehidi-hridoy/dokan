@@ -88,8 +88,7 @@
                                     {% csrf_token %}
                                     <input type="hidden" name="cart_key" value="{{ item.cart_key }}">
                                     <button type="submit" 
-                                            class="text-red-600 hover:text-red-800 p-2 transition duration-200"
-                                            onclick="return confirm('Are you sure you want to remove this item?')">
+                                            class="text-red-600 hover:text-red-800 p-2 transition duration-200">
                                         <i class="fas fa-trash-alt"></i>
                                     </button>
                                 </form>
@@ -221,10 +220,7 @@ document.addEventListener('DOMContentLoaded', function() {
         form.addEventListener('submit', function(e) {
             e.preventDefault();
             
-            if (!confirm('Are you sure you want to remove this item?')) {
-                return;
-            }
-
+   
             const formData = new FormData(this);
             
             fetch(this.action, {
@@ -263,5 +259,7 @@ document.addEventListener('DOMContentLoaded', function() {
         });
     });
 });
+
+
 </script>
 {% endblock %}

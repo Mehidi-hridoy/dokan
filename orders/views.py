@@ -210,7 +210,6 @@ def checkout_from_product(request, product_slug):
     return redirect('products:product_list')
 
 
-
 def add_to_cart(request, slug):
     """Add product to cart (session-based for now)."""
     product = get_object_or_404(Product, slug=slug, is_active=True)
@@ -274,8 +273,6 @@ def add_to_cart(request, slug):
 
     messages.success(request, f"{product.products_name} added to cart successfully.")
     return JsonResponse(response_data)
-
-
 
 def view_cart(request):
     """Render the cart view with session-based cart items."""
@@ -441,7 +438,6 @@ def order_detail(request, order_id):
         'order_items': order_items,
     }
     return render(request, 'orders/order_detail.html', context)
-
 
 
 @login_required
