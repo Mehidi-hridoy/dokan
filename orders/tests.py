@@ -71,3 +71,51 @@ for i in range(5):
 print("5 orders with order items created successfully!")
 
 """
+
+"""
+from products.models import Product
+from store.models import Category, Brand
+from users.models import User
+from decimal import Decimal
+import uuid
+import random
+from django.utils.text import slugify
+
+user = User.objects.first()
+brand = Brand.objects.first()
+category = Category.objects.first()
+
+mens_products = ["Men's Casual Shirt","Men's Formal Shirt","Men's Jeans","Men's T-Shirt","Men's Jacket","Men's Shorts","Men's Sweater","Men's Polo Shirt","Men's Hoodie","Men's Sneakers"]
+womens_products = ["Women's Dress","Women's Skirt","Women's Blouse","Women's Jeans","Women's T-Shirt","Women's Jacket","Women's Sweater","Women's Shorts","Women's Sandals","Women's Sneakers"]
+
+all_products = mens_products + womens_products
+colors = ['Red','Blue','Pink','Orange','Yellow','Green','Brown']
+sizes = ['S','M','L','XL','XXL']
+weights = ['500gm','1kg','2kg','5kg']
+
+for name in all_products:
+    base_price = Decimal(random.randint(1000,5000))
+    sale_price = Decimal(random.randint(800,int(base_price)))
+    cost_price = Decimal(random.randint(500,int(base_price*Decimal('0.8'))))
+    unique_slug = f"{slugify(name)}-{uuid.uuid4().hex[:6]}"
+    product = Product.objects.create(products_name=name, slug=unique_slug, user=user, brand=brand, category=category, base_price=base_price, sale_price=sale_price, cost_price=cost_price, color=random.choice(colors), size=random.choice(sizes), weight=random.choice(weights))
+    print(f"Created: {product.products_name} | Base: {base_price} | Sale: {sale_price} | Cost: {cost_price} | Code: {product.product_code} | Slug: {product.slug}")
+
+
+    
+from inventory.models import Inventory
+import random
+
+quantities = [5, 10, 20, 50, 100]
+low_stock_thresholds = [3, 5, 10]
+reorder_quantities = [5, 10, 20]
+
+for inv in Inventory.objects.all():
+    inv.quantity = random.choice(quantities)
+    inv.low_stock_threshold = random.choice(low_stock_thresholds)
+    inv.reorder_quantity = random.choice(reorder_quantities)
+    inv.save()
+
+
+
+"""

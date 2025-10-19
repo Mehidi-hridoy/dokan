@@ -5,12 +5,10 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>{% block title %}Dokan - Modern Ecommerce{% endblock %}</title>
-    <!-- CDN Libraries -->
     <link href="https://cdn.jsdelivr.net/npm/tailwindcss@2.2.19/dist/tailwind.min.css" rel="stylesheet">
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
-    <!-- Custom Static CSS -->
     <link rel="stylesheet" href="{% static 'css/global.css' %}">
     <link rel="stylesheet" href="{% static 'products/css/products.css' %}">
     {% block extra_css %}{% endblock %}
@@ -125,27 +123,21 @@
 </head>
 
 <body class="font-inter bg-gray-50 text-gray-900">
-    <!-- Hidden input for initial cart count -->
     <input type="hidden" id="initialCartCount" value="{{ cart_count|default:0 }}">
 
-    <!-- Message Container for Flying Messages -->
     <div id="messageContainer" class="fixed top-20 right-4 z-50 space-y-2" style="max-width: 400px;"></div>
 
-    <!-- Navigation Bar -->
     <nav class="bg-gradient-to-r from-blue-600 to-blue-700 text-white py-3 shadow-lg sticky top-0 z-50">
         <div class="container mx-auto px-4 flex justify-between items-center">
-            <!-- Logo -->
             <a href="{% url 'products:home' %}" class="text-2xl font-bold tracking-wide flex items-center no-underline text-white hover:text-blue-100 transition-colors duration-200">
                 <i class="fas fa-store mr-2"></i>Dokan
             </a>
 
-            <!-- Desktop Menu -->
             <div class="hidden lg:flex items-center space-x-1">
                 <a href="{% url 'products:home' %}" class="nav-link px-4 py-2 rounded-lg text-white hover:bg-blue-500 transition-all duration-200 no-underline font-medium">
                     <i class="fas fa-home mr-2"></i>Home
                 </a>
                 
-                <!-- Analytics Menu (for staff users) -->
                 {% if request.user.is_authenticated and request.user.is_staff %}
                 <div class="relative" id="analyticsDropdown">
                     <button class="dropdown-trigger nav-link px-4 py-2 rounded-lg text-white hover:bg-blue-500 transition-all duration-200 font-medium flex items-center">
@@ -192,9 +184,7 @@
                 {% endif %}
             </div>
 
-            <!-- Right Side Icons -->
             <div class="flex items-center space-x-3">
-                <!-- Search -->
                 <div class="relative">
                     <button onclick="toggleSearch()" class="p-2 hover:bg-blue-500 rounded-full transition duration-200 text-white">
                         <i class="fas fa-search"></i>
@@ -202,7 +192,7 @@
                     <div id="searchBar" class="absolute top-12 right-0 bg-white shadow-xl rounded-lg p-4 z-50 hidden min-w-96">
                         <form action="{% url 'products:search' %}" method="GET" class="flex relative">
                             <input type="text" id="searchInput" name="q" placeholder="Search products..." 
-                                   class="flex-1 px-4 py-3 border border-gray-300 rounded-l-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent">
+                                    class="flex-1 px-4 py-3 border border-gray-300 rounded-l-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent">
                             <button type="submit" class="bg-blue-600 text-white px-6 py-3 rounded-r-lg hover:bg-blue-700 transition duration-200 font-medium">
                                 <i class="fas fa-search mr-2"></i>Search
                             </button>
@@ -211,7 +201,6 @@
                     </div>
                 </div>
 
-                <!-- Notifications -->
                 <div class="relative">
                     <button onclick="toggleNotifications()" class="flex items-center space-x-2 p-2 hover:bg-blue-500 rounded-lg transition duration-200 text-white relative">
                         <i class="fas fa-bell"></i>
@@ -229,7 +218,6 @@
                     </div>
                 </div>
 
-                <!-- Cart Dropdown -->
                 <div class="relative" id="cartDropdown">
                     <button onclick="toggleCart()" class="flex items-center space-x-2 p-2 hover:bg-blue-500 rounded-lg transition duration-200 text-white relative">
                         <i class="fas fa-shopping-cart"></i>
@@ -240,7 +228,6 @@
                     <div id="cartDropdownContent" class="absolute top-12 right-0 bg-white text-gray-800 shadow-2xl rounded-lg cart-dropdown-content d-none border border-gray-200"></div>
                 </div>
 
-                <!-- User Menu -->
                 {% if request.user.is_authenticated %}
                     <div class="relative" id="userDropdown">
                         <button onclick="toggleUserMenu()" class="flex items-center space-x-2 p-2 hover:bg-blue-500 rounded-lg transition duration-200 text-white">
@@ -282,7 +269,6 @@
         </div>
     </nav>
 
-    <!-- Mobile Menu -->
     <div class="lg:hidden bg-blue-600 text-white p-3">
         <button onclick="toggleMobileMenu()" class="w-full text-center py-2 flex items-center justify-center font-medium">
             <i class="fas fa-bars mr-3"></i>Menu
@@ -339,20 +325,34 @@
         </div>
     </div>
 
-    <!-- Main Content -->
     <main class="min-h-screen">
         {% block content %}
         {% endblock %}
     </main>
 
-    <!-- Footer -->
     {% include 'includes/footer.html' %}
 
-    <!-- JavaScript Dependencies -->
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
     <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
 
     <script>
+        // Function to get CSRF token (Required for POST requests)
+        function getCookie(name) {
+            let cookieValue = null;
+            if (document.cookie && document.cookie !== '') {
+                const cookies = document.cookie.split(';');
+                for (let i = 0; i < cookies.length; i++) {
+                    let cookie = cookies[i].trim();
+                    if (cookie.substring(0, name.length + 1) === (name + '=')) {
+                        cookieValue = decodeURIComponent(cookie.substring(name.length + 1));
+                        break;
+                    }
+                }
+            }
+            return cookieValue;
+        }
+        const csrftoken = getCookie('csrftoken');
+        
         // Enhanced Toggle Functions
         function toggleSearch() {
             const searchBar = document.getElementById('searchBar');
@@ -434,7 +434,8 @@
                 method: "GET",
                 success: function(data) {
                     $('#cartDropdownContent').html(data);
-                    const cartCount = $('#cart-count', data).data('count') || 0;
+                    // Extract cart count from the loaded content (assuming an element with class/id)
+                    const cartCount = $(data).find('#cart-count-value').val() || 0; 
                     $('#cart-count-badge').text(cartCount);
                 },
                 error: function() {
@@ -463,6 +464,64 @@
                 dropdown.classList.remove('show');
             }
         }
+
+        // --- FIX: AJAX Cart Item Removal ---
+        $(document).on('click', '.remove-cart-item-ajax', function(e) {
+            e.preventDefault(); // CRUCIAL: Prevents the default action (form submission or link redirect)
+
+            const $button = $(this);
+            const itemId = $button.data('item-id');
+            const removeUrl = $button.data('remove-url');
+            
+            // Element to remove from the DOM - must have the class 'cart-item-row'
+            const $cartItemContainer = $button.closest('.cart-item-row'); 
+
+            if (!itemId || !removeUrl) {
+                showFlyingMessage('Error: Missing item details for removal.', 'error');
+                return;
+            }
+
+            // Show loading state
+            $button.prop('disabled', true).html('<i class="fas fa-spinner fa-spin"></i>');
+
+            $.ajax({
+                type: 'POST',
+                url: removeUrl, // Should point to your Django view
+                data: {
+                    'item_id': itemId,
+                    'csrfmiddlewaretoken': csrftoken
+                },
+                dataType: 'json',
+                headers: {
+                    'X-Requested-With': 'XMLHttpRequest'
+                },
+                success: function(response) {
+                    if (response.success) {
+                        // 1. Remove the item from the dropdown UI with animation
+                        $cartItemContainer.slideUp(300, function() {
+                            $(this).remove();
+                            // 2. Refresh the cart dropdown content after removal
+                            // We call this to update totals/empty cart message 
+                            loadCartDropdown(); 
+                        });
+
+                        // 3. Update the cart count badge immediately
+                        $('#cart-count-badge').text(response.new_cart_count || 0);
+
+                        // 4. Show confirmation message
+                        showFlyingMessage(response.message || 'Item removed from cart.', 'success');
+                    } else {
+                        showFlyingMessage(response.message || 'Error removing item.', 'error');
+                        $button.prop('disabled', false).html('<i class="fas fa-trash-alt"></i>');
+                    }
+                },
+                error: function(xhr, status, error) {
+                    showFlyingMessage('A server error occurred during removal.', 'error');
+                    $button.prop('disabled', false).html('<i class="fas fa-trash-alt"></i>');
+                }
+            });
+        });
+        // --- END AJAX FIX ---
 
         // Event Listeners for Dropdowns
         document.addEventListener('DOMContentLoaded', function() {
@@ -591,55 +650,68 @@
             });
         }
 
-        // Search suggestions
-        const searchInput = document.getElementById('searchInput');
-        const suggestionsDiv = document.getElementById('searchSuggestions');
-        if (searchInput) {
-            searchInput.addEventListener('input', function() {
-                const query = this.value.trim();
-                if (query.length < 2) {
-                    suggestionsDiv.innerHTML = '';
-                    suggestionsDiv.style.display = 'none';
-                    return;
-                }
-                
-                fetch(`/products/search-suggestions/?q=${encodeURIComponent(query)}`)
-                    .then(response => response.json())
-                    .then(data => {
-                        suggestionsDiv.innerHTML = '';
-                        if (data.products && data.products.length > 0) {
-                            data.products.forEach(product => {
-                                const item = document.createElement('div');
-                                item.className = 'suggestion-item flex items-center space-x-3 p-3 hover:bg-blue-50 cursor-pointer border-b border-gray-100 last:border-b-0';
-                                item.innerHTML = `
-                                    ${product.image ? `<img src="${product.image}" alt="${product.name}" class="w-10 h-10 object-cover rounded">` : '<div class="w-10 h-10 bg-gray-200 rounded flex items-center justify-center"><i class="fas fa-image text-gray-400"></i></div>'}
-                                    <div class="flex-1">
-                                        <div class="font-medium text-gray-900">${product.name}</div>
-                                        <div class="text-sm text-gray-600">$${product.price}</div>
-                                    </div>
-                                `;
-                                item.onclick = () => {
-                                    if (product.slug) {
-                                        location.href = `/products/${product.slug}/`;
-                                    }
-                                };
-                                suggestionsDiv.appendChild(item);
-                            });
-                            suggestionsDiv.style.display = 'block';
-                        } else {
-                            suggestionsDiv.style.display = 'none';
-                        }
-                    })
-                    .catch(() => {
-                        suggestionsDiv.style.display = 'none';
-                    });
-            });
-        }
+ // Search suggestions
+        const searchInput = document.getElementById('searchInput');
+        const searchSuggestionsDiv = document.getElementById('searchSuggestions');
+        let searchTimeout = null;
 
-        // Initialize cart count
-        $(document).ready(function() {
-            $('#cart-count-badge').text($('#initialCartCount').val());
-        });
+        // Function to fetch suggestions
+        function fetchSuggestions(query) {
+            if (query.length < 2) {
+                searchSuggestionsDiv.style.display = 'none';
+                return;
+            }
+
+            // Assuming a Django URL for AJAX suggestions: /products/search/suggest/?q=...
+            const suggestUrl = `{% url 'products:search' %}?q=${encodeURIComponent(query)}`;
+
+            $.ajax({
+                url: suggestUrl,
+                method: 'GET',
+                success: function(data) {
+                    let html = '';
+                    if (data.suggestions && data.suggestions.length > 0) {
+                        data.suggestions.forEach(item => {
+                            // Example item structure: { name: 'Product Name', url: '/product/slug/' }
+                            html += `<a href="${item.url}" class="suggestion-item block text-gray-700 hover:text-blue-600">
+                                <i class="fas fa-arrow-right text-xs mr-2"></i>${item.name}
+                            </a>`;
+                        });
+                    } else {
+                        html = '<div class="suggestion-item text-gray-500 italic">No suggestions found.</div>';
+                    }
+                    searchSuggestionsDiv.innerHTML = html;
+                    searchSuggestionsDiv.style.display = 'block';
+                },
+                error: function() {
+                    searchSuggestionsDiv.style.display = 'none';
+                }
+            });
+        }
+
+        // Input event listener for debounced suggestions
+        if (searchInput) {
+            searchInput.addEventListener('input', function() {
+                clearTimeout(searchTimeout);
+                const query = this.value.trim();
+
+                if (query.length > 1) {
+                    // Debounce the request to limit server load
+                    searchTimeout = setTimeout(() => {
+                        fetchSuggestions(query);
+                    }, 300);
+                } else {
+                    searchSuggestionsDiv.style.display = 'none';
+                }
+            });
+
+            // Hide suggestions when input is blurred (but not if click on suggestion itself)
+            searchInput.addEventListener('blur', function() {
+                setTimeout(() => {
+                    searchSuggestionsDiv.style.display = 'none';
+                }, 200); // Small delay to allow click on suggestion to register
+            });
+        }
     </script>
 
     {% block extra_js %}{% endblock %}

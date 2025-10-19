@@ -4,62 +4,83 @@
 {% block title %}Thank You - Dokan{% endblock %}
 
 {% block content %}
-<div class="container my-4">
-    <h1 class="mb-4">Thank You for Your Order!</h1>
+<div class="min-h-screen bg-gray-50 flex items-center justify-center px-4 py-12">
+    <div class="max-w-md w-full text-center">
+        <!-- Success Icon -->
+        <div class="mx-auto flex items-center justify-center h-24 w-24 rounded-full bg-green-100 mb-6">
+            <i class="fas fa-check text-4xl text-green-600"></i>
+        </div>
 
-    {% if messages %}
-        {% for message in messages %}
-            <div class="alert alert-{{ message.tags }} alert-dismissible fade show" role="alert">
-                {{ message }}
-                <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
-            </div>
-        {% endfor %}
-    {% endif %}
+        <!-- Success Message -->
+        <h1 class="text-3xl font-bold text-gray-900 mb-4">Thank You for Your Order!</h1>
+        <p class="text-lg text-gray-600 mb-2">Your order has been placed successfully.</p>
+        <p class="text-gray-500 mb-8">Order #: <strong class="text-gray-700">{{ order.order_number }}</strong></p>
 
-    <div class="card">
-        <div class="card-body">
-            <h3 class="card-title">Order #{{ order.order_number }}</h3>
-            <p class="card-text">
-                {% if is_guest %}
-                    A confirmation email has been sent to {{ order.email }}.
-                {% else %}
-                    Thank you, {{ order.get_customer_display }}! Your order has been placed.
-                {% endif %}
-            </p>
-            <h4 class="mt-4">Order Details</h4>
-            <div class="mb-3">
-                <strong>Status:</strong> {{ order.get_order_status_display }}<br>
-                <strong>Total:</strong> ${{ order.total|floatformat:2 }}<br>
-                <strong>Shipping Address:</strong> {{ order.shipping_address|default:"Not provided" }}<br>
-                <strong>Placed on:</strong> {{ order.created_at|date:"F d, Y" }}<br>
-                {% if order.email %}<strong>Email:</strong> {{ order.email }}<br>{% endif %}
-                {% if order.phone_number %}<strong>Phone:</strong> {{ order.phone_number }}<br>{% endif %}
-            </div>
-            <h4 class="mt-4">Items</h4>
-            {% for item in order.items.all %}
-                <div class="d-flex align-items-center border-bottom py-2">
-                    <div class="me-3">
-                        {% if item.product.products_image %}
-                            <img src="{{ item.product.products_image.url }}" alt="{{ item.product.products_name }}" class="rounded" style="width: 60px; height: 60px; object-fit: cover;">
-                        {% else %}
-                            <img src="{% static 'images/placeholder.png' %}" alt="No image" class="rounded" style="width: 60px; height: 60px; object-fit: cover;">
-                        {% endif %}
-                    </div>
-                    <div class="flex-grow-1">
-                        <h6 class="mb-1">{{ item.product.products_name }}</h6>
-                        <small class="text-muted">
-                            Qty: {{ item.quantity }}<br>
-                            Price: ${{ item.product.sale_price|default:item.product.current_price|floatformat:2 }}
-                        </small>
-                    </div>
+        <!-- Order Details -->
+        <div class="bg-white rounded-xl shadow-md border border-gray-100 p-6 mb-8">
+            <div class="space-y-3 text-sm text-gray-600">
+                <div class="flex justify-between">
+                    <span>Order Total:</span>
+                    <span class="font-semibold text-gray-900">${{ order.total }}</span>
                 </div>
-            {% endfor %}
-            <div class="mt-4">
-                <a href="{% url 'products:home' %}" class="btn btn-primary">Continue Shopping</a>
-                {% if request.user.is_authenticated %}
-                    <a href="{% url 'orders:order_history' %}" class="btn btn-secondary">View Order History</a>
-                {% endif %}
+                <div class="flex justify-between">
+                    <span>Payment Status:</span>
+                    <span class="font-semibold text-green-600">Paid</span>
+                </div>
+                <div class="flex justify-between">
+                    <span>Shipping Address:</span>
+                    <span class="text-right">{{ order.shipping_address|truncatewords:8 }}</span>
+                </div>
             </div>
+        </div>
+
+        <!-- Next Steps -->
+        <div class="bg-blue-50 rounded-xl p-6 mb-8">
+            <h3 class="font-semibold text-blue-900 mb-3">What's Next?</h3>
+            <div class="space-y-2 text-sm text-blue-700 text-left">
+                <div class="flex items-center">
+                    <i class="fas fa-envelope mr-3"></i>
+                    <span>You'll receive an order confirmation email shortly</span>
+                </div>
+                <div class="flex items-center">
+                    <i class="fas fa-shipping-fast mr-3"></i>
+                    <span>We'll notify you when your order ships</span>
+                </div>
+                <div class="flex items-center">
+                    <i class="fas fa-clock mr-3"></i>
+                    <span>Expected delivery: 5-7 business days</span>
+                </div>
+            </div>
+        </div>
+
+        <!-- Action Buttons -->
+        <div class="space-y-4">
+            {% if is_guest %}
+            <a href="{% url 'products:home' %}" 
+               class="w-full bg-blue-600 text-white py-3 px-6 rounded-lg font-semibold hover:bg-blue-700 transition duration-200 block">
+                Continue Shopping
+            </a>
+            {% else %}
+            <div class="grid grid-cols-2 gap-4">
+                <a href="{% url 'orders:order_history' %}" 
+                   class="bg-gray-200 text-gray-700 py-3 px-6 rounded-lg font-semibold hover:bg-gray-300 transition duration-200 flex items-center justify-center">
+                    <i class="fas fa-history mr-2"></i>
+                    View Orders
+                </a>
+                <a href="{% url 'products:home' %}" 
+                   class="bg-blue-600 text-white py-3 px-6 rounded-lg font-semibold hover:bg-blue-700 transition duration-200 flex items-center justify-center">
+                    <i class="fas fa-shopping-bag mr-2"></i>
+                    Shop More
+                </a>
+            </div>
+            {% endif %}
+        </div>
+
+        <!-- Support -->
+        <div class="mt-8 text-center">
+            <p class="text-sm text-gray-500">
+                Need help? <a href="mailto:support@dokan.com" class="text-blue-600 hover:text-blue-700">Contact our support team</a>
+            </p>
         </div>
     </div>
 </div>

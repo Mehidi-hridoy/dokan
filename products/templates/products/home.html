@@ -1,750 +1,240 @@
 {% extends 'base.html' %}
 {% load static %}
-{% load humanize %}
-{% load product_filters %}
 
 {% block title %}Home - Dokan{% endblock %}
 
-{% block extra_css %}
-<link rel="stylesheet" href="{% static 'products/css/home.css' %}">
-<style>
-    /* Hero Section */
-    .hero-section {
-        background-image: linear-gradient(rgba(0, 0, 0, 0.4), rgba(0, 0, 0, 0.4)), url('{% static "images/hero-banner.jpg" %}');
-        background-size: cover;
-        background-position: center;
-        height: 60vh;
-        min-height: 400px;
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        text-align: center;
-        color: white;
-        position: relative;
-    }
-    .hero-overlay {
-        background: rgba(0, 0, 0, 0.3);
-        padding: 2rem;
-        border-radius: 0.5rem;
-    }
-    .hero-section h1 {
-        font-size: 3.5rem;
-        font-weight: 700;
-        margin-bottom: 1rem;
-        text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.5);
-    }
-    .hero-section p {
-        font-size: 1.25rem;
-        margin-bottom: 2rem;
-        max-width: 600px;
-    }
-    /* Product Card */
-    .product-card {
-        transition: transform 0.3s ease, box-shadow 0.3s ease;
-        border-radius: 0.5rem;
-        overflow: hidden;
-        background: white;
-        border: 1px solid #e5e7eb;
-    }
-    .product-card:hover {
-        transform: translateY(-4px);
-        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
-    }
-    .product-image {
-        height: 220px;
-        object-fit: cover;
-        width: 100%;
-        transition: transform 0.3s ease;
-    }
-    .product-card:hover .product-image {
-        transform: scale(1.05);
-    }
-    .discount-badge {
-        position: absolute;
-        top: 10px;
-        right: 10px;
-        background: #ef4444;
-        color: white;
-        padding: 4px 8px;
-        border-radius: 4px;
-        font-size: 12px;
-        font-weight: 600;
-        z-index: 10;
-    }
-    /* Filter Sidebar */
-    .filter-sidebar {
-        background: white;
-        border-radius: 0.5rem;
-        box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
-        padding: 1.5rem;
-    }
-    .filter-section {
-        padding-bottom: 1rem;
-        margin-bottom: 1rem;
-        border-bottom: 1px solid #e5e7eb;
-    }
-    .filter-section:last-child {
-        border-bottom: none;
-        margin-bottom: 0;
-    }
-    .filter-link {
-        display: flex;
-        justify-content: space-between;
-        align-items: center;
-        padding: 0.5rem 0.75rem;
-        border-radius: 0.375rem;
-        transition: all 0.2s;
-        text-decoration: none;
-        color: #374151;
-    }
-    .filter-link:hover {
-        background-color: #f3f4f6;
-    }
-    .filter-active {
-        background-color: #2563eb;
-        color: white;
-    }
-    .count-badge {
-        background-color: #6b7280;
-        color: white;
-        padding: 0.25rem 0.5rem;
-        border-radius: 1rem;
-        font-size: 0.75rem;
-    }
-    /* Filter Badge */
-    .filter-badge {
-        background-color: #dbeafe;
-        color: #2563eb;
-        padding: 0.5rem 1rem;
-        border-radius: 1rem;
-        font-size: 0.875rem;
-        display: flex;
-        align-items: center;
-    }
-    .filter-badge:hover {
-        background-color: #bfdbfe;
-    }
-    /* Quantity Selector */
-    .quantity-selector {
-        display: flex;
-        align-items: center;
-        justify-content: space-between;
-        margin-bottom: 1rem;
-        border: 1px solid #d1d5db;
-        border-radius: 0.375rem;
-        overflow: hidden;
-        background: white;
-    }
-    .quantity-btn {
-        background: #f3f4f6;
-        border: none;
-        padding: 0.5rem 0.75rem;
-        cursor: pointer;
-        transition: background-color 0.2s;
-        font-weight: 600;
-    }
-    .quantity-btn:hover:not(:disabled) {
-        background: #e5e7eb;
-    }
-    .quantity-btn:disabled {
-        opacity: 0.5;
-        cursor: not-allowed;
-    }
-    .quantity-input {
-        border: none;
-        text-align: center;
-        width: 50px;
-        padding: 0.5rem;
-        font-weight: 600;
-        background: white;
-    }
-    .quantity-input:focus {
-        outline: none;
-        background: #f9fafb;
-    }
-    /* Brand/Category Links */
-    .brand-grid {
-        display: grid;
-        grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
-        gap: 1rem;
-    }
-    .brand-link {
-        text-align: center;
-        padding: 1rem;
-        border: 1px solid #e5e7eb;
-        border-radius: 0.5rem;
-        transition: background-color 0.2s;
-    }
-    .brand-link:hover {
-        background-color: #f9fafb;
-    }
-    /* Get To Know Section */
-    .know-section {
-        display: grid;
-        grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
-        gap: 1.5rem;
-    }
-    .know-card {
-        text-align: center;
-        padding: 1.5rem;
-        background: white;
-        border-radius: 0.5rem;
-        box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
-    }
-    .know-card img {
-        height: 60px;
-        width: auto;
-        margin-bottom: 1rem;
-    }
-    /* Coming Soon Teaser */
-    .coming-soon {
-        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-        color: white;
-        padding: 3rem 2rem;
-        border-radius: 0.5rem;
-        text-align: center;
-    }
-    /* Flying Message */
-    .flying-message {
-        position: relative;
-        animation: fly-in-out 5s ease-in-out forwards;
-    }
-    @keyframes fly-in-out {
-        0% { transform: translateX(100%); opacity: 0; }
-        20% { transform: translateX(0); opacity: 1; }
-        80% { transform: translateX(0); opacity: 1; }
-        100% { transform: translateX(100%); opacity: 0; }
-    }
-    /* Line clamp utilities */
-    .line-clamp-1 {
-        display: -webkit-box;
-        -webkit-line-clamp: 1;
-        -webkit-box-orient: vertical;
-        overflow: hidden;
-    }
-    .line-clamp-2 {
-        display: -webkit-box;
-        -webkit-line-clamp: 2;
-        -webkit-box-orient: vertical;
-        overflow: hidden;
-    }
-    /* Responsive adjustments */
-    @media (max-width: 768px) {
-        .hero-section h1 {
-            font-size: 2.5rem;
-        }
-        .space-y-2 {
-            line-height: 1.5;
-        }
-    }
-</style>
-{% endblock %}
-
 {% block content %}
-<!-- Hero Section -->
-<section class="hero-section">
-    <div class="hero-overlay">
-        <h1>New Arrivals: Discover the Latest Tech!</h1>
-        <p>Explore our brand-new collection of cutting-edge gadgets. Fresh arrivals, premium quality, and the newest innovations.</p>
-        <a href="{% url 'products:product_list' %}" class="bg-white text-blue-600 px-8 py-3 rounded-lg font-semibold hover:bg-gray-100 transition duration-200 inline-block">
-            Shop Now
-        </a>
-    </div>
-</section>
-
-<!-- Main Container -->
 <div class="container mx-auto px-4 py-8">
-    <!-- Filter Sidebar and Products -->
-    <div class="grid grid-cols-1 lg:grid-cols-4 gap-6">
-        <!-- Filter Sidebar -->
-        <aside class="lg:col-span-1 filter-sidebar sticky top-24">
-            <!-- Price Filter -->
-            <div class="filter-section">
-                <h3 class="font-semibold text-lg mb-4 text-gray-900">Price Range</h3>
-                <form method="GET" action="{% url 'products:home' %}" class="space-y-3">
-                    <input type="hidden" name="search" value="{{ search_query|default_if_none:'' }}">
-                    <input type="hidden" name="category" value="{{ selected_category|default_if_none:'' }}">
-                    <input type="hidden" name="brand" value="{{ selected_brand|default_if_none:'' }}">
-                    <input type="hidden" name="tag" value="{{ selected_tag|default_if_none:'' }}">
-                    <input type="hidden" name="sort" value="{{ current_sort|default_if_none:'rating_desc' }}">
-                    <div class="flex space-x-3">
-                        <input type="number" name="min_price" placeholder="Min $" value="{{ request.GET.min_price|default_if_none:'' }}"
-                               class="w-1/2 px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500">
-                        <input type="number" name="max_price" placeholder="Max $" value="{{ request.GET.max_price|default_if_none:'' }}"
-                               class="w-1/2 px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500">
-                    </div>
-                    <button type="submit" class="w-full bg-blue-600 text-white py-2 rounded-lg hover:bg-blue-700 transition duration-200">
-                        Apply Price
-                    </button>
-                </form>
-            </div>
+    <!-- Hero Section -->
+    <section class="bg-gradient-to-r from-blue-600 to-purple-700 rounded-2xl p-8 mb-12 text-white">
+        <div class="max-w-4xl mx-auto text-center">
+            <h1 class="text-5xl font-bold mb-6">Welcome to Dokan</h1>
+            <p class="text-xl mb-8 opacity-90">Discover amazing products at unbeatable prices</p>
+            <a href="{% url 'products:product_list' %}" 
+               class="bg-white text-blue-600 px-8 py-4 rounded-lg font-semibold text-lg hover:bg-gray-100 transition duration-200 inline-block">
+                Shop Now <i class="fas fa-arrow-right ml-2"></i>
+            </a>
+        </div>
+    </section>
 
-            <!-- Categories Filter -->
-            {% if categories %}
-                <div class="filter-section">
-                    <h3 class="font-semibold text-lg mb-4 text-gray-900">Categories</h3>
-                    <div class="space-y-1">
-                        <a href="{% url 'products:home' %}?{% if request.GET.urlencode %}{{ request.GET.urlencode|remove_query_param:'category' }}{% endif %}"
-                           class="filter-link {% if not selected_category %}filter-active{% endif %}">
-                            All Categories
-                            <span class="count-badge">{{ products.count }}</span>
-                        </a>
-                        {% for category in categories %}
-                            <a href="{% url 'products:home' %}?{% if request.GET.urlencode %}{{ request.GET.urlencode|remove_query_param:'category' }}{% if category.slug %}&category={{ category.slug }}{% endif %}{% else %}{% if category.slug %}category={{ category.slug }}{% endif %}{% endif %}"
-                               class="filter-link {% if selected_category == category.slug %}filter-active{% endif %}">
-                                {{ category.name }}
-                                <span class="count-badge">{{ category.product_count|default:'#' }}</span>
-                            </a>
-                        {% endfor %}
-                    </div>
+    <!-- Categories Section -->
+    <section class="mb-12">
+        <h2 class="text-3xl font-bold mb-8 text-center">Shop by Category</h2>
+        <div class="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-4">
+            {% for category in categories %}
+            <a href="{% url 'products:product_list' %}?category={{ category.slug }}" 
+               class="bg-white rounded-lg p-6 text-center shadow-md hover:shadow-lg transition duration-200 border border-gray-100">
+                {% if category.image %}
+                <img src="{{ category.image.url }}" alt="{{ category.name }}" class="w-16 h-16 mx-auto mb-3 rounded-full object-cover">
+                {% else %}
+                <div class="w-16 h-16 mx-auto mb-3 bg-gray-200 rounded-full flex items-center justify-center">
+                    <i class="fas fa-folder text-gray-400 text-xl"></i>
                 </div>
+                {% endif %}
+                <h3 class="font-semibold text-gray-800">{{ category.name }}</h3>
+            </a>
+            {% endfor %}
+        </div>
+    </section>
+
+    <!-- Featured Products -->
+    <section class="mb-12">
+        <div class="flex justify-between items-center mb-8">
+            <h2 class="text-3xl font-bold">Featured Products</h2>
+            <a href="{% url 'products:product_list' %}" class="text-blue-600 hover:text-blue-700 font-semibold">
+                View All <i class="fas fa-arrow-right ml-1"></i>
+            </a>
+        </div>
+
+<div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
+    {% for product in products %}
+    <div class="bg-white rounded-xl shadow-md hover:shadow-xl transition duration-300 overflow-hidden border border-gray-100">
+        
+        <!-- Product Image -->
+        <div class="relative overflow-hidden">
+            <a href="{% url 'products:product_detail' product.slug %}">
+                {% if product.products_image %}
+                <img src="{{ product.products_image.url }}" alt="{{ product.products_name }}"
+                     class="w-full h-48 object-cover transition duration-300 hover:scale-105">
+                {% else %}
+                <div class="w-full h-48 bg-gray-200 flex items-center justify-center">
+                    <i class="fas fa-image text-gray-400 text-4xl"></i>
+                </div>
+                {% endif %}
+            </a>
+
+            <!-- Discount Badge -->
+            {% if product.discount_percentage > 0 %}
+            <span class="absolute top-3 left-3 bg-red-500 text-white px-2 py-1 rounded-full text-sm font-bold">
+                -{{ product.discount_percentage }}%
+            </span>
             {% endif %}
 
-            <!-- Brands Filter -->
-            {% if brands %}
-                <div class="filter-section">
-                    <h3 class="font-semibold text-lg mb-4 text-gray-900">Brands</h3>
-                    <div class="space-y-1">
-                        <a href="{% url 'products:home' %}?{% if request.GET.urlencode %}{{ request.GET.urlencode|remove_query_param:'brand' }}{% endif %}"
-                           class="filter-link {% if not selected_brand %}filter-active{% endif %}">
-                            All Brands
-                            <span class="count-badge">{{ brands|length }}</span>
-                        </a>
-                        {% for brand in brands %}
-                            <a href="{% url 'products:home' %}?{% if request.GET.urlencode %}{{ request.GET.urlencode|remove_query_param:'brand' }}{% if brand.slug %}&brand={{ brand.slug }}{% endif %}{% else %}{% if brand.slug %}brand={{ brand.slug }}{% endif %}{% endif %}"
-                               class="filter-link {% if selected_brand == brand.slug %}filter-active{% endif %}">
-                                {{ brand.name }}
-                                <span class="count-badge">{{ brand.product_count|default:'#' }}</span>
-                            </a>
-                        {% endfor %}
-                    </div>
-                </div>
-            {% endif %}
+            <!-- Stock Status -->
+            <span class="absolute top-3 right-3 {% if product.is_out_of_stock %}bg-red-500{% else %}bg-green-500{% endif %} text-white px-2 py-1 rounded-full text-xs font-bold">
+                {% if product.is_out_of_stock %}Out of Stock{% else %}In Stock{% endif %}
+            </span>
+        </div>
 
-            <!-- Active Filters -->
-            {% if search_query or selected_category or selected_brand or request.GET.min_price or request.GET.max_price or selected_tag %}
-                <div class="filter-section">
-                    <h3 class="font-semibold text-lg mb-3 text-gray-900">Active Filters</h3>
-                    <div class="flex flex-wrap gap-2">
-                        {% if search_query %}
-                            <a href="{% url 'products:home' %}?{% if request.GET.urlencode %}{{ request.GET.urlencode|remove_query_param:'search' }}{% endif %}"
-                               class="filter-badge">
-                                Search: {{ search_query|truncatechars:15 }}
-                                <i class="fas fa-times ml-2"></i>
-                            </a>
-                        {% endif %}
-                        {% if selected_tag %}
-                            <a href="{% url 'products:home' %}?{% if request.GET.urlencode %}{{ request.GET.urlencode|remove_query_param:'tag' }}{% endif %}"
-                               class="filter-badge">
-                                Tag: {{ selected_tag }}
-                                <i class="fas fa-times ml-2"></i>
-                            </a>
-                        {% endif %}
-                        {% if selected_category %}
-                            <a href="{% url 'products:home' %}?{% if request.GET.urlencode %}{{ request.GET.urlencode|remove_query_param:'category' }}{% endif %}"
-                               class="filter-badge">
-                                Category: {{ selected_category }}
-                                <i class="fas fa-times ml-2"></i>
-                            </a>
-                        {% endif %}
-                        {% if selected_brand %}
-                            <a href="{% url 'products:home' %}?{% if request.GET.urlencode %}{{ request.GET.urlencode|remove_query_param:'brand' }}{% endif %}"
-                               class="filter-badge">
-                                Brand: {{ selected_brand }}
-                                <i class="fas fa-times ml-2"></i>
-                            </a>
-                        {% endif %}
-                        {% if request.GET.min_price or request.GET.max_price %}
-                            <a href="{% url 'products:home' %}?{% if request.GET.urlencode %}{{ request.GET.urlencode|remove_query_param:'min_price'|remove_query_param:'max_price' }}{% endif %}"
-                               class="filter-badge">
-                                Price: ${{ request.GET.min_price|default:"0" }} - ${{ request.GET.max_price|default:"∞" }}
-                                <i class="fas fa-times ml-2"></i>
-                            </a>
-                        {% endif %}
-                    </div>
-                    <a href="{% url 'products:home' %}" class="text-red-600 text-sm mt-3 inline-block hover:underline">
-                        Clear All Filters
-                    </a>
-                </div>
-            {% endif %}
-        </aside>
-
-        <!-- Main Content -->
-        <div class="lg:col-span-3">
-            <!-- Search and Sort -->
-            <div class="bg-white rounded-lg shadow-sm border p-4 mb-6">
-                <form method="GET" action="{% url 'products:home' %}" class="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
-                    <div class="flex items-center space-x-4 flex-wrap">
-                        <input type="text" name="search" placeholder="Search products..." 
-                               value="{{ search_query|default_if_none:'' }}" 
-                               class="border p-2 rounded-md text-sm w-64 focus:outline-none focus:ring-2 focus:ring-blue-500">
-                        <select name="sort" onchange="this.form.submit()" class="border p-2 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-blue-500">
-                            <option value="rating_desc" {% if current_sort == 'rating_desc' or not current_sort %}selected{% endif %}>Best Rating</option>
-                            <option value="newest" {% if current_sort == 'newest' %}selected{% endif %}>Newest</option>
-                            <option value="price_asc" {% if current_sort == 'price_asc' %}selected{% endif %}>Price: Low to High</option>
-                            <option value="price_desc" {% if current_sort == 'price_desc' %}selected{% endif %}>Price: High to Low</option>
-                        </select>
-                        <button type="submit" class="bg-blue-600 text-white px-4 py-2 rounded-md hover:bg-blue-700 transition duration-200 text-sm">
-                            Filter
-                        </button>
-                    </div>
-                </form>
-            </div>
-
-            <!-- Featured Categories/Brands -->
-            <section class="mb-8">
-                <h2 class="text-2xl font-bold mb-6 text-center">Explore by Category & Brand</h2>
-                <div class="brand-grid">
-                    {% for category in categories|slice:":6" %}
-                        <a href="{% url 'products:home' %}?category={{ category.slug }}" class="brand-link">
-                            <img src="{% static 'images/category-placeholder.png' %}" alt="{{ category.name }}" class="mx-auto mb-2" style="height: 40px;">
-                            <p class="text-sm font-medium">{{ category.name }}</p>
-                        </a>
-                    {% empty %}
-                        <div class="brand-link text-center">
-                            <p class="text-gray-500">No categories available</p>
-                        </div>
-                    {% endfor %}
-                </div>
-            </section>
-
-            <!-- Featured Products Grid -->
-            <section class="mb-8">
-                <h2 class="text-2xl font-bold mb-6">Featured Products</h2>
-                <div class="grid grid-cols-2 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-3 xl:grid-cols-4 gap-6">
-                    {% for product in products %}
-                    <div class="product-card">
-                        <div class="relative overflow-hidden">
-                            {% if product.products_image %}
-                                <img src="{{ product.products_image.url }}" alt="{{ product.products_name }}" class="product-image">
-                            {% else %}
-                                <img src="{% static 'images/placeholder.png' %}" alt="No image" class="product-image">
-                            {% endif %}
-                            {% if product.sale_price and product.sale_price < product.base_price %}
-                                <span class="discount-badge">
-                                    -{{ product.discount_percentage|default:0 }}%
-                                </span>
-                            {% endif %}
-                        </div>
-
-                        <div class="p-4">
-                            <h3 class="text-base font-semibold mb-2 line-clamp-1">
-                                <a href="{% url 'products:product_detail' product.slug %}" class="text-gray-900 hover:text-blue-600">
-                                    {{ product.products_name }}
-                                </a>
-                            </h3>
-
-                            <!-- Price -->
-                            <div class="flex items-center space-x-2 mb-3">
-                                <span class="text-lg text-green-600 font-medium">${{ product.current_price|floatformat:2 }}</span>
-                                {% if product.sale_price and product.sale_price < product.base_price %}
-                                    <span class="text-sm text-gray-500 line-through">${{ product.base_price|floatformat:2 }}</span>
-                                {% endif %}
-                            </div>
-
-                            <!-- Stock -->
-                            <p class="text-xs mb-3 flex items-center">
-                                {% if product.is_in_stock %}
-                                    <i class="fas fa-check-circle text-green-500 mr-1"></i>
-                                    <span class="text-green-600">In Stock ({{ product.available_quantity }})</span>
-                                {% else %}
-                                    <i class="fas fa-times-circle text-red-500 mr-1"></i>
-                                    <span class="text-red-600">Out of Stock</span>
-                                {% endif %}
-                            </p>
-
-                            <!-- Short Description -->
-                            {% if product.short_description %}
-                                <p class="text-sm text-gray-600 mb-3 line-clamp-2">{{ product.short_description|safe }}</p>
-                            {% endif %}
-
-                            <!-- Add to Cart Form -->
-                            <form class="add-to-cart-form" method="POST" action="{% url 'orders:add_to_cart' product.slug %}">
-                                {% csrf_token %}
-                                <input type="hidden" name="weight" value="{{ product.weight|default:'default' }}">
-
-                                <!-- Quantity Selector -->
-                                <div class="quantity-selector mb-3">
-                                    <button type="button" class="quantity-btn decrease-btn" data-product-id="{{ product.id }}">
-                                        <i class="fas fa-minus"></i>
-                                    </button>
-                                    <input type="number" name="quantity" value="1" min="1" max="3" 
-                                           class="quantity-input" data-product-id="{{ product.id }}" readonly>
-                                    <button type="button" class="quantity-btn increase-btn" data-product-id="{{ product.id }}">
-                                        <i class="fas fa-plus"></i>
-                                    </button>
-                                </div>
-
-                                <!-- Color Dropdown -->
-                                {% if product.color_choices %}
-                                    <select name="color" required class="border rounded-md p-2 w-full mb-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500">
-                                        <option value="">-- Choose a color --</option>
-                                        {% for value, label in product.color_choices %}
-                                            <option value="{{ value }}">{{ label }}</option>
-                                        {% endfor %}
-                                    </select>
-                                {% endif %}
-
-                                <!-- Size Dropdown -->
-                                {% if product.size_choices %}
-                                    <select name="size" required class="border rounded-md p-2 w-full mb-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500">
-                                        <option value="">-- Choose a size --</option>
-                                        {% for value, label in product.size_choices %}
-                                            <option value="{{ value }}">{{ label }}</option>
-                                        {% endfor %}
-                                    </select>
-                                {% endif %}
-
-                                <!-- Buttons -->
-                                <div class="flex space-x-2">
-                                                              <button type="submit" formaction="{% url 'orders:checkout_from_product' product.slug %}" 
-                                                class="checkout-btn bg-green-600 text-white px-4 py-2 rounded w-1/2 hover:bg-green-700 transition duration-200 text-sm font-medium">
-                                            Checkout
-                                        </button>
-                                    {% if product.is_in_stock %}
-                                        <button type="submit" class="add-to-cart-btn bg-blue-600 text-white px-4 py-2 rounded w-1/2 hover:bg-blue-700 transition duration-200 text-sm font-medium">
-                                            <i class="fas fa-cart-plus mr-2"></i>Add to Cart
-                                        </button>
-                                    {% else %}
-                                        <button type="button" disabled class="bg-gray-400 text-white px-4 py-2 rounded w-full cursor-not-allowed text-sm">
-                                            <i class="fas fa-times-circle mr-2"></i>Out of Stock
-                                        </button>
-                                    {% endif %}
-                                </div>
-                            </form>
-                        </div>
-                    </div>
-                    {% empty %}
-                        <div class="col-span-full text-center py-12 bg-white rounded-lg shadow-sm border">
-                            <i class="fas fa-search text-4xl text-gray-300 mb-4"></i>
-                            <h3 class="text-xl font-semibold text-gray-700 mb-2">No Products Found</h3>
-                            <p class="text-gray-500 mb-6">Try adjusting your filters or search terms.</p>
-                            <a href="{% url 'products:product_list' %}" class="bg-blue-600 text-white px-6 py-2 rounded-lg hover:bg-blue-700 transition">
-                                Browse All Products
-                            </a>
-                        </div>
-                    {% endfor %}
-                </div>
-            </section>
-
-            <!-- Get To Know Us -->
-            <section class="mb-8">
-                <h2 class="text-2xl font-bold mb-6 text-center">Get To Know Us</h2>
-                <div class="know-section">
-                    <div class="know-card">
-                        <img src="{% static 'images/icon-quality.png' %}" alt="Quality Assurance">
-                        <h3 class="text-lg font-semibold mb-2">Premium Quality</h3>
-                        <p class="text-gray-600">Authentic products with rigorous quality checks.</p>
-                    </div>
-                    <div class="know-card">
-                        <img src="{% static 'images/icon-fast-delivery.png' %}" alt="Fast Delivery">
-                        <h3 class="text-lg font-semibold mb-2">Fast Delivery</h3>
-                        <p class="text-gray-600">Nationwide shipping within 2-3 business days.</p>
-                    </div>
-                    <div class="know-card">
-                        <img src="{% static 'images/icon-support.png' %}" alt="Customer Support">
-                        <h3 class="text-lg font-semibold mb-2">24/7 Support</h3>
-                        <p class="text-gray-600">Dedicated customer service for all your queries.</p>
-                    </div>
-                </div>
-            </section>
-
-            <!-- Coming Soon Teaser -->
-            <section class="coming-soon mb-8">
-                <h2 class="text-2xl font-bold mb-2">Coming Soon</h2>
-                <p class="mb-4 text-lg">Get ready to explore cutting-edge tech, premium gadgets, and smart solutions — all in one place. We're building something exciting to elevate your digital lifestyle.</p>
-                <a href="{% url 'products:product_list' %}" class="bg-white text-purple-600 px-6 py-3 rounded-lg font-semibold hover:bg-gray-100 transition duration-200 inline-block">
-                    Stay Tuned
+        <!-- Product Info -->
+        <div class="p-4">
+            <h3 class="font-semibold text-lg mb-2 truncate">
+                <a href="{% url 'products:product_detail' product.slug %}" class="text-gray-800 hover:text-blue-600 transition duration-150">
+                    {{ product.products_name }}
                 </a>
-            </section>
+            </h3>
 
-            <!-- Customer Reviews Section -->
-            <section class="bg-gray-50 py-12">
-                <div class="container mx-auto px-4">
-                    <h2 class="text-2xl font-bold mb-6 text-center">What Our Customers Say</h2>
-                    <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
-                        {% for product in products|slice:":3" %}
-                            {% with product.reviews.all|first as review %}
-                                {% if review %}
-                                    <div class="bg-white p-6 rounded-lg shadow-sm text-center">
-                                        <div class="flex justify-center mb-3">
-                                            {% for i in "12345" %}
-                                                <i class="fas fa-star text-yellow-400 {% if forloop.counter <= review.rating %}filled{% endif %}"></i>
-                                            {% endfor %}
-                                        </div>
-                                        <p class="text-gray-600 mb-3 italic">"{{ review.comment|truncatewords:20|default:'Great product!' }}"</p>
-                                        <p class="font-semibold text-blue-600">- {{ review.user.username }}</p>
-                                    </div>
-                                {% endif %}
-                            {% endwith %}
-                        {% empty %}
-                            <div class="col-span-3 text-center py-8">
-                                <p class="text-gray-500">No reviews yet. Be the first!</p>
-                            </div>
+            <p class="text-gray-600 text-sm mb-3 line-clamp-2">{{ product.tags }}</p>
+
+            <!-- Price -->
+            <div class="flex items-center justify-between mb-3">
+                <div class="flex items-center space-x-2">
+                    {% if product.discount_percentage > 0 %}
+                    <span class="text-lg font-bold text-gray-900">${{ product.current_price_display }}</span>
+                    <span class="text-sm text-gray-500 line-through">${{ product.base_price }}</span>
+                    {% else %}
+                    <span class="text-lg font-bold text-gray-900">${{ product.base_price }}</span>
+                    {% endif %}
+                </div>
+
+                {% if product.avg_rating %}
+                <div class="flex items-center text-yellow-400">
+                    <i class="fas fa-star"></i>
+                    <span class="text-sm text-gray-600 ml-1">{{ product.avg_rating|floatformat:1 }}</span>
+                </div>
+                {% endif %}
+            </div>
+
+            <!-- Add to Cart Form -->
+            <form action="{% url 'orders:add_to_cart' product.slug %}" method="POST" class="add-to-cart-form">
+                {% csrf_token %}
+
+                <!-- Color Selection -->
+                {% if product.color_choices %}
+                <div class="mb-3">
+                    <label class="block text-sm font-medium text-gray-700 mb-2">Color</label>
+                    <div class="flex flex-wrap gap-2">
+                        {% for value, label in product.color_choices %}
+                        <button type="button"
+                                class="color-option w-6 h-6 rounded-full border-2 border-gray-300 focus:outline-none"
+                                style="background-color: {{ value }};"
+                                data-color="{{ value }}"
+                                title="{{ label }}">
+                        </button>
                         {% endfor %}
                     </div>
+                    <input type="hidden" name="color" class="selected-color" required>
                 </div>
-            </section>
+                {% endif %}
+
+                <!-- Size Selection -->
+                {% if product.size_choices %}
+                <div class="mb-3">
+                    <label class="block text-sm font-medium text-gray-700 mb-2">Size</label>
+                    <div class="flex flex-wrap gap-2">
+                        {% for value, label in product.size_choices %}
+                        <button type="button"
+                                class="size-option px-3 py-1 rounded-md border border-gray-300 text-sm font-medium text-gray-700 hover:bg-blue-50 transition"
+                                data-size="{{ value }}">
+                            {{ label }}
+                        </button>
+                        {% endfor %}
+                    </div>
+                    <input type="hidden" name="size" class="selected-size" required>
+                </div>
+                {% endif %}
+
+                <!-- Quantity (With - and + Buttons) -->
+                <div class="flex items-center justify-between mb-4">
+                    <label class="text-sm font-medium text-gray-700 mr-3">Qty:</label>
+                    <div class="flex items-center space-x-2">
+                        <button type="button" class="qty-btn px-2 py-1 bg-gray-200 rounded-md hover:bg-gray-300" data-action="decrease">−</button>
+                        <input type="number" name="quantity" value="1" min="1" max="10"
+                               class="w-16 text-center border border-gray-300 rounded-md py-1 text-sm">
+                        <button type="button" class="qty-btn px-2 py-1 bg-gray-200 rounded-md hover:bg-gray-300" data-action="increase">+</button>
+                    </div>
+                </div>
+
+                <!-- Add to Cart -->
+                <button type="submit"
+                        class="w-full bg-blue-600 text-white py-2 px-4 rounded-lg font-semibold hover:bg-blue-700 transition duration-200 flex items-center justify-center disabled:opacity-50 disabled:cursor-not-allowed"
+                        {% if product.is_out_of_stock %}disabled{% endif %}>
+                    {% if product.is_out_of_stock %}
+                    <i class="fas fa-times mr-2"></i>Out of Stock
+                    {% else %}
+                    <i class="fas fa-shopping-cart mr-2"></i>Add to Cart
+                    {% endif %}
+                </button>
+            </form>
         </div>
     </div>
-
-    <!-- Message Container -->
-    <div id="messageContainer" class="fixed top-4 right-4 z-50">
-        {% if messages %}
-            {% for message in messages %}
-                <div class="flying-message show bg-green-500 text-white p-4 rounded-lg shadow-lg mb-2">
-                    <div class="flex items-center">
-                        <i class="fas fa-check-circle mr-3"></i>
-                        <span>{{ message }}</span>
-                        <button type="button" class="ml-auto text-white hover:text-gray-200" onclick="$(this).closest('.flying-message').remove()">
-                            <i class="fas fa-times"></i>
-                        </button>
-                    </div>
-                </div>
-            {% endfor %}
-        {% endif %}
+    {% empty %}
+    <div class="col-span-full text-center py-12">
+        <i class="fas fa-box-open text-4xl text-gray-400 mb-4"></i>
+        <h3 class="text-xl font-semibold text-gray-600">No products available</h3>
+        <p class="text-gray-500">Check back later for new products!</p>
     </div>
+    {% endfor %}
 </div>
-{% endblock %}
 
-{% block extra_js %}
+<!-- JS for Color, Size, and Quantity -->
 <script>
-    // --- UTILITY FUNCTIONS ---
-    function showFlyingMessage(message, type = 'success') {
-        const messageId = 'msg-' + Date.now();
-        const bgColor = type === 'success' ? 'bg-green-500' : 'bg-red-500';
-        const icon = type === 'success' ? 'fa-check-circle' : 'fa-exclamation-triangle';
+document.querySelectorAll('.add-to-cart-form').forEach(form => {
+    const colorButtons = form.querySelectorAll('.color-option');
+    const sizeButtons = form.querySelectorAll('.size-option');
+    const colorInput = form.querySelector('.selected-color');
+    const sizeInput = form.querySelector('.selected-size');
+    const qtyInput = form.querySelector('input[name="quantity"]');
 
-        const messageHtml = `
-            <div id="${messageId}" class="flying-message show ${bgColor} text-white p-4 rounded-lg shadow-lg">
-                <div class="flex items-center">
-                    <i class="fas ${icon} mr-3"></i>
-                    <span>${message}</span>
-                    <button type="button" class="ml-auto text-white hover:text-gray-200" onclick="$(this).closest('.flying-message').remove()">
-                        <i class="fas fa-times"></i>
-                    </button>
-                </div>
-            </div>
-        `;
-
-        $('#messageContainer').append(messageHtml);
-
-        // Auto remove after 5 seconds
-        setTimeout(() => {
-            $(`#${messageId}`).remove();
-        }, 5000);
-    }
-
-    function updateButtonState(productId, currentValue) {
-        const decreaseBtn = $(`.decrease-btn[data-product-id="${productId}"]`);
-        const increaseBtn = $(`.increase-btn[data-product-id="${productId}"]`);
-
-        // Disable decrease button if quantity is 1
-        decreaseBtn.prop('disabled', currentValue <= 1).css('opacity', currentValue <= 1 ? '0.5' : '1');
-
-        // Disable increase button if quantity is 3
-        increaseBtn.prop('disabled', currentValue >= 3).css('opacity', currentValue >= 3 ? '0.5' : '1');
-    }
-
-    // --- MAIN DOCUMENT READY & EVENT HANDLERS ---
-    $(document).ready(function() {
-        // Custom CSS for star ratings
-        $('.fa-star').each(function() {
-            if ($(this).hasClass('filled')) {
-                $(this).css('color', '#fbbf24');
-            }
-        });
-
-        // Initialize quantity buttons
-        $('.quantity-input').each(function() {
-            const productId = $(this).data('product-id');
-            const currentValue = parseInt($(this).val());
-            updateButtonState(productId, currentValue);
-        });
-
-        // Increase quantity
-        $(document).on('click', '.increase-btn', function() {
-            const productId = $(this).data('product-id');
-            const input = $(`.quantity-input[data-product-id="${productId}"]`);
-            let currentValue = parseInt(input.val());
-            if (currentValue < 3) {
-                input.val(currentValue + 1);
-                updateButtonState(productId, currentValue + 1);
-            }
-        });
-
-        // Decrease quantity
-        $(document).on('click', '.decrease-btn', function() {
-            const productId = $(this).data('product-id');
-            const input = $(`.quantity-input[data-product-id="${productId}"]`);
-            let currentValue = parseInt(input.val());
-            if (currentValue > 1) {
-                input.val(currentValue - 1);
-                updateButtonState(productId, currentValue - 1);
-            }
-        });
-
-        // Handle Add to Cart and Checkout forms
-        $(document).on('submit', '.add-to-cart-form', function(e) {
-            e.preventDefault();
-            const $form = $(this);
-            const $button = $form.find('.add-to-cart-btn, .checkout-btn');
-            const originalText = $button.html();
-            const originalClass = $button.attr('class');
-            const isCheckout = $button.hasClass('checkout-btn');
-
-            // Show loading state
-            $button.prop('disabled', true)
-                   .removeClass('bg-blue-600 hover:bg-blue-700 bg-green-600 hover:bg-green-700')
-                   .addClass('bg-gray-400')
-                   .html('<i class="fas fa-spinner fa-spin mr-2"></i>' + (isCheckout ? 'Processing...' : 'Adding...'));
-
-            $.ajax({
-                url: $form.attr('action'),
-                method: 'POST',
-                data: $form.serialize(),
-                headers: {
-                    'X-Requested-With': 'XMLHttpRequest',
-                    'X-CSRFToken': '{{ csrf_token }}'
-                },
-                success: function(data) {
-                    if (data.success) {
-                        // Update cart badge
-                        $('#cart-count-badge').text(data.cart_count || 0);
-
-                        // Show flying message
-                        showFlyingMessage(data.message || (isCheckout ? 'Added to cart, redirecting to checkout...' : 'Product added to cart!'), 'success');
-
-                        // Button success animation
-                        $button.removeClass('bg-gray-400')
-                               .addClass('bg-green-600')
-                               .html('<i class="fas fa-check mr-2"></i>' + (isCheckout ? 'Redirecting...' : 'Added!'));
-
-                        // For checkout, redirect after a short delay
-                        if (isCheckout) {
-                            setTimeout(() => {
-                                window.location.href = '{% url 'orders:checkout' %}';
-                            }, 1500);
-                        } else {
-                            setTimeout(() => {
-                                $button.attr('class', originalClass).html(originalText).prop('disabled', false);
-                            }, 2000);
-                        }
-                    } else {
-                        showFlyingMessage(data.message || 'Error processing request', 'error');
-                        $button.attr('class', originalClass).html(originalText).prop('disabled', false);
-                    }
-                },
-                error: function(xhr) {
-                    let errorMessage = 'Error processing request. Please try again.';
-                    if (xhr.responseJSON && xhr.responseJSON.message) {
-                        errorMessage = xhr.responseJSON.message;
-                    }
-                    showFlyingMessage(errorMessage, 'error');
-                    $button.attr('class', originalClass).html(originalText).prop('disabled', false);
-                }
-            });
+    // Color selection
+    colorButtons.forEach(btn => {
+        btn.addEventListener('click', () => {
+            colorButtons.forEach(b => b.classList.remove('ring-2', 'ring-blue-500', 'border-blue-500'));
+            btn.classList.add('ring-2', 'ring-blue-500', 'border-blue-500');
+            colorInput.value = btn.dataset.color;
         });
     });
+
+    // Size selection
+    sizeButtons.forEach(btn => {
+        btn.addEventListener('click', () => {
+            sizeButtons.forEach(b => b.classList.remove('bg-blue-600', 'text-white', 'border-blue-600'));
+            btn.classList.add('bg-blue-600', 'text-white', 'border-blue-600');
+            sizeInput.value = btn.dataset.size;
+        });
+    });
+
+    // Quantity increase/decrease
+    form.querySelectorAll('.qty-btn').forEach(btn => {
+        btn.addEventListener('click', () => {
+            let current = parseInt(qtyInput.value) || 1;
+            if (btn.dataset.action === 'increase' && current < 10) qtyInput.value = current + 1;
+            if (btn.dataset.action === 'decrease' && current > 1) qtyInput.value = current - 1;
+        });
+    });
+});
 </script>
+
+
+    </section>
+
+    <!-- Brands Section -->
+    <section class="mb-12">
+        <h2 class="text-3xl font-bold mb-8 text-center">Popular Brands</h2>
+        <div class="grid grid-cols-3 md:grid-cols-5 lg:grid-cols-7 gap-6">
+            {% for brand in brands %}
+            <div class="bg-white rounded-lg p-4 text-center shadow-sm hover:shadow-md transition duration-200 border border-gray-100">
+                {% if brand.logo %}
+                <img src="{{ brand.logo.url }}" alt="{{ brand.name }}" class="w-12 h-12 mx-auto mb-2 object-contain">
+                {% else %}
+                <div class="w-12 h-12 mx-auto mb-2 bg-gray-100 rounded-full flex items-center justify-center">
+                    <i class="fas fa-copyright text-gray-400"></i>
+                </div>
+                {% endif %}
+                <h4 class="text-sm font-medium text-gray-700 truncate">{{ brand.name }}</h4>
+            </div>
+            {% endfor %}
+        </div>
+    </section>
+</div>
 {% endblock %}

@@ -3,84 +3,223 @@
 
 {% block title %}Checkout - Dokan{% endblock %}
 
+{% block extra_css %}
+<style>
+    .checkout-step {
+        @apply flex items-center justify-center w-8 h-8 rounded-full border-2 font-semibold text-sm;
+    }
+    .step-active {
+        @apply border-blue-600 bg-blue-600 text-white;
+    }
+    .step-inactive {
+        @apply border-gray-300 text-gray-500;
+    }
+    .step-completed {
+        @apply border-green-500 bg-green-500 text-white;
+    }
+</style>
+{% endblock %}
+
 {% block content %}
-<div class="container my-4">
-    <h1 class="mb-4">Checkout</h1>
-
-    {% if messages %}
-        {% for message in messages %}
-            <div class="alert alert-{{ message.tags }} alert-dismissible fade show" role="alert">
-                {{ message }}
-                <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+<div class="container mx-auto px-4 py-8 max-w-6xl">
+    <!-- Checkout Steps -->
+    <div class="flex justify-center mb-12">
+        <div class="flex items-center space-x-8">
+            <!-- Step 1: Cart -->
+            <div class="flex items-center">
+                <div class="checkout-step step-completed">
+                    <i class="fas fa-check"></i>
+                </div>
+                <span class="ml-3 font-semibold text-green-600">Cart</span>
             </div>
-        {% endfor %}
-    {% endif %}
+            
+            <div class="w-16 h-0.5 bg-green-500"></div>
+            
+            <!-- Step 2: Checkout -->
+            <div class="flex items-center">
+                <div class="checkout-step step-active">2</div>
+                <span class="ml-3 font-semibold text-blue-600">Checkout</span>
+            </div>
+            
+            <div class="w-16 h-0.5 bg-gray-300"></div>
+            
+            <!-- Step 3: Confirmation -->
+            <div class="flex items-center">
+                <div class="checkout-step step-inactive">3</div>
+                <span class="ml-3 font-semibold text-gray-500">Confirmation</span>
+            </div>
+        </div>
+    </div>
 
-    <div class="row">
-        <!-- Cart Summary -->
-        <div class="col-md-6">
-            <h3>Your Cart</h3>
-            {% if cart_items %}
-                <div class="card mb-4">
-                    <div class="card-body">
-                        {% for item in cart_items %}
-                            <div class="d-flex align-items-center border-bottom py-2">
-                                <div class="me-3">
-                                    {% if item.product.products_image %}
-                                        <img src="{{ item.product.products_image.url }}" alt="{{ item.product.products_name }}" class="rounded" style="width: 60px; height: 60px; object-fit: cover;">
-                                    {% else %}
-                                        <img src="{% static 'images/placeholder.png' %}" alt="No image" class="rounded" style="width: 60px; height: 60px; object-fit: cover;">
-                                    {% endif %}
-                                </div>
-                                <div class="flex-grow-1">
-                                    <h6 class="mb-1">{{ item.product.products_name }}</h6>
-                                    <small class="text-muted">
-                                        {% if item.color %}Color: {{ item.color }}<br>{% endif %}
-                                        {% if item.size %}Size: {{ item.size }}<br>{% endif %}
-                                        {% if item.weight %}Weight: {{ item.weight }}<br>{% endif %}
-                                        Qty: {{ item.quantity }}<br>
-                                        ${{ item.total|floatformat:2 }}
-                                    </small>
-                                </div>
-                            </div>
-                        {% endfor %}
-                        <div class="d-flex justify-content-between fw-bold mt-3 pt-2 border-top">
-                            <span>Total:</span>
-                            <span>${{ cart_total|floatformat:2 }}</span>
+    <div class="grid grid-cols-1 lg:grid-cols-2 gap-12">
+        <!-- Checkout Form -->
+        <div>
+            <div class="bg-white rounded-xl shadow-md border border-gray-100 p-8">
+                <h2 class="text-2xl font-bold mb-6 text-gray-800">Shipping Information</h2>
+
+                <form method="POST" action="{% url 'orders:checkout' %}">
+                    {% csrf_token %}
+
+                    <!-- Customer Information for Guests -->
+                    {% if not request.user.is_authenticated %}
+                    <div class="space-y-4 mb-6">
+                        <h3 class="text-lg font-semibold text-gray-700 mb-4">Your Information</h3>
+                        
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-2">Full Name *</label>
+                            <input type="text" name="customer_name" required
+                                   class="w-full border border-gray-300 rounded-lg px-4 py-3 focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                                   placeholder="Enter your full name">
+                        </div>
+
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-2">Email Address *</label>
+                            <input type="email" name="email" required
+                                   class="w-full border border-gray-300 rounded-lg px-4 py-3 focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                                   placeholder="your@email.com">
+                        </div>
+
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-2">Phone Number</label>
+                            <input type="tel" name="phone_number"
+                                   class="w-full border border-gray-300 rounded-lg px-4 py-3 focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                                   placeholder="+1 (555) 123-4567">
                         </div>
                     </div>
-                </div>
-            {% else %}
-                <p class="text-muted">Your cart is empty.</p>
-                <a href="{% url 'products:product_list' %}" class="btn btn-primary">Shop Now</a>
-            {% endif %}
+                    {% endif %}
+
+                    <!-- Shipping Address -->
+                    <div class="space-y-4">
+                        <h3 class="text-lg font-semibold text-gray-700 mb-4">Shipping Address</h3>
+
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-2">Shipping Address *</label>
+                            <textarea name="shipping_address" rows="4" required
+                                      class="w-full border border-gray-300 rounded-lg px-4 py-3 focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                                      placeholder="Enter your complete shipping address including street, city, state, and ZIP code"></textarea>
+                        </div>
+
+                        <!-- Shipping Method -->
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-2">Shipping Method</label>
+                            <div class="space-y-2">
+                                <label class="flex items-center p-4 border border-gray-300 rounded-lg cursor-pointer hover:border-blue-500">
+                                    <input type="radio" name="shipping_method" value="standard" checked class="text-blue-600 focus:ring-blue-500">
+                                    <div class="ml-3">
+                                        <span class="font-medium text-gray-900">Standard Shipping</span>
+                                        <p class="text-sm text-gray-500">5-7 business days · Free</p>
+                                    </div>
+                                </label>
+                                <label class="flex items-center p-4 border border-gray-300 rounded-lg cursor-pointer hover:border-blue-500">
+                                    <input type="radio" name="shipping_method" value="express" class="text-blue-600 focus:ring-blue-500">
+                                    <div class="ml-3">
+                                        <span class="font-medium text-gray-900">Express Shipping</span>
+                                        <p class="text-sm text-gray-500">2-3 business days · $9.99</p>
+                                    </div>
+                                </label>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Place Order Button -->
+                    <button type="submit" 
+                            class="w-full bg-blue-600 text-white py-4 px-6 rounded-lg font-semibold text-lg hover:bg-blue-700 transition duration-200 mt-8 flex items-center justify-center">
+                        <i class="fas fa-lock mr-3"></i>
+                        Place Your Order
+                    </button>
+                </form>
+            </div>
         </div>
 
-        <!-- Checkout Form -->
-        <div class="col-md-6">
-            <h3>Shipping Details</h3>
-            <form method="POST" action="{% url 'orders:checkout' %}" class="card p-4">
-                {% csrf_token %}
-                <div class="mb-3">
-                    <label for="shipping_address" class="form-label">Shipping Address</label>
-                    <textarea id="shipping_address" name="shipping_address" class="form-control" rows="4" required></textarea>
+        <!-- Order Summary -->
+        <div>
+            <div class="bg-white rounded-xl shadow-md border border-gray-100 sticky top-24">
+                <div class="p-6">
+                    <h2 class="text-xl font-semibold mb-4 text-gray-800">Order Summary</h2>
+
+                    <!-- Order Items -->
+                    <div class="space-y-4 mb-6">
+                        {% for item in cart_items %}
+                        <div class="flex items-center space-x-3">
+                            <div class="flex-shrink-0">
+                                {% if item.product.products_image %}
+                                <img src="{{ item.product.products_image.url }}" alt="{{ item.product.products_name }}" 
+                                     class="w-16 h-16 object-cover rounded-lg">
+                                {% else %}
+                                <div class="w-16 h-16 bg-gray-200 rounded-lg flex items-center justify-center">
+                                    <i class="fas fa-image text-gray-400"></i>
+                                </div>
+                                {% endif %}
+                            </div>
+                            <div class="flex-1 min-w-0">
+                                <h4 class="font-medium text-gray-900 text-sm">{{ item.product.products_name }}</h4>
+                                <div class="text-xs text-gray-500">
+                                    Qty: {{ item.quantity }}
+                                    {% if item.color %} · {{ item.color }}{% endif %}
+                                    {% if item.size %} · {{ item.size }}{% endif %}
+                                </div>
+                            </div>
+                            <div class="text-sm font-semibold text-gray-900">
+                                ${{ item.subtotal }}
+                            </div>
+                        </div>
+                        {% endfor %}
+                    </div>
+
+                    <!-- Order Totals -->
+                    <div class="border-t border-gray-200 pt-4 space-y-2">
+                        <div class="flex justify-between text-gray-600">
+                            <span>Subtotal ({{ cart_count }} items)</span>
+                            <span>${{ cart_total }}</span>
+                        </div>
+                        <div class="flex justify-between text-gray-600">
+                            <span>Shipping</span>
+                            <span class="text-green-600">Free</span>
+                        </div>
+                        <div class="flex justify-between text-gray-600">
+                            <span>Tax</span>
+                            <span>$0.00</span>
+                        </div>
+                        <div class="border-t border-gray-200 pt-3">
+                            <div class="flex justify-between text-lg font-bold text-gray-900">
+                                <span>Total</span>
+                                <span>${{ cart_total }}</span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Security Features -->
+                    <div class="mt-6 p-4 bg-gray-50 rounded-lg">
+                        <div class="flex items-center justify-center space-x-6 text-gray-500 mb-3">
+                            <i class="fas fa-shield-alt text-lg"></i>
+                            <i class="fas fa-lock text-lg"></i>
+                            <i class="fas fa-credit-card text-lg"></i>
+                        </div>
+                        <p class="text-xs text-center text-gray-600">
+                            Your payment information is secure and encrypted. We never store your credit card details.
+                        </p>
+                    </div>
                 </div>
-                {% if not request.user.is_authenticated %}
-                    <div class="mb-3">
-                        <label for="customer_name" class="form-label">Full Name</label>
-                        <input type="text" id="customer_name" name="customer_name" class="form-control" required>
+            </div>
+
+            <!-- Need Help Section -->
+            <div class="bg-white rounded-xl shadow-md border border-gray-100 p-6 mt-6">
+                <h3 class="font-semibold text-gray-800 mb-3">Need Help?</h3>
+                <div class="space-y-2 text-sm text-gray-600">
+                    <div class="flex items-center">
+                        <i class="fas fa-phone-alt text-blue-500 mr-3"></i>
+                        <span>+1 (555) 123-4567</span>
                     </div>
-                    <div class="mb-3">
-                        <label for="email" class="form-label">Email Address</label>
-                        <input type="email" id="email" name="email" class="form-control" required>
+                    <div class="flex items-center">
+                        <i class="fas fa-envelope text-blue-500 mr-3"></i>
+                        <span>support@dokan.com</span>
                     </div>
-                    <div class="mb-3">
-                        <label for="phone_number" class="form-label">Phone Number</label>
-                        <input type="text" id="phone_number" name="phone_number" class="form-control">
+                    <div class="flex items-center">
+                        <i class="fas fa-clock text-blue-500 mr-3"></i>
+                        <span>24/7 Customer Support</span>
                     </div>
-                {% endif %}
-                <button type="submit" class="btn btn-success w-100">Place Order</button>
-            </form>
+                </div>
+            </div>
         </div>
     </div>
 </div>
