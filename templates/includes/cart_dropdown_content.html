@@ -15,18 +15,40 @@
                     </div>
                     <div class="flex-grow-1">
                         <h6 class="mb-1">{{ item.product.products_name }}</h6>
-                        <small class="text-muted">
+                        <small class="text-muted d-block mb-1">
                             {% if item.color %}Color: {{ item.color }}<br>{% endif %}
                             {% if item.size %}Size: {{ item.size }}<br>{% endif %}
                             {% if item.weight %}Weight: {{ item.weight }}<br>{% endif %}
-                            Qty: {{ item.quantity }}<br>
-                            ${{ item.subtotal|floatformat:2 }}
                         </small>
+                        <div class="d-flex align-items-center">
+                            <div class="btn-group btn-group-sm" role="group" aria-label="Quantity controls">
+                                <button type="button"
+                                        class="btn btn-outline-secondary quantity-decrease"
+                                        data-cart-key="{{ item.cart_key }}"
+                                        data-slug="{{ item.product.slug }}"
+                                        data-color="{{ item.color|default_if_none:'' }}"
+                                        data-size="{{ item.size|default_if_none:'' }}"
+                                        data-weight="{{ item.weight|default_if_none:'' }}">
+                                    -
+                                </button>
+                                <span class="mx-2 quantity-value" data-cart-key="{{ item.cart_key }}">{{ item.quantity }}</span>
+                                <button type="button"
+                                        class="btn btn-outline-secondary quantity-increase"
+                                        data-cart-key="{{ item.cart_key }}"
+                                        data-slug="{{ item.product.slug }}"
+                                        data-color="{{ item.color|default_if_none:'' }}"
+                                        data-size="{{ item.size|default_if_none:'' }}"
+                                        data-weight="{{ item.weight|default_if_none:'' }}">
+                                    +
+                                </button>
+                            </div>
+                            <small class="text-muted ms-3">${{ item.subtotal|floatformat:2 }}</small>
+                        </div>
                     </div>
-                    <form action="{% url 'orders:remove_from_cart' %}" method="POST" class="ms-2">
+                    <form action="{% url 'orders:remove_from_cart' %}" method="POST" class="ms-2 remove-from-cart-form">
                         {% csrf_token %}
                         <input type="hidden" name="cart_key" value="{{ item.cart_key }}">
-                        <button type="submit" class="btn btn-sm btn-link text-danger p-0">
+                        <button type="submit" class="btn btn-sm btn-link text-danger p-0" title="Remove">
                             <i class="fas fa-trash"></i>
                         </button>
                     </form>

@@ -436,6 +436,9 @@
                     $('#cartDropdownContent').html(data);
                     const cartCount = $('#cart-count', data).data('count') || 0;
                     $('#cart-count-badge').text(cartCount);
+
+                    // Bind quantity controls and remove actions inside dropdown
+                    bindCartDropdownEvents();
                 },
                 error: function() {
                     $('#cartDropdownContent').html(
@@ -502,7 +505,7 @@
         });
 
         // Enhanced Add to Cart with better UX
-        $(document).on('submit', '.add-to-cart-form', function(e) {
+        $(document).on('submit', '.add-to-cart-form, form[action*="/orders/cart/add/"]', function(e) {
             e.preventDefault();
             const $form = $(this);
             const $button = $form.find('button[type="submit"]');
@@ -556,6 +559,79 @@
                 }
             });
         });
+
+        // Global AJAX handlers for cart dropdown quantity +/- and remove
+        function bindCartDropdownEvents() {
+            // Quantity decrease
+            $('#cartDropdownContent').off('click', '.quantity-decrease').on('click', '.quantity-decrease', function() {
+                const btn = $(this);
+                updateCartItemFromDropdown(btn, -1);
+            });
+
+            // Quantity increase
+            $('#cartDropdownContent').off('click', '.quantity-increase').on('click', '.quantity-increase', function() {
+                const btn = $(this);
+                updateCartItemFromDropdown(btn, +1);
+            });
+
+            // Remove item
+            $('#cartDropdownContent').off('submit', '.remove-from-cart-form').on('submit', '.remove-from-cart-form', function(e) {
+                e.preventDefault();
+                const $form = $(this);
+                $.ajax({
+                    url: $form.attr('action'),
+                    method: 'POST',
+                    data: $form.serialize(),
+                    headers: { 'X-Requested-With': 'XMLHttpRequest' },
+                    success: function(data) {
+                        if (data.success) {
+                            $('#cart-count-badge').text(data.cart_count || 0);
+                            loadCartDropdown();
+                            showFlyingMessage(data.message || 'Removed from cart', 'success');
+                        } else {
+                            showFlyingMessage(data.message || 'Failed to remove item', 'error');
+                        }
+                    },
+                    error: function() {
+                        showFlyingMessage('Failed to remove item', 'error');
+                    }
+                });
+            });
+        }
+
+        function updateCartItemFromDropdown(btn, delta) {
+            const slug = btn.data('slug');
+            const color = btn.data('color');
+            const size = btn.data('size');
+            const weight = btn.data('weight');
+
+            const formData = new FormData();
+            formData.append('quantity', delta); // server treats as delta
+            if (color) formData.append('color', color);
+            if (size) formData.append('size', size);
+            if (weight) formData.append('weight', weight);
+            // CSRF: try to grab from cookie if available
+            const csrftoken = (document.cookie.match(/csrftoken=([^;]+)/)||[])[1];
+
+            fetch(`/orders/cart/add/${encodeURIComponent(slug)}/`, {
+                method: 'POST',
+                body: formData,
+                headers: {
+                    'X-Requested-With': 'XMLHttpRequest',
+                    'X-CSRFToken': csrftoken || $('input[name="csrfmiddlewaretoken"]').first().val() || ''
+                },
+            })
+            .then(r => r.json())
+            .then(data => {
+                if (data.success) {
+                    $('#cart-count-badge').text(data.cart_count || 0);
+                    loadCartDropdown();
+                } else {
+                    showFlyingMessage(data.message || 'Failed to update cart', 'error');
+                }
+            })
+            .catch(() => showFlyingMessage('Failed to update cart', 'error'));
+        }
 
         // Enhanced flying message function
         function showFlyingMessage(message, type = 'success') {

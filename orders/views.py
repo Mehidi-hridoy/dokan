@@ -4,7 +4,7 @@ from decimal import Decimal
 from django.shortcuts import render, get_object_or_404, redirect
 from django.contrib.auth.decorators import login_required
 from django.contrib import messages
-from django.http import JsonResponse
+from django.http import JsonResponse, Http404
 from django.views.decorators.http import require_POST
 from django.urls import reverse
 from django.core.paginator import Paginator
@@ -222,7 +222,7 @@ def checkout_from_product(request, product_slug):
     return redirect('products:product_list')
 
 def add_to_cart(request, slug):
-    """Add product to cart (session-based for now)."""
+    """Add or update product quantity in session cart (AJAX-friendly)."""
     product = get_object_or_404(Product, slug=slug, is_active=True)
 
     # Get selected options from POST
@@ -250,16 +250,28 @@ def add_to_cart(request, slug):
     cart = request.session.get('cart', {})
     cart_key = f"{slug}_{color or 'default'}_{size or 'default'}_{weight or 'default'}"
 
+    item_removed = False
     if cart_key in cart:
-        cart[cart_key]['quantity'] += quantity
+        new_qty = cart[cart_key]['quantity'] + quantity
+        if new_qty <= 0:
+            # Remove item if quantity goes to zero or less
+            del cart[cart_key]
+            item_removed = True
+        else:
+            cart[cart_key]['quantity'] = new_qty
     else:
-        cart[cart_key] = {
-            'slug': slug,
-            'quantity': quantity,
-            'color': color,
-            'size': size,
-            'weight': weight,
-        }
+        # Only add if positive quantity
+        if quantity > 0:
+            cart[cart_key] = {
+                'slug': slug,
+                'quantity': quantity,
+                'color': color,
+                'size': size,
+                'weight': weight,
+            }
+        else:
+            # Nothing to remove if it didn't exist; return graceful error
+            return JsonResponse({'success': False, 'message': 'Nothing to remove from cart.'}, status=400)
 
     request.session['cart'] = cart
     request.session.modified = True
@@ -271,14 +283,23 @@ def add_to_cart(request, slug):
     product_price = product.sale_price or getattr(product, 'current_price', product.base_price)
 
     # Response payload
+    if item_removed:
+        message = f"{product.products_name} removed from your cart."
+        subtotal = "0.00"
+    else:
+        # Determine resulting quantity for this item
+        resulting_qty = cart.get(cart_key, {}).get('quantity', 0)
+        message = f"{product.products_name} added to your cart!" if quantity > 0 else f"Updated {product.products_name} quantity."
+        subtotal = str(product_price * resulting_qty) if resulting_qty > 0 else "0.00"
+
     response_data = {
         'success': True,
-        'message': f"{product.products_name} added to your cart!",
+        'message': message,
         'cart_count': cart_count,
         'product_name': product.products_name,
-        'product_image': product.products_image.url if product.products_image else None,
-        'quantity': quantity,
-        'subtotal': str(product_price * quantity),
+        'product_image': product.products_image.url if getattr(product, 'products_image', None) else None,
+        'quantity': cart.get(cart_key, {}).get('quantity', 0),
+        'subtotal': subtotal,
         'checkout_url': reverse('orders:checkout'),
     }
 
