@@ -274,6 +274,7 @@ def add_to_cart(request, slug):
     messages.success(request, f"{product.products_name} added to cart successfully.")
     return JsonResponse(response_data)
 
+# views.py
 def view_cart(request):
     """Render the cart view with session-based cart items."""
     cart = request.session.get('cart', {})
@@ -283,15 +284,18 @@ def view_cart(request):
     for cart_key, item in cart.items():
         try:
             product = get_object_or_404(Product, slug=item['slug'], is_active=True)
-            subtotal = (product.sale_price or product.current_price) * item['quantity']
+            unit_price = product.sale_price or product.current_price
+            subtotal = unit_price * item['quantity']
             total_price += subtotal
+
             cart_items.append({
                 'cart_key': cart_key,
                 'product': product,
                 'quantity': item['quantity'],
-                'color': item['color'],
-                'size': item['size'],
-                'weight': item['weight'],
+                'color': item.get('color'),
+                'size': item.get('size'),
+                'weight': item.get('weight'),
+                'unit_price': unit_price,  # <-- added
                 'subtotal': subtotal,
             })
         except Http404:
@@ -308,9 +312,7 @@ def view_cart(request):
     }
 
     return render(request, 'orders/cart.html', context)
-
-
-
+ 
 def update_cart(request):
     """Update quantity of a cart item via POST (supports AJAX)."""
     if request.method == 'POST' and request.headers.get('x-requested-with') == 'XMLHttpRequest':

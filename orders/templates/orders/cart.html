@@ -46,7 +46,8 @@
                                     {% if item.weight %}<div><strong>Weight:</strong> {{ item.weight }}</div>{% endif %}
                                 </div>
                                 <div class="flex items-center justify-between mt-2">
-                                    <span class="text-lg font-bold text-gray-900">$<span class="unit-price">{{ item.unit_price }}</span></span>
+                              <span class="text-lg font-bold text-gray-900">Unit Price $<span class="unit-price">{{ item.unit_price }}</span>
+                                </span>
                                 </div>
                             </div>
 
@@ -121,18 +122,61 @@
     {% endif %}
 </div>
 
+
 <script>
+document.addEventListener('DOMContentLoaded', function() {
+    document.querySelectorAll('.cart-item-row').forEach(row => {
+        const cartKey = row.dataset.cartKey;
+
+        row.querySelector('.fa-plus')?.closest('button')?.addEventListener('click', () => changeQuantity(cartKey, 1));
+        row.querySelector('.fa-minus')?.closest('button')?.addEventListener('click', () => changeQuantity(cartKey, -1));
+    });
+});
+
 function changeQuantity(cartKey, delta) {
     const qtySpan = document.getElementById(`quantity-${cartKey}`);
     let quantity = parseInt(qtySpan.textContent) + delta;
-    if (quantity < 1) return;
+    if (quantity < 1) quantity = 1;
+
+    // Update frontend instantly
+    updateFrontendTotals(cartKey, quantity);
+
+    // Sync with server
     updateCartItem(cartKey, quantity);
 }
 
-function removeItem(cartKey) {
-    updateCartItem(cartKey, 0);
+function updateFrontendTotals(cartKey, quantity) {
+    const row = document.querySelector(`.cart-item-row[data-cart-key="${cartKey}"]`);
+    const unitPrice = parseFloat(row.querySelector('.unit-price').textContent);
+    const itemSubtotal = unitPrice * quantity;
+
+    // Update quantity and item subtotal
+    row.querySelector(`#quantity-${cartKey}`).textContent = quantity;
+    row.querySelector('.item-subtotal').textContent = itemSubtotal.toFixed(2);
+
+    // Recalculate order summary
+    let total = 0;
+    let totalCount = 0;
+    document.querySelectorAll('.cart-item-row').forEach(r => {
+        const qty = parseInt(r.querySelector(`[id^="quantity-"]`).textContent);
+        const price = parseFloat(r.querySelector('.unit-price').textContent);
+        total += qty * price;
+        totalCount += qty;
+    });
+
+    document.getElementById('summary-total').textContent = total.toFixed(2);
+    document.getElementById('summary-total-final').textContent = total.toFixed(2);
+    document.getElementById('cart-count').textContent = totalCount;
+    document.getElementById('summary-cart-count').textContent = totalCount;
 }
 
+function removeItem(cartKey) {
+    const row = document.querySelector(`.cart-item-row[data-cart-key="${cartKey}"]`);
+    if (row) row.remove();
+
+    updateCartItem(cartKey, 0);
+}
+  
 function updateCartItem(cartKey, quantity) {
     const formData = new FormData();
     formData.append('cart_key', cartKey);
@@ -146,27 +190,13 @@ function updateCartItem(cartKey, quantity) {
     })
     .then(res => res.json())
     .then(data => {
-        if (data.success) {
-            // Update DOM
-            const row = document.querySelector(`.cart-item-row[data-cart-key="${cartKey}"]`);
-            if (quantity === 0) {
-                row.remove();
-            } else {
-                row.querySelector(`#quantity-${cartKey}`).textContent = quantity;
-                row.querySelector('.item-subtotal').textContent = (data.cart_items.find(i => i.cart_key === cartKey)?.subtotal || 0).toFixed(2);
-            }
-
-            // Update summary totals
-            document.getElementById('cart-count').textContent = data.cart_count;
-            document.getElementById('summary-cart-count').textContent = data.cart_count;
-            document.getElementById('summary-total').textContent = data.total_price.toFixed(2);
-            document.getElementById('summary-total-final').textContent = data.total_price.toFixed(2);
-
-            // If cart empty, reload to show empty state
-            if (data.cart_count === 0) location.reload();
-        }
+        if (!data.success) return;
+        // Server sync complete, nothing else to do because frontend is already updated
+        if (data.cart_count === 0) location.reload(); // optional: show empty cart
     })
     .catch(err => console.error('Cart update failed', err));
 }
 </script>
+
+
 {% endblock %}
