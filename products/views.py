@@ -44,28 +44,40 @@ def _get_user_order(request):
     return None
 
 
-def home(request):
-    # Get active products with related data
+def home(request, category_slug=None, brand_slug=None):
+    """
+    Home page view:
+    - Displays active products, sorted in-stock first, then newest
+    - Supports optional category or brand filtering by slug
+    """
+    
     products_qs = Product.objects.filter(is_active=True).select_related(
-        'category', 
-        'brand',
-        'inventory_reverse'
+        'category', 'brand', 'inventory_reverse'
     ).prefetch_related('images')
+    
+    # Filter by category if slug provided
+    if category_slug:
+        products_qs = products_qs.filter(category__slug=category_slug)
+    
+    # Filter by brand if slug provided
+    if brand_slug:
+        products_qs = products_qs.filter(brand__slug=brand_slug)
 
-    # Calculate discounts for each product
+    # Calculate discounts
     products = [calculate_discount(p) for p in products_qs]
 
     # Sort: in-stock first, then newest
     products = sorted(
-        products, 
+        products,
         key=lambda p: (not p.is_in_stock, -p.created_at.timestamp())
     )
 
-    # Add color and size choices for dropdowns
+    # Add color and size choices
     for p in products:
-        p.color_choices = p._meta.get_field('color').choices if p.color else []
-        p.size_choices = p._meta.get_field('size').choices if p.size else []
+        p.color_choices = p._meta.get_field('color').choices if hasattr(p, 'color') and p.color else []
+        p.size_choices = p._meta.get_field('size').choices if hasattr(p, 'size') and p.size else []
 
+    # Categories and brands for sidebar / navigation
     categories = Category.objects.all()
     brands = Brand.objects.all()
 
@@ -84,9 +96,13 @@ def home(request):
         'order': order,
         'cart_items': cart_items,
         'cart_total': cart_total,
+        'current_category': category_slug,
+        'current_brand': brand_slug,
     }
 
     return render(request, 'products/home.html', context)
+
+
 
 class ProductListView(ListView):
     model = Product
@@ -101,29 +117,13 @@ class ProductListView(ListView):
 
         queryset = queryset.annotate(avg_rating=Avg('reviews__rating'))
 
-        # Check if user has reviewed this product
-        if self.request.user.is_authenticated:
-            user_reviews = Review.objects.filter(product=OuterRef('pk'), user=self.request.user)
-            queryset = queryset.annotate(user_has_reviewed=Exists(user_reviews))
-
-            # Check if user purchased this product AND 15 days have passed
-            fifteen_days_ago = timezone.now() - timedelta(days=15)
-            purchased_items = OrderItem.objects.filter(
-                product=OuterRef('pk'),
-                order__user=self.request.user,
-                order__created_at__lte=fifteen_days_ago
-            )
-            queryset = queryset.annotate(user_can_review=Exists(purchased_items))
-
-        else:
-            queryset = queryset.annotate(
-                user_has_reviewed=Exists(Product.objects.none()),
-                user_can_review=Exists(Product.objects.none())
-            )
-
-        # --- Existing filter logic (unchanged) ---
-        search_query = self.request.GET.get('search', '')
+        # --- Filter logic ---
         category_slug = self.request.GET.get('category', '')
+        if category_slug:
+            queryset = queryset.filter(category__slug=category_slug)
+
+        # Existing filters...
+        search_query = self.request.GET.get('search', '')
         brand_slug = self.request.GET.get('brand', '')
         tag = self.request.GET.get('tag', '')
         min_price = self.request.GET.get('min_price', '')
@@ -135,8 +135,6 @@ class ProductListView(ListView):
                 Q(description__icontains=search_query) |
                 Q(short_description__icontains=search_query)
             )
-        if category_slug:
-            queryset = queryset.filter(category__slug=category_slug)
         if brand_slug:
             queryset = queryset.filter(brand__slug=brand_slug)
         if tag:
@@ -162,29 +160,11 @@ class ProductListView(ListView):
             queryset = queryset.order_by('-avg_rating')
 
         return queryset
-    
-    # --- START OF NEW/MODIFIED CODE ---
-    
+
     def get_context_data(self, **kwargs):
-        """
-        Adds the COLOR_CHOICES and SIZE_CHOICES to each product object 
-        in the context for template rendering of dropdowns.
-        """
-        # Call the base implementation first to get the context
         context = super().get_context_data(**kwargs)
-        
-        # Access the list of products from the context
-        products = context.get(self.context_object_name)
-        
-        if products:
-            
-            for product in products:
-                # Assuming COLOR_CHOICES and SIZE_CHOICES are imported from .models
-                product.color_choices = COLOR_CHOICES 
-                product.size_choices = SIZE_CHOICES
-                
+        context['categories'] = Category.objects.all()  # Add all categories for sidebar
         return context
-    
 
 
 class ProductDetailView(DetailView):
@@ -233,6 +213,13 @@ class ProductDetailView(DetailView):
         return context
 
 
+def category_filter(request, category_slug):
+    category = get_object_or_404(Category, slug=category_slug)
+    products = Product.objects.filter(category=category, is_active=True)
+    return render(request, 'products/category_products.html', {
+        'category': category,
+        'products': products
+    })
 
 @login_required(login_url='login')
 def submit_review(request, product_id):

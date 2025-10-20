@@ -1,0 +1,37 @@
+<!-- products/templates/products/partials/product_card.html -->
+
+<div class="product-card bg-white rounded-lg shadow-md p-4 hover:shadow-lg transition duration-200">
+    <a href="{% url 'products:product_detail' product.slug %}">
+        <!-- Product Image -->
+        {% if product.images.all %}
+            <img src="{{ product.images.first.image.url }}" 
+                 alt="{{ product.name }}" 
+                 class="w-full h-48 object-cover rounded">
+        {% else %}
+            <div class="w-full h-48 bg-gray-200 flex items-center justify-center rounded">
+                <i class="fas fa-image text-gray-400 text-4xl"></i>
+            </div>
+        {% endif %}
+
+        <!-- Product Name -->
+        <h3 class="font-semibold mt-2 text-gray-800">{{ product.name }}</h3>
+
+        <!-- Price & Discount -->
+        {% if product.discount_percentage %}
+            <p class="text-red-500 font-bold mt-1">
+                -{{ product.discount_percentage }}%
+            </p>
+            <p class="text-gray-500 line-through">${{ product.base_price }}</p>
+            <p class="text-gray-800 font-semibold">${{ product.current_price }}</p>
+        {% else %}
+            <p class="text-gray-800 font-semibold">${{ product.current_price }}</p>
+        {% endif %}
+
+        <!-- Stock Status -->
+        {% if product.is_in_stock %}
+            <p class="text-green-600 text-sm mt-1">In Stock</p>
+        {% else %}
+            <p class="text-red-600 text-sm mt-1">Out of Stock</p>
+        {% endif %}
+    </a>
+</div>
