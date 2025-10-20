@@ -12,22 +12,19 @@
         <!-- Cart Items -->
         <div class="lg:col-span-2">
             <div class="bg-white rounded-xl shadow-md border border-gray-100">
-                <!-- Cart Header -->
                 <div class="border-b border-gray-200 px-6 py-4">
-                    <h2 class="text-xl font-semibold text-gray-800">Your Items ({{ cart_count }})</h2>
+                    <h2 class="text-xl font-semibold text-gray-800">Your Items (<span id="cart-count">{{ cart_count }}</span>)</h2>
                 </div>
 
-                <!-- Cart Items List -->
-                <div class="divide-y divide-gray-200">
+                <div class="divide-y divide-gray-200" id="cart-items-container">
                     {% for item in cart_items %}
-                    <div class="p-6 cart-item-row">
+                    <div class="p-6 cart-item-row" data-cart-key="{{ item.cart_key }}">
                         <div class="flex items-center space-x-4">
                             <!-- Product Image -->
                             <div class="flex-shrink-0">
                                 <a href="{% url 'products:product_detail' item.product.slug %}">
                                     {% if item.product.products_image %}
-                                    <img src="{{ item.product.products_image.url }}" alt="{{ item.product.products_name }}" 
-                                         class="w-20 h-20 object-cover rounded-lg">
+                                    <img src="{{ item.product.products_image.url }}" alt="{{ item.product.products_name }}" class="w-20 h-20 object-cover rounded-lg">
                                     {% else %}
                                     <div class="w-20 h-20 bg-gray-200 rounded-lg flex items-center justify-center">
                                         <i class="fas fa-image text-gray-400"></i>
@@ -43,62 +40,36 @@
                                         {{ item.product.products_name }}
                                     </a>
                                 </h3>
-                                
-                                <!-- Product Options -->
                                 <div class="text-sm text-gray-600 space-y-1">
-                                    {% if item.color %}
-                                    <div><strong>Color:</strong> {{ item.color }}</div>
-                                    {% endif %}
-                                    {% if item.size %}
-                                    <div><strong>Size:</strong> {{ item.size }}</div>
-                                    {% endif %}
-                                    {% if item.weight %}
-                                    <div><strong>Weight:</strong> {{ item.weight }}</div>
-                                    {% endif %}
+                                    {% if item.color %}<div><strong>Color:</strong> {{ item.color }}</div>{% endif %}
+                                    {% if item.size %}<div><strong>Size:</strong> {{ item.size }}</div>{% endif %}
+                                    {% if item.weight %}<div><strong>Weight:</strong> {{ item.weight }}</div>{% endif %}
                                 </div>
-
-                                <!-- Price -->
                                 <div class="flex items-center justify-between mt-2">
-                                    <span class="text-lg font-bold text-gray-900">${{ item.unit_price }}</span>
+                                    <span class="text-lg font-bold text-gray-900">$<span class="unit-price">{{ item.unit_price }}</span></span>
                                 </div>
                             </div>
 
-                            <!-- Quantity Controls -->
+                            <!-- Quantity Controls & Remove -->
                             <div class="flex items-center space-x-3">
-                                <form method="POST" action="{% url 'orders:update_cart' %}" class="flex items-center">
-                                    {% csrf_token %}
-                                    <input type="hidden" name="cart_key" value="{{ item.cart_key }}">
-                                    <div class="flex items-center border border-gray-300 rounded-lg">
-                                        <button type="button" onclick="decreaseQuantity('{{ item.cart_key }}')" 
-                                                class="px-3 py-1 text-gray-600 hover:text-gray-800">
-                                            <i class="fas fa-minus"></i>
-                                        </button>
-                                        <span id="quantity-{{ item.cart_key }}" class="px-3 py-1 text-gray-800 font-semibold">
-                                            {{ item.quantity }}
-                                        </span>
-                                        <button type="button" onclick="increaseQuantity('{{ item.cart_key }}')" 
-                                                class="px-3 py-1 text-gray-600 hover:text-gray-800">
-                                            <i class="fas fa-plus"></i>
-                                        </button>
-                                    </div>
-                                </form>
-
-                                <!-- Remove Button -->
-                                <form method="POST" action="{% url 'orders:remove_from_cart' %}" class="remove-cart-item-form">
-                                    {% csrf_token %}
-                                    <input type="hidden" name="cart_key" value="{{ item.cart_key }}">
-                                    <button type="submit" 
-                                            class="text-red-600 hover:text-red-800 p-2 transition duration-200">
-                                        <i class="fas fa-trash-alt"></i>
+                                <div class="flex items-center border border-gray-300 rounded-lg">
+                                    <button type="button" onclick="changeQuantity('{{ item.cart_key }}', -1)" class="px-3 py-1 text-gray-600 hover:text-gray-800">
+                                        <i class="fas fa-minus"></i>
                                     </button>
-                                </form>
+                                    <span id="quantity-{{ item.cart_key }}" class="px-3 py-1 text-gray-800 font-semibold">{{ item.quantity }}</span>
+                                    <button type="button" onclick="changeQuantity('{{ item.cart_key }}', 1)" class="px-3 py-1 text-gray-600 hover:text-gray-800">
+                                        <i class="fas fa-plus"></i>
+                                    </button>
+                                </div>
+                                <button onclick="removeItem('{{ item.cart_key }}')" class="text-red-600 hover:text-red-800 p-2 transition duration-200">
+                                    <i class="fas fa-trash-alt"></i>
+                                </button>
                             </div>
                         </div>
 
-                        <!-- Item Total -->
                         <div class="flex justify-between items-center mt-4 pt-4 border-t border-gray-100">
                             <span class="text-gray-600">Item Total:</span>
-                            <span class="text-xl font-bold text-gray-900">${{ item.subtotal }}</span>
+                            $<span class="item-subtotal">{{ item.subtotal }}</span>
                         </div>
                     </div>
                     {% endfor %}
@@ -111,85 +82,55 @@
             <div class="bg-white rounded-xl shadow-md border border-gray-100 sticky top-24">
                 <div class="p-6">
                     <h2 class="text-xl font-semibold mb-4 text-gray-800">Order Summary</h2>
-                    
                     <div class="space-y-3 mb-6">
                         <div class="flex justify-between text-gray-600">
-                            <span>Subtotal ({{ cart_count }} items)</span>
-                            <span>${{ total_price }}</span>
+                            <span>Subtotal (<span id="summary-cart-count">{{ cart_count }}</span> items)</span>
+                            $<span id="summary-total">{{ total_price }}</span>
                         </div>
                         <div class="flex justify-between text-gray-600">
-                            <span>Shipping</span>
-                            <span class="text-green-600">Free</span>
+                            <span>Shipping</span><span class="text-green-600">Free</span>
                         </div>
                         <div class="flex justify-between text-gray-600">
-                            <span>Tax</span>
-                            <span>Calculated at checkout</span>
+                            <span>Tax</span><span>Calculated at checkout</span>
                         </div>
                         <div class="border-t border-gray-200 pt-3">
                             <div class="flex justify-between text-lg font-bold text-gray-900">
                                 <span>Total</span>
-                                <span>${{ total_price }}</span>
+                                $<span id="summary-total-final">{{ total_price }}</span>
                             </div>
                         </div>
                     </div>
 
-                    <!-- Checkout Button -->
-                    <a href="{% url 'orders:checkout' %}" 
-                       class="w-full bg-blue-600 text-white py-4 px-6 rounded-lg font-semibold text-lg hover:bg-blue-700 transition duration-200 flex items-center justify-center mb-4">
-                        <i class="fas fa-lock mr-3"></i>
-                        Proceed to Checkout
+                    <a href="{% url 'orders:checkout' %}" class="w-full bg-blue-600 text-white py-4 px-6 rounded-lg font-semibold text-lg hover:bg-blue-700 transition duration-200 flex items-center justify-center mb-4">
+                        <i class="fas fa-lock mr-3"></i> Proceed to Checkout
                     </a>
-
-                    <!-- Continue Shopping -->
-                    <a href="{% url 'products:product_list' %}" 
-                       class="w-full bg-gray-200 text-gray-700 py-3 px-6 rounded-lg font-semibold hover:bg-gray-300 transition duration-200 text-center block">
+                    <a href="{% url 'products:product_list' %}" class="w-full bg-gray-200 text-gray-700 py-3 px-6 rounded-lg font-semibold hover:bg-gray-300 transition duration-200 text-center block">
                         Continue Shopping
                     </a>
-
-                    <!-- Security Badges -->
-                    <div class="mt-6 text-center">
-                        <div class="flex justify-center space-x-4 text-gray-500 mb-2">
-                            <i class="fas fa-shield-alt"></i>
-                            <i class="fas fa-lock"></i>
-                            <i class="fas fa-truck"></i>
-                        </div>
-                        <p class="text-xs text-gray-500">Secure checkout · Free shipping · 30-day returns</p>
-                    </div>
                 </div>
             </div>
         </div>
     </div>
     {% else %}
-    <!-- Empty Cart -->
     <div class="text-center py-16">
         <i class="fas fa-shopping-cart text-6xl text-gray-400 mb-6"></i>
         <h2 class="text-2xl font-bold text-gray-600 mb-4">Your cart is empty</h2>
         <p class="text-gray-500 mb-8">Looks like you haven't added any items to your cart yet.</p>
-        <a href="{% url 'products:product_list' %}" 
-           class="bg-blue-600 text-white px-8 py-4 rounded-lg font-semibold text-lg hover:bg-blue-700 transition duration-200 inline-block">
-            Start Shopping
-        </a>
+        <a href="{% url 'products:product_list' %}" class="bg-blue-600 text-white px-8 py-4 rounded-lg font-semibold text-lg hover:bg-blue-700 transition duration-200 inline-block">Start Shopping</a>
     </div>
     {% endif %}
 </div>
 
 <script>
-function increaseQuantity(cartKey) {
-    const quantitySpan = document.getElementById(`quantity-${cartKey}`);
-    let quantity = parseInt(quantitySpan.textContent);
-    if (quantity < 10) {
-        quantitySpan.textContent = quantity + 1;
-        updateCartItem(cartKey, quantity + 1);
-    }
+function changeQuantity(cartKey, delta) {
+    const qtySpan = document.getElementById(`quantity-${cartKey}`);
+    let quantity = parseInt(qtySpan.textContent) + delta;
+    if (quantity < 1) return;
+    updateCartItem(cartKey, quantity);
 }
 
-function decreaseQuantity(cartKey) {
-    const quantitySpan = document.getElementById(`quantity-${cartKey}`);
-    let quantity = parseInt(quantitySpan.textContent);
-    if (quantity > 1) {
-        quantitySpan.textContent = quantity - 1;
-        updateCartItem(cartKey, quantity - 1);
-    }
+function removeItem(cartKey) {
+    updateCartItem(cartKey, 0);
 }
 
 function updateCartItem(cartKey, quantity) {
@@ -200,66 +141,32 @@ function updateCartItem(cartKey, quantity) {
 
     fetch("{% url 'orders:update_cart' %}", {
         method: 'POST',
-        body: formData
+        body: formData,
+        headers: { 'X-Requested-With': 'XMLHttpRequest' }
     })
-    .then(response => response.json())
+    .then(res => res.json())
     .then(data => {
         if (data.success) {
-            location.reload(); // Reload to update totals
+            // Update DOM
+            const row = document.querySelector(`.cart-item-row[data-cart-key="${cartKey}"]`);
+            if (quantity === 0) {
+                row.remove();
+            } else {
+                row.querySelector(`#quantity-${cartKey}`).textContent = quantity;
+                row.querySelector('.item-subtotal').textContent = (data.cart_items.find(i => i.cart_key === cartKey)?.subtotal || 0).toFixed(2);
+            }
+
+            // Update summary totals
+            document.getElementById('cart-count').textContent = data.cart_count;
+            document.getElementById('summary-cart-count').textContent = data.cart_count;
+            document.getElementById('summary-total').textContent = data.total_price.toFixed(2);
+            document.getElementById('summary-total-final').textContent = data.total_price.toFixed(2);
+
+            // If cart empty, reload to show empty state
+            if (data.cart_count === 0) location.reload();
         }
     })
-    .catch(error => {
-        console.error('Error updating cart:', error);
-    });
+    .catch(err => console.error('Cart update failed', err));
 }
-
-// AJAX removal
-document.addEventListener('DOMContentLoaded', function() {
-    const removeForms = document.querySelectorAll('.remove-cart-item-form');
-    removeForms.forEach(form => {
-        form.addEventListener('submit', function(e) {
-            e.preventDefault();
-            
-   
-            const formData = new FormData(this);
-            
-            fetch(this.action, {
-                method: 'POST',
-                body: formData,
-                headers: {
-                    'X-Requested-With': 'XMLHttpRequest',
-                }
-            })
-            .then(response => response.json())
-            .then(data => {
-                if (data.success) {
-                    // Remove item from DOM
-                    this.closest('.cart-item-row').remove();
-                    
-                    // Update cart count
-                    document.getElementById('cart-count-badge').textContent = data.cart_count;
-                    
-                    // Show success message
-                    showFlyingMessage(data.message, 'success');
-                    
-                    // Reload if cart is empty
-                    if (data.cart_count === 0) {
-                        setTimeout(() => location.reload(), 1000);
-                    } else {
-                        // Otherwise reload to update totals
-                        location.reload();
-                    }
-                } else {
-                    showFlyingMessage(data.message, 'error');
-                }
-            })
-            .catch(error => {
-                showFlyingMessage('Error removing item from cart', 'error');
-            });
-        });
-    });
-});
-
-
 </script>
 {% endblock %}

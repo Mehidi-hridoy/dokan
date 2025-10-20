@@ -6,6 +6,7 @@
 {% block extra_css %}
 <style>
     .image-gallery {
+        /* Custom scrollbar for gallery (for webkit/firefox) */
         scrollbar-width: thin;
         scrollbar-color: #cbd5e0 #f7fafc;
     }
@@ -31,7 +32,6 @@
 
 {% block content %}
 <div class="container mx-auto px-4 py-8">
-    <!-- Breadcrumb -->
     <nav class="flex mb-6" aria-label="Breadcrumb">
         <ol class="flex items-center space-x-2 text-sm text-gray-600">
             <li><a href="{% url 'products:home' %}" class="hover:text-blue-600">Home</a></li>
@@ -42,158 +42,175 @@
         </ol>
     </nav>
 
-    <div class="grid grid-cols-1 lg:grid-cols-2 gap-12 mb-12">
-        <!-- Product Images -->
-        <div>
-            <!-- Main Image -->
-            <div class="bg-white rounded-xl shadow-md p-4 mb-4 border border-gray-100">
-                <div class="aspect-w-1 aspect-h-1">
-                    {% if product.products_image %}
-                    <img id="mainImage" src="{{ product.products_image.url }}" alt="{{ product.products_name }}" 
-                         class="w-full h-96 object-cover rounded-lg">
-                    {% else %}
-                    <div class="w-full h-96 bg-gray-200 rounded-lg flex items-center justify-center">
-                        <i class="fas fa-image text-gray-400 text-6xl"></i>
-                    </div>
-                    {% endif %}
+<div class="grid grid-cols-1 lg:grid-cols-2 gap-12 mb-12">
+
+    <!-- LEFT: Main Image + Gallery -->
+    <div>
+        <div class="relative bg-white rounded-xl shadow-md p-4 mb-4 border border-gray-100">
+            <div class="aspect-w-1 aspect-h-1 relative">
+                {% if product.products_image %}
+                <img id="mainImage" src="{{ product.products_image.url }}" 
+                     alt="{{ product.products_name }}" 
+                     class="w-full h-96 object-cover rounded-lg transition duration-300 hover:scale-105">
+                {% else %}
+                <div class="w-full h-96 bg-gray-200 rounded-lg flex items-center justify-center">
+                    <i class="fas fa-image text-gray-400 text-6xl"></i>
                 </div>
-            </div>
+                {% endif %}
 
-            <!-- Thumbnail Gallery -->
-            {% if product.images.all %}
-            <div class="image-gallery flex space-x-3 overflow-x-auto pb-2">
-                {% for image in product.images.all %}
-                <img src="{{ image.image.url }}" alt="{{ product.products_name }}" 
-                     class="w-20 h-20 object-cover rounded-lg border-2 border-gray-200 cursor-pointer hover:border-blue-500 transition duration-200"
-                     onclick="document.getElementById('mainImage').src = this.src">
-                {% endfor %}
-            </div>
-            {% endif %}
-        </div>
-
-        <!-- Product Details -->
-        <div>
-            <div class="bg-white rounded-xl shadow-md p-8 border border-gray-100">
-                <!-- Product Title -->
-                <h1 class="text-3xl font-bold text-gray-900 mb-4">{{ product.products_name }}</h1>
-
-                <!-- Rating and Reviews -->
-                <div class="flex items-center mb-4">
-                    <div class="flex items-center text-yellow-400 mr-3">
-                        {% for i in "12345" %}
-                        <i class="fas fa-star{% if forloop.counter > average_rating %}-half-alt{% endif %}"></i>
-                        {% endfor %}
-                    </div>
-                    <span class="text-gray-600 mr-4">{{ average_rating|floatformat:1 }} ({{ review_count }} reviews)</span>
-                    
-                    <!-- Stock Status -->
-                    <span class="{% if product.is_out_of_stock %}text-red-600{% else %}text-green-600{% endif %} font-semibold">
-                        <i class="fas {% if product.is_out_of_stock %}fa-times-circle{% else %}fa-check-circle{% endif %} mr-1"></i>
-                        {% if product.is_out_of_stock %}Out of Stock{% else %}In Stock{% endif %}
-                    </span>
-                </div>
-
-                <!-- Price -->
-                <div class="flex items-center mb-6">
-                    {% if product.discount_percentage > 0 %}
-                    <span class="text-4xl font-bold text-gray-900 mr-4">${{ product.current_price_display }}</span>
-                    <span class="text-2xl text-gray-500 line-through mr-4">${{ product.base_price }}</span>
-                    <span class="bg-red-500 text-white px-3 py-1 rounded-full text-lg font-bold">
-                        Save {{ product.discount_percentage }}%
-                    </span>
-                    {% else %}
-                    <span class="text-4xl font-bold text-gray-900">${{ product.base_price }}</span>
-                    {% endif %}
-                </div>
-
-                <!-- Short Description -->
-                <p class="text-gray-700 mb-6 text-lg leading-relaxed">{{ product.short_description }}</p>
-
-                <!-- Product Options Form -->
-                <form action="{% url 'orders:add_to_cart' product.slug %}" method="POST" class="add-to-cart-form space-y-4 mb-6">
-                    {% csrf_token %}
-
-                    <!-- Color Selection -->
-                    {% if product.color_choices %}
-                    <div>
-                        <label class="block text-sm font-semibold text-gray-700 mb-2">Color</label>
-                        <select name="color" required 
-                                class="w-full border border-gray-300 rounded-lg px-4 py-3 text-base focus:ring-2 focus:ring-blue-500 focus:border-blue-500">
-                            <option value="">Select a Color</option>
-                            {% for value, label in product.color_choices %}
-                            <option value="{{ value }}">{{ label }}</option>
-                            {% endfor %}
-                        </select>
-                    </div>
-                    {% endif %}
-
-                    <!-- Size Selection -->
-                    {% if product.size_choices %}
-                    <div>
-                        <label class="block text-sm font-semibold text-gray-700 mb-2">Size</label>
-                        <select name="size" required 
-                                class="w-full border border-gray-300 rounded-lg px-4 py-3 text-base focus:ring-2 focus:ring-blue-500 focus:border-blue-500">
-                            <option value="">Select a Size</option>
-                            {% for value, label in product.size_choices %}
-                            <option value="{{ value }}">{{ label }}</option>
-                            {% endfor %}
-                        </select>
-                    </div>
-                    {% endif %}
-
-                    <!-- Quantity -->
-                    <div class="flex items-center space-x-4">
-                        <label class="text-sm font-semibold text-gray-700">Quantity:</label>
-                        <div class="flex items-center border border-gray-300 rounded-lg">
-                            <button type="button" onclick="decreaseQuantity()" class="px-4 py-2 text-gray-600 hover:text-gray-800">
-                                <i class="fas fa-minus"></i>
-                            </button>
-                            <input type="number" id="quantity" name="quantity" value="1" min="1" max="10" 
-                                   class="w-16 text-center border-0 focus:ring-0">
-                            <button type="button" onclick="increaseQuantity()" class="px-4 py-2 text-gray-600 hover:text-gray-800">
-                                <i class="fas fa-plus"></i>
-                            </button>
-                        </div>
-                    </div>
-
-                    <!-- Action Buttons -->
-                    <div class="flex space-x-4 pt-4">
-                        <button type="submit" 
-                                class="flex-1 bg-blue-600 text-white py-4 px-6 rounded-lg font-semibold text-lg hover:bg-blue-700 transition duration-200 disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center"
-                                {% if product.is_out_of_stock %}disabled{% endif %}>
-                            <i class="fas fa-shopping-cart mr-3"></i>
-                            {% if product.is_out_of_stock %}Out of Stock{% else %}Add to Cart{% endif %}
-                        </button>
-                        
-                        <a href="{% url 'orders:checkout_from_product' product.slug %}" 
-                           class="flex-1 bg-green-600 text-white py-4 px-6 rounded-lg font-semibold text-lg hover:bg-green-700 transition duration-200 flex items-center justify-center disabled:opacity-50 disabled:cursor-not-allowed"
-                           {% if product.is_out_of_stock %}disabled{% endif %}>
-                            <i class="fas fa-bolt mr-3"></i>
-                            Buy Now
-                        </a>
-                    </div>
-                </form>
-
-                <!-- Product Meta -->
-                <div class="border-t border-gray-200 pt-6">
-                    <div class="grid grid-cols-2 gap-4 text-sm text-gray-600">
-                        <div><strong class="text-gray-700">SKU:</strong> {{ product.sku|default:"N/A" }}</div>
-                        <div><strong class="text-gray-700">Category:</strong> {{ product.category.name|default:"N/A" }}</div>
-                        <div><strong class="text-gray-700">Brand:</strong> {{ product.brand.name|default:"N/A" }}</div>
-                        <div><strong class="text-gray-700">Tags:</strong> 
-                            {% for tag in product.tag_list %}
-                            <span class="bg-gray-100 text-gray-700 px-2 py-1 rounded text-xs">{{ tag }}</span>
-                            {% endfor %}
-                        </div>
-                    </div>
-                </div>
+                <!-- Discount on RIGHT -->
+                {% if product.discount_percentage > 0 %}
+                <span class="absolute top-3 right-3 bg-red-500 text-white px-3 py-1 rounded-full text-sm font-bold shadow">
+                    -{{ product.discount_percentage }}%
+                </span>
+                {% endif %}
             </div>
         </div>
+
+        <!-- Gallery BELOW -->
+        {% if product.images.all %}
+        <div class="image-gallery flex space-x-3 overflow-x-auto pb-2 justify-center">
+            {% for image in product.images.all %}
+            <img src="{{ image.image.url }}" 
+                 alt="{{ product.products_name }}" 
+                 class="w-20 h-20 object-cover rounded-lg border-2 border-gray-200 cursor-pointer hover:border-blue-500 transition duration-200"
+                 onclick="document.getElementById('mainImage').src = this.src">
+            {% endfor %}
+        </div>
+        {% endif %}
     </div>
 
-    <!-- Product Description and Reviews Tabs -->
+    <!-- RIGHT: Product Info -->
+    <div class="bg-white rounded-xl shadow-md hover:shadow-xl transition duration-300 overflow-hidden border border-gray-100">
+
+        <div class="p-6">
+            <!-- Product Name -->
+            <h1 class="text-2xl font-bold text-gray-900 mb-3">{{ product.products_name }}</h1>
+
+            <!-- Tags -->
+            <p class="text-gray-600 text-sm mb-3 line-clamp-2">{{ product.tags }}</p>
+
+            <!-- Price & Rating -->
+            <div class="flex items-center justify-between mb-4">
+                <div class="flex items-center space-x-2">
+                    {% if product.discount_percentage > 0 %}
+                    <span class="text-2xl font-bold text-gray-900">${{ product.current_price_display }}</span>
+                    <span class="text-lg text-gray-500 line-through">${{ product.base_price }}</span>
+                    {% else %}
+                    <span class="text-2xl font-bold text-gray-900">${{ product.base_price }}</span>
+                    {% endif %}
+                </div>
+
+                {% if product.avg_rating %}
+                <div class="flex items-center text-yellow-400">
+                    <i class="fas fa-star"></i>
+                    <span class="text-sm text-gray-600 ml-1">{{ product.avg_rating|floatformat:1 }}</span>
+                </div>
+                {% endif %}
+            </div>
+
+            <!-- Add to Cart Form -->
+            <form action="{% url 'orders:add_to_cart' product.slug %}" method="POST" class="add-to-cart-form" data-product-slug="{{ product.slug }}">
+                {% csrf_token %}
+
+                <!-- Color Selection -->
+                {% if product.color_choices %}
+                <div class="mb-4">
+                    <label class="block text-sm font-medium text-gray-700 mb-2">Color</label>
+                    <div class="flex flex-wrap gap-2">
+                        {% for value, label in product.color_choices %}
+                        <button type="button"
+                                class="color-option w-6 h-6 rounded-full border-2 border-gray-300 hover:border-blue-500 transition"
+                                style="background-color: {{ value }};"
+                                data-color="{{ value }}"
+                                title="{{ label }}">
+                        </button>
+                        {% endfor %}
+                    </div>
+                    <input type="hidden" name="color" class="selected-color" required>
+                </div>
+                {% endif %}
+
+                <!-- Size Selection -->
+                {% if product.size_choices %}
+                <div class="mb-4">
+                    <label class="block text-sm font-medium text-gray-700 mb-2">Size</label>
+                    <div class="flex flex-wrap gap-2">
+                        {% for value, label in product.size_choices %}
+                        <button type="button"
+                                class="size-option px-3 py-1 rounded-md border border-gray-300 text-sm font-medium text-gray-700 hover:bg-blue-50 transition"
+                                data-size="{{ value }}">
+                            {{ label }}
+                        </button>
+                        {% endfor %}
+                    </div>
+                    <input type="hidden" name="size" class="selected-size" required>
+                </div>
+                {% endif %}
+
+                <!-- Quantity -->
+                <div class="flex items-center justify-between mb-4">
+                    <label class="text-sm font-medium text-gray-700 mr-3">Qty:</label>
+                    <div class="flex items-center space-x-2">
+                        <button type="button" class="qty-btn px-2 py-1 bg-gray-200 rounded-md hover:bg-gray-300" data-action="decrease">−</button>
+                        <input type="number" name="quantity" value="1" min="1" max="10"
+                               class="w-16 text-center border border-gray-300 rounded-md py-1 text-sm">
+                        <button type="button" class="qty-btn px-2 py-1 bg-gray-200 rounded-md hover:bg-gray-300" data-action="increase">+</button>
+                    </div>
+                </div>
+
+                <!-- Add to Cart -->
+                <button type="submit"
+                        class="w-full bg-blue-600 text-white py-3 px-6 rounded-lg font-semibold hover:bg-blue-700 transition duration-200 flex items-center justify-center disabled:opacity-50 disabled:cursor-not-allowed"
+                        {% if product.is_out_of_stock %}disabled{% endif %}>
+                    {% if product.is_out_of_stock %}
+                    <i class="fas fa-times mr-2"></i>Out of Stock
+                    {% else %}
+                    <i class="fas fa-shopping-cart mr-2"></i>Add to Cart
+                    {% endif %}
+                </button>
+            </form>
+        </div>
+    </div>
+</div>
+
+<!-- JS for color/size selection & quantity -->
+<script>
+document.addEventListener('DOMContentLoaded', () => {
+    // Color selection highlight
+    document.querySelectorAll('.color-option').forEach(btn => {
+        btn.addEventListener('click', () => {
+            const form = btn.closest('form');
+            form.querySelectorAll('.color-option').forEach(b => b.classList.remove('ring-2', 'ring-blue-500', 'border-blue-500'));
+            btn.classList.add('ring-2', 'ring-blue-500', 'border-blue-500');
+            form.querySelector('.selected-color').value = btn.dataset.color;
+        });
+    });
+
+    // Size selection highlight
+    document.querySelectorAll('.size-option').forEach(btn => {
+        btn.addEventListener('click', () => {
+            const form = btn.closest('form');
+            form.querySelectorAll('.size-option').forEach(b => b.classList.remove('bg-blue-600', 'text-white', 'border-blue-600'));
+            btn.classList.add('bg-blue-600', 'text-white', 'border-blue-600');
+            form.querySelector('.selected-size').value = btn.dataset.size;
+        });
+    });
+
+    // Quantity increase/decrease
+    document.querySelectorAll('.qty-btn').forEach(btn => {
+        btn.addEventListener('click', () => {
+            const input = btn.closest('div').querySelector('input[name="quantity"]');
+            let value = parseInt(input.value);
+            if (btn.dataset.action === 'increase' && value < parseInt(input.max)) value++;
+            if (btn.dataset.action === 'decrease' && value > parseInt(input.min)) value--;
+            input.value = value;
+        });
+    });
+});
+</script>
+
     <div class="bg-white rounded-xl shadow-md border border-gray-100">
-        <!-- Tabs -->
         <div class="border-b border-gray-200">
             <nav class="flex -mb-px">
                 <button onclick="switchTab('description')" 
@@ -209,9 +226,7 @@
             </nav>
         </div>
 
-        <!-- Tab Content -->
         <div class="p-8">
-            <!-- Description Tab -->
             <div id="content-description" class="tab-content">
                 <div class="prose max-w-none">
                     <h3 class="text-2xl font-bold mb-4">Product Description</h3>
@@ -230,22 +245,19 @@
                 </div>
             </div>
 
-            <!-- Reviews Tab -->
             <div id="content-reviews" class="tab-content hidden">
                 <div class="max-w-4xl">
-                    <!-- Review Summary -->
                     <div class="flex items-center mb-8">
                         <div class="text-center mr-8">
                             <div class="text-5xl font-bold text-gray-900">{{ average_rating|floatformat:1 }}</div>
                             <div class="flex text-yellow-400 justify-center mt-1">
                                 {% for i in "12345" %}
-                                <i class="fas fa-star{% if forloop.counter > average_rating %}-half-alt{% endif %}"></i>
+                                <i class="fas fa-star{% if forloop.counter > average_rating|default:0 %} text-gray-300{% endif %}"></i>
                                 {% endfor %}
                             </div>
                             <div class="text-gray-600 mt-1">{{ review_count }} reviews</div>
                         </div>
                         
-                        <!-- Add Review Button -->
                         {% if can_review %}
                         <button onclick="openReviewModal()" 
                                 class="ml-auto bg-blue-600 text-white px-6 py-3 rounded-lg font-semibold hover:bg-blue-700 transition duration-200">
@@ -259,7 +271,6 @@
                         {% endif %}
                     </div>
 
-                    <!-- Reviews List -->
                     <div class="space-y-6">
                         {% for review in reviews %}
                         <div class="border-b border-gray-200 pb-6 last:border-b-0">
@@ -268,7 +279,7 @@
                                     <h4 class="font-semibold text-gray-900">{{ review.user.username }}</h4>
                                     <div class="flex items-center text-yellow-400 text-sm">
                                         {% for i in "12345" %}
-                                        <i class="fas fa-star{% if forloop.counter > review.rating %}-half-alt{% endif %}"></i>
+                                        <i class="fas fa-star{% if forloop.counter > review.rating %} text-gray-300{% endif %}"></i>
                                         {% endfor %}
                                         <span class="text-gray-600 ml-2">{{ review.created_at|date:"M d, Y" }}</span>
                                     </div>
@@ -295,7 +306,6 @@
     </div>
 </div>
 
-<!-- Review Modal -->
 {% if can_review %}
 <div id="reviewModal" class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 hidden">
     <div class="bg-white rounded-xl shadow-2xl max-w-md w-full mx-4 p-6">
@@ -303,30 +313,27 @@
         <form method="POST" action="{% url 'products:submit_review' product.id %}">
             {% csrf_token %}
             
-            <!-- Star Rating -->
             <div class="mb-4">
                 <label class="block text-sm font-semibold mb-2">Your Rating</label>
                 <div class="flex space-x-1" id="starRating">
                     {% for i in "12345" %}
                     <i class="fas fa-star review-star text-2xl text-gray-300" 
-                       data-rating="{{ forloop.counter }}" 
-                       onmouseover="hoverStars({{ forloop.counter }})" 
-                       onmouseout="resetStars()" 
-                       onclick="setRating({{ forloop.counter }})"></i>
+                        data-rating="{{ forloop.counter }}" 
+                        onmouseover="hoverStars({{ forloop.counter }})" 
+                        onmouseout="resetStars()" 
+                        onclick="setRating({{ forloop.counter }})"></i>
                     {% endfor %}
                 </div>
                 <input type="hidden" name="rating" id="selectedRating" required>
             </div>
 
-            <!-- Comment -->
             <div class="mb-4">
                 <label class="block text-sm font-semibold mb-2">Your Review</label>
                 <textarea name="comment" rows="4" 
-                          class="w-full border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-blue-500 focus:border-blue-500" 
-                          placeholder="Share your experience with this product..." required></textarea>
+                            class="w-full border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-blue-500 focus:border-blue-500" 
+                            placeholder="Share your experience with this product..." required></textarea>
             </div>
 
-            <!-- Buttons -->
             <div class="flex space-x-3">
                 <button type="button" onclick="closeReviewModal()" 
                         class="flex-1 bg-gray-200 text-gray-700 py-3 rounded-lg font-semibold hover:bg-gray-300 transition duration-200">
@@ -343,22 +350,20 @@
 {% endif %}
 
 <script>
-// Quantity Controls
-function increaseQuantity() {
-    const quantityInput = document.getElementById('quantity');
-    if (parseInt(quantityInput.value) < 10) {
-        quantityInput.value = parseInt(quantityInput.value) + 1;
-    }
+// ===================================
+// Quantity Controls (FIXED/CONSOLIDATED)
+// ===================================
+function updateQty(delta) {
+    const qty = document.getElementById('quantity');
+    // Ensure value is treated as a number and defaults to 1 if empty
+    const currentValue = parseInt(qty.value || 1); 
+    const newVal = Math.max(1, Math.min(10, currentValue + delta)); // Min 1, Max 10
+    qty.value = newVal;
 }
 
-function decreaseQuantity() {
-    const quantityInput = document.getElementById('quantity');
-    if (parseInt(quantityInput.value) > 1) {
-        quantityInput.value = parseInt(quantityInput.value) - 1;
-    }
-}
-
+// ===================================
 // Tab Switching
+// ===================================
 function switchTab(tabName) {
     // Hide all tab contents
     document.querySelectorAll('.tab-content').forEach(content => {
@@ -379,7 +384,9 @@ function switchTab(tabName) {
     document.getElementById(`tab-${tabName}`).classList.remove('border-transparent', 'text-gray-500');
 }
 
+// ===================================
 // Review Modal Functions
+// ===================================
 let currentRating = 0;
 
 function openReviewModal() {
@@ -423,7 +430,7 @@ function setRating(rating) {
     resetStars();
 }
 
-// Initialize first tab as active
+// Initialize first tab as active when the document is ready
 document.addEventListener('DOMContentLoaded', function() {
     switchTab('description');
 });

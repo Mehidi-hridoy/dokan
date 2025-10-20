@@ -7,6 +7,7 @@ urlpatterns = [
     path('cart-view/', views.view_cart, name='view_cart'),
     path('cart/update/', views.update_cart, name='update_cart'),
     path('cart/remove/', views.remove_from_cart, name='remove_from_cart'),  # Updated to POST-based
+    path('cart/remove-ajax/', views.remove_from_cart_ajax, name='remove_from_cart_ajax'),
     path('cart/dropdown-content/', views.cart_dropdown_content, name='cart_dropdown_content'),
     path('checkout/', views.checkout, name='checkout'),
     path('checkout-from-product/<slug:product_slug>/', views.checkout_from_product, name='checkout_from_product'),

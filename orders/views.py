@@ -309,29 +309,62 @@ def view_cart(request):
 
     return render(request, 'orders/cart.html', context)
 
+
+
 def update_cart(request):
-    """Update quantity of a cart item."""
-    if request.method == 'POST':
+    """Update quantity of a cart item via POST (supports AJAX)."""
+    if request.method == 'POST' and request.headers.get('x-requested-with') == 'XMLHttpRequest':
         cart = request.session.get('cart', {})
         cart_key = request.POST.get('cart_key')
-        quantity = int(request.POST.get('quantity', 1))
+        try:
+            quantity = int(request.POST.get('quantity', 1))
+        except ValueError:
+            quantity = 1
 
-        if cart_key in cart and quantity > 0:
+        if cart_key not in cart:
+            return JsonResponse({'success': False, 'message': 'Item not found in cart.'}, status=404)
+
+        product = get_object_or_404(Product, slug=cart[cart_key]['slug'], is_active=True)
+
+        # Update or remove item
+        if quantity > 0:
             cart[cart_key]['quantity'] = quantity
-            request.session['cart'] = cart
-            request.session.modified = True
-            product = get_object_or_404(Product, slug=cart[cart_key]['slug'], is_active=True)
-            messages.success(request, f"Updated {product.products_name} quantity to {quantity}.")
-        elif cart_key in cart and quantity == 0:
-            del cart[cart_key]
-            request.session['cart'] = cart
-            request.session.modified = True
-            messages.success(request, "Item removed from cart.")
         else:
-            messages.error(request, "Invalid cart item or quantity.")
+            del cart[cart_key]
 
+        # Save session
+        request.session['cart'] = cart
+        request.session.modified = True
+
+        # Recalculate totals and per-item subtotals
+        total_price = 0
+        cart_count = 0
+        cart_items_data = []
+        for ck, item in cart.items():
+            p = get_object_or_404(Product, slug=item['slug'], is_active=True)
+            subtotal = (p.sale_price or p.current_price) * item['quantity']
+            total_price += subtotal
+            cart_count += item['quantity']
+            cart_items_data.append({
+                'cart_key': ck,
+                'product_name': p.products_name,
+                'quantity': item['quantity'],
+                'color': item.get('color'),
+                'size': item.get('size'),
+                'weight': item.get('weight'),
+                'subtotal': round(subtotal, 2),
+                'unit_price': round(p.sale_price or p.current_price, 2),
+            })
+
+        return JsonResponse({
+            'success': True,
+            'cart_count': cart_count,
+            'total_price': round(total_price, 2),
+            'cart_items': cart_items_data
+        })
+
+    # fallback redirect for non-AJAX calls
     return redirect('orders:view_cart')
-
 
 def remove_from_cart(request):
     """Remove an item from the cart."""
@@ -365,6 +398,25 @@ def remove_from_cart(request):
     if request.headers.get('x-requested-with') == 'XMLHttpRequest':
         return JsonResponse({'success': False, 'message': "Invalid request."}, status=400)
     return redirect('orders:view_cart')
+
+
+def remove_from_cart_ajax(request):
+    if request.method == 'POST' and request.headers.get('x-requested-with') == 'XMLHttpRequest':
+        cart = request.session.get('cart', {})
+        cart_key = request.POST.get('cart_key')
+        if cart_key in cart:
+            product = get_object_or_404(Product, slug=cart[cart_key]['slug'], is_active=True)
+            del cart[cart_key]
+            request.session['cart'] = cart
+            request.session.modified = True
+            cart_count = sum(item['quantity'] for item in cart.values())
+            return JsonResponse({
+                'success': True,
+                'message': f"{product.products_name} removed from cart.",
+                'new_cart_count': cart_count
+            })
+        return JsonResponse({'success': False, 'message': 'Item not found.'}, status=400)
+    return JsonResponse({'success': False, 'message': 'Invalid request.'}, status=400)
 
 # Ensure other views (add_to_cart, cart_dropdown_content, etc.) remain as provided
 def cart_dropdown_content(request):
