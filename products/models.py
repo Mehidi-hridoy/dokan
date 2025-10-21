@@ -138,6 +138,7 @@ class Product(models.Model):
         if self.sale_price is not None and self.sale_price < self.base_price:
             return self.sale_price
         return self.base_price
+# products/models.py  (add this inside the Product class)
 
     @property
     def profit_margin(self):

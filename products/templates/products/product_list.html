@@ -4,7 +4,7 @@
 {% block title %}Products - Dokan{% endblock %}
 
 {% block content %}
-<div class="container mx-auto px-4 py-10">
+<div class="container mx-auto px-4 py-10"> 
 
     <aside class="w-full lg:w-1/4 bg-white p-4 rounded-xl shadow-sm border border-gray-100">
         <h2 class="font-bold text-gray-800 mb-4">Categories</h2>
@@ -41,11 +41,14 @@
             {% endif %}
         </a>
 
+        <!-- Discount Badge -->
         {% if product.discount_percentage > 0 %}
         <span class="absolute top-3 left-3 bg-red-500 text-white px-2 py-1 rounded-full text-sm font-bold">
             -{{ product.discount_percentage }}%
         </span>
         {% endif %}
+
+        <!-- Stock Status -->
         <span class="absolute top-3 right-3 {% if product.is_out_of_stock %}bg-red-500{% else %}bg-green-500{% endif %} text-white px-2 py-1 rounded-full text-xs font-bold">
             {% if product.is_out_of_stock %}Out of Stock{% else %}In Stock{% endif %}
         </span>
@@ -61,6 +64,7 @@
 
         <p class="text-gray-600 text-sm mb-3 line-clamp-2">{{ product.tags }}</p>
 
+        <!-- Price and Rating -->
         <div class="flex items-center justify-between mb-3">
             <div class="flex items-center space-x-2">
                 {% if product.discount_percentage > 0 %}
@@ -90,7 +94,7 @@
                 <div class="flex flex-wrap gap-2">
                     {% for value, label in product.color_choices %}
                     <button type="button"
-                            class="color-option w-6 h-6 rounded-full border-2 border-gray-300"
+                            class="color-option w-6 h-6 rounded-full border-2 border-gray-300 focus:outline-none"
                             style="background-color: {{ value }};"
                             data-color="{{ value }}"
                             title="{{ label }}">
@@ -129,7 +133,7 @@
                 </div>
             </div>
 
-            <!-- Add to Cart -->
+            <!-- Add to Cart Button -->
             <button type="submit"
                     class="w-full bg-blue-600 text-white py-2 px-4 rounded-lg font-semibold hover:bg-blue-700 transition duration-200 flex items-center justify-center disabled:opacity-50 disabled:cursor-not-allowed"
                     {% if product.is_out_of_stock %}disabled{% endif %}>
@@ -208,7 +212,7 @@ document.addEventListener("DOMContentLoaded", function() {
     {% if page_obj.has_other_pages %}
     <div class="flex justify-center mt-10 space-x-2">
         {% if page_obj.has_previous %}
-        <a href="?page={{ page_obj.previous_page_number }}" class="px-3 py-2 border rounded-lg hover:bg-gray-50">
+<a href="?page={{ num }}{% if request.GET.category %}&category={{ request.GET.category }}{% endif %}">{{ num }}</a>
             <i class="fas fa-chevron-left"></i>
         </a>
         {% endif %}

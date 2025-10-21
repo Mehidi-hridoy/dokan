@@ -12,7 +12,12 @@ BASE_DIR = Path(__file__).resolve().parent.parent
 
 DEBUG = config('DEBUG', default=False, cast=bool)
 SECRET_KEY = config('SECRET_KEY')
-ALLOWED_HOSTS = config('ALLOWED_HOSTS', default='localhost', cast=Csv())
+ALLOWED_HOSTS = [
+    'localhost',
+    '127.0.0.1',
+    'dokan-ecommerce-7f870e769b90.herokuapp.com'
+]
+
 
 # Default SQLite (for local)
 DATABASES = {

@@ -103,7 +103,6 @@ def home(request, category_slug=None, brand_slug=None):
     return render(request, 'products/home.html', context)
 
 
-
 class ProductListView(ListView):
     model = Product
     template_name = 'products/product_list.html'
@@ -163,7 +162,23 @@ class ProductListView(ListView):
 
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
-        context['categories'] = Category.objects.all()  # Add all categories for sidebar
+        context['categories'] = Category.objects.all()
+        
+        # Process products to add necessary attributes
+        products = context['products']
+        processed_products = []
+        
+        for product in products:
+            # Calculate discount
+            product = calculate_discount(product)
+            
+            # Add color and size choices
+            product.color_choices = product._meta.get_field('color').choices if hasattr(product, 'color') and product.color else []
+            product.size_choices = product._meta.get_field('size').choices if hasattr(product, 'size') and product.size else []
+            
+            processed_products.append(product)
+        
+        context['products'] = processed_products
         return context
 
 

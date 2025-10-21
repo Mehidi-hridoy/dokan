@@ -11,6 +11,12 @@ python manage.py runserver
 git pull origin main
 
 
+git add.
+git commit -m "Fix ALLOWED_HOSTS for Heroku"
+git push heroku main
+
+
+
 git remote add origin https://github.com/Mehidi-hridoy/dokan.git
 
 git branch -M main 

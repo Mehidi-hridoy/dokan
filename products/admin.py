@@ -35,7 +35,7 @@ class ProductAdmin(admin.ModelAdmin):
         'product_code', 
         'color',
         'size', 
-        'brand',
+        'category',
         'current_price_display',
         'stock_status',
         'is_active',
