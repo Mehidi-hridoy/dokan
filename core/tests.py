@@ -4,8 +4,8 @@ python manage.py migrate
 python manage.py runserver
 
 git add .
-git commit -m "Updated Produtcs Cart Price  "
-git push -u origin main
+git commit -m "Prepare Django project for Heroku"
+git push origin main
 python manage.py runserver
 
 git pull origin main

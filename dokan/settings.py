@@ -7,18 +7,25 @@ from datetime import timedelta
 # Base directory
 BASE_DIR = Path(__file__).resolve().parent.parent
 
-# Security
+
+
+
 DEBUG = config('DEBUG', default=False, cast=bool)
 SECRET_KEY = config('SECRET_KEY')
 ALLOWED_HOSTS = config('ALLOWED_HOSTS', default='localhost', cast=Csv())
 
-# Database
+# Default SQLite (for local)
 DATABASES = {
     'default': {
         'ENGINE': 'django.db.backends.sqlite3',
         'NAME': BASE_DIR / 'db.sqlite3',
     }
 }
+
+# If DATABASE_URL exists (on Heroku), override with Postgres
+DATABASE_URL = config('DATABASE_URL', default=None)
+if DATABASE_URL:
+    DATABASES['default'] = dj_database_url.parse(DATABASE_URL, conn_max_age=600)
 
 # JWT Settings
 SIMPLE_JWT = {
