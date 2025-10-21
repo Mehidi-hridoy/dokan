@@ -16,12 +16,30 @@
         border-radius: 0.5rem;
         box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
     }
+    .status-badge {
+        padding: 0.25rem 0.75rem;
+        border-radius: 1rem;
+        font-size: 0.75rem;
+        font-weight: 500;
+        text-transform: capitalize;
+    }
+    .status-confirmed { background-color: #d1fae5; color: #065f46; }
+    .status-pending { background-color: #fef3c7; color: #92400e; }
+    .status-processed { background-color: #dbeafe; color: #1e40af; }
+    .status-rejected { background-color: #fee2e2; color: #991b1b; }
+    .status-hold { background-color: #f3f4f6; color: #374151; }
 </style>
 {% endblock %}
 
 {% block content %}
 <div class="container mx-auto px-4 py-8">
-    <h1 class="text-3xl font-bold mb-8 text-center">Customer: {{ customer.username }}</h1>
+    <!-- Customer Header -->
+    <div class="flex justify-between items-center mb-8">
+        <h1 class="text-3xl font-bold">Customer: {{ customer.username }}</h1>
+        <div class="text-sm text-gray-600">
+            Member since: {{ customer.date_joined|date:"M d, Y" }}
+        </div>
+    </div>
 
     <!-- Customer Summary -->
     <div class="grid grid-cols-1 sm:grid-cols-3 gap-6 mb-8">
@@ -46,23 +64,44 @@
             <table class="w-full text-left">
                 <thead>
                     <tr class="bg-gray-100">
-                        <th class="p-3">Order ID</th>
+                        <th class="p-3">Order Number</th>
                         <th class="p-3">Date</th>
                         <th class="p-3">Status</th>
+                        <th class="p-3">Payment Status</th>
                         <th class="p-3">Total</th>
+                        <th class="p-3">Actions</th>
                     </tr>
                 </thead>
                 <tbody>
                     {% for order in orders %}
-                        <tr class="border-b">
-                            <td class="p-3">{{ order.id }}</td>
+                        <tr class="border-b hover:bg-gray-50">
+                            <td class="p-3 font-mono text-sm">
+                                <a href="{% url 'orders:order_detail' order.id %}" class="text-blue-600 hover:underline">
+                                    {{ order.order_number }}
+                                </a>
+                            </td>
                             <td class="p-3">{{ order.created_at|date:"M d, Y" }}</td>
-                            <td class="p-3">{{ order.order_status }}</td>
-                            <td class="p-3">${{ order.total|floatformat:2|intcomma }}</td>
+                            <td class="p-3">
+                                <span class="status-badge status-{{ order.order_status }}">
+                                    {{ order.get_order_status_display }}
+                                </span>
+                            </td>
+                            <td class="p-3">
+                                <span class="status-badge {% if order.payment_status == 'paid' %}status-confirmed{% else %}status-pending{% endif %}">
+                                    {{ order.get_payment_status_display }}
+                                </span>
+                            </td>
+                            <td class="p-3 font-semibold">${{ order.total|floatformat:2|intcomma }}</td>
+                            <td class="p-3">
+                                <a href="{% url 'orders:order_detail' order.id %}" 
+                                   class="text-blue-600 hover:text-blue-800 hover:underline text-sm">
+                                    View Details
+                                </a>
+                            </td>
                         </tr>
                     {% empty %}
                         <tr>
-                            <td colspan="4" class="p-3 text-center text-gray-500">No orders found.</td>
+                            <td colspan="6" class="p-3 text-center text-gray-500">No orders found.</td>
                         </tr>
                     {% endfor %}
                 </tbody>
@@ -71,33 +110,87 @@
     </div>
 
     <!-- Favorite Products -->
-    <div class="table-container p-6">
+    <div class="table-container p-6 mb-8">
         <h2 class="text-2xl font-bold mb-4">Favorite Products</h2>
-        <div class="overflow-x-auto">
-            <table class="w-full text-left">
-                <thead>
-                    <tr class="bg-gray-100">
-                        <th class="p-3">Product</th>
-                        <th class="p-3">Purchase Count</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    {% for product in favorite_products %}
-                        <tr class="border-b">
-                            <td class="p-3">
-                                <a href="{% url 'products:product_detail' product.slug %}" class="text-blue-600 hover:underline">
-                                    {{ product.products_name }}
-                                </a>
-                            </td>
-                            <td class="p-3">{{ product.purchase_count|intcomma }}</td>
+        {% if favorite_products %}
+            <div class="overflow-x-auto">
+                <table class="w-full text-left">
+                    <thead>
+                        <tr class="bg-gray-100">
+                            <th class="p-3">Product Name</th>
+                            <th class="p-3">Purchase Count</th>
+                            <th class="p-3">Price</th>
                         </tr>
-                    {% empty %}
-                        <tr>
-                            <td colspan="2" class="p-3 text-center text-gray-500">No favorite products found.</td>
-                        </tr>
-                    {% endfor %}
-                </tbody>
-            </table>
+                    </thead>
+                    <tbody>
+                        {% for product in favorite_products %}
+                            <tr class="border-b hover:bg-gray-50">
+                                <td class="p-3">
+                                    <a href="{% url 'products:product_detail' product.slug %}" 
+                                       class="text-blue-600 hover:underline font-medium">
+                                        {{ product.products_name }}
+                                    </a>
+                                </td>
+                                <td class="p-3">
+                                    <span class="font-semibold text-blue-600">{{ product.purchase_count|default:0|intcomma }}</span>
+                                </td>
+                                <td class="p-3">${{ product.base_price|floatformat:2|intcomma }}</td>
+                            </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        {% else %}
+            <p class="text-gray-500 text-center py-4">No favorite products found.</p>
+        {% endif %}
+    </div>
+
+    <!-- Customer Information -->
+    <div class="table-container p-6">
+        <h2 class="text-2xl font-bold mb-4">Customer Information</h2>
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+            <div>
+                <h3 class="text-lg font-semibold mb-3">Contact Details</h3>
+                <div class="space-y-2 text-sm">
+                    <div class="flex justify-between">
+                        <span class="text-gray-600">Username:</span>
+                        <span class="font-medium">{{ customer.username }}</span>
+                    </div>
+                    <div class="flex justify-between">
+                        <span class="text-gray-600">Email:</span>
+                        <span class="font-medium">{{ customer.email|default:"Not provided" }}</span>
+                    </div>
+                    <div class="flex justify-between">
+                        <span class="text-gray-600">Full Name:</span>
+                        <span class="font-medium">
+                            {% if customer.first_name or customer.last_name %}
+                                {{ customer.first_name }} {{ customer.last_name }}
+                            {% else %}
+                                Not provided
+                            {% endif %}
+                        </span>
+                    </div>
+                </div>
+            </div>
+            <div>
+                <h3 class="text-lg font-semibold mb-3">Account Information</h3>
+                <div class="space-y-2 text-sm">
+                    <div class="flex justify-between">
+                        <span class="text-gray-600">Member Since:</span>
+                        <span class="font-medium">{{ customer.date_joined|date:"M d, Y" }}</span>
+                    </div>
+                    <div class="flex justify-between">
+                        <span class="text-gray-600">Last Login:</span>
+                        <span class="font-medium">{{ customer.last_login|date:"M d, Y g:i A"|default:"Never" }}</span>
+                    </div>
+                    <div class="flex justify-between">
+                        <span class="text-gray-600">Account Status:</span>
+                        <span class="font-medium {% if customer.is_active %}text-green-600{% else %}text-red-600{% endif %}">
+                            {{ customer.is_active|yesno:"Active,Inactive" }}
+                        </span>
+                    </div>
+                </div>
+            </div>
         </div>
     </div>
 </div>

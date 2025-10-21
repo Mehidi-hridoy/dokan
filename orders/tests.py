@@ -4,7 +4,7 @@ python manage.py migrate
 python manage.py runserver
 
 git add .
-git commit -m "Home page updated Dashboard  "
+git commit -m "Updated Dashboard  "
 git push -u origin main
 python manage.py runserver
 

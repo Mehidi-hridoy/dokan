@@ -10,7 +10,21 @@
         border-radius: 0.5rem;
         padding: 1.5rem;
         box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+        border-left: 4px solid;
     }
+    .progress-bar {
+        height: 8px;
+        background-color: #e5e7eb;
+        border-radius: 4px;
+        overflow: hidden;
+    }
+    .progress-fill {
+        height: 100%;
+        border-radius: 4px;
+    }
+    .stock-critical { background-color: #ef4444; }
+    .stock-low { background-color: #f59e0b; }
+    .stock-good { background-color: #10b981; }
 </style>
 {% endblock %}
 
@@ -18,84 +32,248 @@
 <div class="container mx-auto px-4 py-8">
     <h1 class="text-3xl font-bold mb-8 text-center">Inventory Analytics</h1>
 
-    <!-- Inventory Metrics -->
+    <!-- Inventory Overview -->
     <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
-        <div class="stat-card">
+        <div class="stat-card border-l-blue-500">
             <h3 class="text-lg font-semibold text-gray-700">Total Products</h3>
-            <p class="text-2xl font-bold text-gray-600">{{ total_products|intcomma }}</p>
+            <p class="text-2xl font-bold text-blue-600">{{ total_products|intcomma }}</p>
+            <p class="text-sm text-gray-500 mt-1">{{ inactive_products }} inactive</p>
         </div>
-        <div class="stat-card">
-            <h3 class="text-lg font-semibold text-gray-700">Total Stock</h3>
-            <p class="text-2xl font-bold text-gray-600">{{ total_stock|intcomma }}</p>
+        <div class="stat-card border-l-green-500">
+            <h3 class="text-lg font-semibold text-gray-700">Total Stock Value</h3>
+            <p class="text-2xl font-bold text-green-600">${{ total_stock_value|floatformat:2|intcomma }}</p>
+            <p class="text-sm text-gray-500 mt-1">{{ total_stock|intcomma }} units</p>
         </div>
-        <div class="stat-card">
+        <div class="stat-card border-l-yellow-500">
             <h3 class="text-lg font-semibold text-gray-700">Low Stock Items</h3>
             <p class="text-2xl font-bold text-yellow-600">{{ low_stock|intcomma }}</p>
+            <p class="text-sm text-gray-500 mt-1">{{ critical_stock }} critical</p>
         </div>
-        <div class="stat-card">
-            <h3 class="text-lg font-semibold text-gray-700">Out of Stock Items</h3>
+        <div class="stat-card border-l-red-500">
+            <h3 class="text-lg font-semibold text-gray-700">Out of Stock</h3>
             <p class="text-2xl font-bold text-red-600">{{ out_of_stock|intcomma }}</p>
+            <p class="text-sm text-gray-500 mt-1">{{ in_stock }} in stock</p>
         </div>
     </div>
 
-    <!-- Low Stock Products -->
+    <!-- Stock Health Overview -->
     <div class="bg-white rounded-lg shadow-sm p-6 mb-8">
-        <h2 class="text-2xl font-bold mb-4">Low Stock Products</h2>
-        <div class="overflow-x-auto">
-            <table class="w-full text-left">
-                <thead>
-                    <tr class="bg-gray-100">
-                        <th class="p-3">Product</th>
-                        <th class="p-3">Quantity</th>
-                        <th class="p-3">Category</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    {% for product in low_stock_products %}
-                        <tr class="border-b">
-                            <td class="p-3">
-                                <a href="{% url 'products:product_detail' product.slug %}" class="text-blue-600 hover:underline">
-                                    {{ product.products_name }}
-                                </a>
-                            </td>
-                            <td class="p-3">{{ product.available_quantity|intcomma }}</td>
-                            <td class="p-3">{{ product.category.name }}</td>
+        <h2 class="text-2xl font-bold mb-4">Stock Health Overview</h2>
+        <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+            <div class="text-center">
+                <div class="text-3xl font-bold text-green-600 mb-2">{{ in_stock }}</div>
+                <div class="text-gray-600">In Stock</div>
+                <div class="progress-bar mt-2">
+                    <div class="progress-fill stock-good" 
+                         style="width: {% widthratio in_stock total_products 100 %}%"></div>
+                </div>
+            </div>
+            <div class="text-center">
+                <div class="text-3xl font-bold text-yellow-600 mb-2">{{ low_stock }}</div>
+                <div class="text-gray-600">Low Stock</div>
+                <div class="progress-bar mt-2">
+                    <div class="progress-fill stock-low" 
+                         style="width: {% widthratio low_stock total_products 100 %}%"></div>
+                </div>
+            </div>
+            <div class="text-center">
+                <div class="text-3xl font-bold text-red-600 mb-2">{{ out_of_stock }}</div>
+                <div class="text-gray-600">Out of Stock</div>
+                <div class="progress-bar mt-2">
+                    <div class="progress-fill stock-critical" 
+                         style="width: {% widthratio out_of_stock total_products 100 %}%"></div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="grid grid-cols-1 lg:grid-cols-2 gap-8 mb-8">
+        <!-- Low Stock Products -->
+        <div class="bg-white rounded-lg shadow-sm p-6">
+            <h2 class="text-2xl font-bold mb-4">Low Stock Products</h2>
+            <div class="overflow-x-auto">
+                <table class="w-full text-left">
+                    <thead>
+                        <tr class="bg-gray-100">
+                            <th class="p-3">Product</th>
+                            <th class="p-3">Stock</th>
+                            <th class="p-3">Threshold</th>
+                            <th class="p-3">Category</th>
                         </tr>
-                    {% empty %}
-                        <tr>
-                            <td colspan="3" class="p-3 text-center text-gray-500">No low stock products.</td>
+                    </thead>
+                    <tbody>
+{% for item in low_stock_products %}
+    <tr class="border-b hover:bg-yellow-50">
+        <td class="p-3">
+            {% if item.product.slug %}
+                <a href="{% url 'products:product_detail' item.product.slug %}" class="text-blue-600 hover:underline font-medium">
+                    {{ item.product.products_name }}
+                </a>
+            {% else %}
+                <span class="font-medium text-gray-700">{{ item.product.products_name }}</span>
+            {% endif %}
+        </td>
+        <td class="p-3 font-semibold text-yellow-600">{{ item.available_stock|intcomma }}</td>
+        <td class="p-3 text-gray-500">{{ item.low_stock_threshold }}</td>
+        <td class="p-3">{{ item.product.category.name|default:"-" }}</td>
+    </tr>
+{% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+
+        <!-- Out of Stock Products -->
+        <div class="bg-white rounded-lg shadow-sm p-6">
+            <h2 class="text-2xl font-bold mb-4">Out of Stock Products</h2>
+            <div class="overflow-x-auto">
+                <table class="w-full text-left">
+                    <thead>
+                        <tr class="bg-gray-100">
+                            <th class="p-3">Product</th>
+                            <th class="p-3">Last Stock</th>
+                            <th class="p-3">Category</th>
                         </tr>
-                    {% endfor %}
-                </tbody>
-            </table>
+                    </thead>
+                    <tbody>
+                        {% for product in out_of_stock_products %}
+                            <tr class="border-b hover:bg-red-50">
+                                <td class="p-3">
+                                    {% if product.slug %}
+                                        <a href="{% url 'products:product_detail' product.slug %}" class="text-blue-600 hover:underline font-medium">
+                                            {{ product.products_name }}
+                                        </a>
+                                    {% else %}
+                                        <span class="font-medium text-gray-700">{{ product.products_name }}</span>
+                                        <span class="text-xs text-gray-400 ml-1">(No link)</span>
+                                    {% endif %}
+                                </td>
+                                <td class="p-3 font-semibold text-red-600">0</td>
+                                <td class="p-3">{{ product.category.name|default:"-" }}</td>
+                            </tr>
+                        {% empty %}
+                            <tr>
+                                <td colspan="3" class="p-3 text-center text-gray-500">No out of stock products.</td>
+                            </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
         </div>
     </div>
 
     <!-- Stock by Category -->
-    <div class="bg-white rounded-lg shadow-sm p-6">
+    <div class="bg-white rounded-lg shadow-sm p-6 mb-8">
         <h2 class="text-2xl font-bold mb-4">Stock by Category</h2>
         <div class="overflow-x-auto">
             <table class="w-full text-left">
                 <thead>
                     <tr class="bg-gray-100">
                         <th class="p-3">Category</th>
+                        <th class="p-3">Products</th>
                         <th class="p-3">Total Stock</th>
+                        <th class="p-3">Stock Value</th>
                     </tr>
                 </thead>
                 <tbody>
                     {% for category in stock_by_category %}
-                        <tr class="border-b">
-                            <td class="p-3">{{ category.name }}</td>
-                            <td class="p-3">{{ category.total_stock|intcomma }}</td>
+                        <tr class="border-b hover:bg-gray-50">
+                            <td class="p-3 font-medium">{{ category.name }}</td>
+                            <td class="p-3">{{ category.product_count|default:0|intcomma }}</td>
+                            <td class="p-3">{{ category.total_stock|default:0|intcomma }}</td>
+                            <td class="p-3 text-green-600 font-semibold">${{ category.total_value|default:0|floatformat:2|intcomma }}</td>
                         </tr>
                     {% empty %}
                         <tr>
-                            <td colspan="2" class="p-3 text-center text-gray-500">No category data available.</td>
+                            <td colspan="4" class="p-3 text-center text-gray-500">No category data available.</td>
                         </tr>
                     {% endfor %}
                 </tbody>
             </table>
         </div>
+    </div>
+
+    <div class="grid grid-cols-1 lg:grid-cols-2 gap-8">
+        <!-- Best Selling Products -->
+        <div class="bg-white rounded-lg shadow-sm p-6">
+            <h2 class="text-2xl font-bold mb-4">Best Selling Products</h2>
+            <div class="overflow-x-auto">
+                <table class="w-full text-left">
+                    <thead>
+                        <tr class="bg-gray-100">
+                            <th class="p-3">Product</th>
+                            <th class="p-3">Units Sold</th>
+                            <th class="p-3">Category</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for product in best_selling_products %}
+                            <tr class="border-b hover:bg-gray-50">
+                                <td class="p-3">
+                                    {% if product.slug %}
+                                        <a href="{% url 'products:product_detail' product.slug %}" class="text-blue-600 hover:underline">
+                                            {{ product.products_name }}
+                                        </a>
+                                    {% else %}
+                                        <span class="text-gray-700">{{ product.products_name }}</span>
+                                        <span class="text-xs text-gray-400 ml-1">(No link)</span>
+                                    {% endif %}
+                                </td>
+                                <td class="p-3 font-semibold text-green-600">{{ product.total_sold|default:0|intcomma }}</td>
+                                <td class="p-3">{{ product.category.name|default:"-" }}</td>
+                            </tr>
+                        {% empty %}
+                            <tr>
+                                <td colspan="3" class="p-3 text-center text-gray-500">No sales data available.</td>
+                            </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+
+        <!-- High Value Inventory -->
+
+
+<div class="bg-white rounded-lg shadow-sm p-6">
+    <h2 class="text-2xl font-bold mb-4">High Value Inventory</h2>
+    <div class="overflow-x-auto">
+        <table class="w-full text-left">
+            <thead>
+                <tr class="bg-gray-100">
+                    <th class="p-3">Product</th>
+                    <th class="p-3">Stock Value</th>
+                    <th class="p-3">Stock</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for item in high_value_products %}
+                    <tr class="border-b hover:bg-gray-50">
+                        <td class="p-3">
+                            {% if item.product.slug %}
+                                <a href="{% url 'products:product_detail' item.product.slug %}" class="text-blue-600 hover:underline">
+                                    {{ item.product.products_name }}
+                                </a>
+                            {% else %}
+                                <span class="text-gray-700">{{ item.product.products_name }}</span>
+                                <span class="text-xs text-gray-400 ml-1">(No link)</span>
+                            {% endif %}
+                        </td>
+                        <td class="p-3 font-semibold text-purple-600">${{ item.stock_value|default:0|floatformat:2|intcomma }}</td>
+                        <td class="p-3">{{ item.available_stock|default:0|intcomma }}</td>
+                    </tr>
+                {% empty %}
+                    <tr>
+                        <td colspan="3" class="p-3 text-center text-gray-500">No high value products.</td>
+                    </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+
+
+
     </div>
 </div>
 {% endblock %}

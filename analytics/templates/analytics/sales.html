@@ -10,11 +10,17 @@
         border-radius: 0.5rem;
         padding: 1.5rem;
         box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+        border-left: 4px solid;
     }
     .chart-container {
-        max-width: 100%;
-        height: 300px;
+        background: white;
+        border-radius: 0.5rem;
+        padding: 1.5rem;
+        box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+        height: 400px;
     }
+    .growth-positive { color: #10b981; }
+    .growth-negative { color: #ef4444; }
 </style>
 {% endblock %}
 
@@ -22,96 +28,223 @@
 <div class="container mx-auto px-4 py-8">
     <h1 class="text-3xl font-bold mb-8 text-center">Sales Analytics</h1>
 
-    <!-- Sales Metrics -->
-    <div class="grid grid-cols-1 sm:grid-cols-2 gap-6 mb-8">
-        <div class="stat-card">
+    <!-- Sales Overview -->
+    <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
+        <div class="stat-card border-l-green-500">
             <h3 class="text-lg font-semibold text-gray-700">Total Revenue</h3>
             <p class="text-2xl font-bold text-green-600">${{ total_revenue|floatformat:2|intcomma }}</p>
         </div>
+        <div class="stat-card border-l-blue-500">
+            <h3 class="text-lg font-semibold text-gray-700">Total Orders</h3>
+            <p class="text-2xl font-bold text-blue-600">{{ total_orders|intcomma }}</p>
+        </div>
+        <div class="stat-card border-l-purple-500">
+            <h3 class="text-lg font-semibold text-gray-700">Avg Order Value</h3>
+            <p class="text-2xl font-bold text-purple-600">${{ average_order_value|floatformat:2|intcomma }}</p>
+        </div>
+        <div class="stat-card border-l-orange-500">
+            <h3 class="text-lg font-semibold text-gray-700">Revenue Growth</h3>
+            <p class="text-2xl font-bold {% if revenue_growth >= 0 %}growth-positive{% else %}growth-negative{% endif %}">
+                {{ revenue_growth|floatformat:1 }}%
+            </p>
+        </div>
     </div>
 
-    <!-- Top Customers -->
-    <div class="bg-white rounded-lg shadow-sm p-6 mb-8">
-        <h2 class="text-2xl font-bold mb-4">Top Customers by Spend</h2>
+    <!-- Recent Performance -->
+    <div class="grid grid-cols-1 md:grid-cols-2 gap-6 mb-8">
+        <div class="stat-card border-l-indigo-500">
+            <h3 class="text-lg font-semibold text-gray-700">Last 30 Days Revenue</h3>
+            <p class="text-2xl font-bold text-indigo-600">${{ recent_revenue_30d|floatformat:2|intcomma }}</p>
+        </div>
+        <div class="stat-card border-l-teal-500">
+            <h3 class="text-lg font-semibold text-gray-700">Last 30 Days Orders</h3>
+            <p class="text-2xl font-bold text-teal-600">{{ recent_orders_30d|intcomma }}</p>
+        </div>
+    </div>
+
+    <div class="grid grid-cols-1 lg:grid-cols-2 gap-8 mb-8">
+        <!-- Monthly Revenue Chart -->
+        <div class="chart-container">
+            <h2 class="text-xl font-bold mb-4">Monthly Revenue Trend</h2>
+            <canvas id="monthlyRevenueChart"></canvas>
+        </div>
+
+        <!-- Daily Sales Chart -->
+        <div class="chart-container">
+            <h2 class="text-xl font-bold mb-4">Daily Sales (Last 30 Days)</h2>
+            <canvas id="dailySalesChart"></canvas>
+        </div>
+    </div>
+
+    <div class="grid grid-cols-1 lg:grid-cols-2 gap-8 mb-8">
+        <!-- Top Customers -->
+        <div class="bg-white rounded-lg shadow-sm p-6">
+            <h2 class="text-2xl font-bold mb-4">Top Customers</h2>
+            <div class="overflow-x-auto">
+                <table class="w-full text-left">
+                    <thead>
+                        <tr class="bg-gray-100">
+                            <th class="p-3">Customer</th>
+                            <th class="p-3">Total Spent</th>
+                            <th class="p-3">Orders</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for customer in top_customers %}
+                            <tr class="border-b hover:bg-gray-50">
+                                <td class="p-3">
+                                    <a href="{% url 'analytics:customer_detail' customer.id %}" class="text-blue-600 hover:underline">
+                                        {{ customer.username }}
+                                    </a>
+                                </td>
+                                <td class="p-3 font-semibold text-green-600">${{ customer.total_spent|default:0|floatformat:2|intcomma }}</td>
+                                <td class="p-3">{{ customer.order_count|default:0|intcomma }}</td>
+                            </tr>
+                        {% empty %}
+                            <tr>
+                                <td colspan="3" class="p-3 text-center text-gray-500">No customer data available.</td>
+                            </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+
+        <!-- Best Selling Products -->
+        <div class="bg-white rounded-lg shadow-sm p-6">
+            <h2 class="text-2xl font-bold mb-4">Best Selling Products</h2>
+            <div class="overflow-x-auto">
+                <table class="w-full text-left">
+                    <thead>
+                        <tr class="bg-gray-100">
+                            <th class="p-3">Product</th>
+                            <th class="p-3">Units Sold</th>
+                            <th class="p-3">Revenue</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for product in best_selling_products %}
+                            <tr class="border-b hover:bg-gray-50">
+                                <td class="p-3">
+                                    {% if product.slug %}
+                                        <a href="{% url 'products:product_detail' product.slug %}" class="text-blue-600 hover:underline">
+                                            {{ product.products_name }}
+                                        </a>
+                                    {% else %}
+                                        <span class="text-gray-700">{{ product.products_name }}</span>
+                                    {% endif %}
+                                </td>
+                                <td class="p-3 font-semibold text-blue-600">{{ product.total_sold|default:0|intcomma }}</td>
+                                <td class="p-3 text-green-600">${{ product.total_revenue|default:0|floatformat:2|intcomma }}</td>
+                            </tr>
+                        {% empty %}
+                            <tr>
+                                <td colspan="3" class="p-3 text-center text-gray-500">No sales data available.</td>
+                            </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+
+    <!-- Payment Methods -->
+    <div class="bg-white rounded-lg shadow-sm p-6">
+        <h2 class="text-2xl font-bold mb-4">Sales by Payment Method</h2>
         <div class="overflow-x-auto">
             <table class="w-full text-left">
                 <thead>
                     <tr class="bg-gray-100">
-                        <th class="p-3">Customer</th>
-                        <th class="p-3">Total Spent</th>
+                        <th class="p-3">Payment Method</th>
+                        <th class="p-3">Revenue</th>
                         <th class="p-3">Orders</th>
+                        <th class="p-3">Percentage</th>
                     </tr>
                 </thead>
                 <tbody>
-                    {% for customer in top_customers %}
-                        <tr class="border-b">
-                            <td class="p-3">
-                                <a href="{% url 'analytics:customer_detail' customer.id %}" class="text-blue-600 hover:underline">
-                                    {{ customer.username }}
-                                </a>
+                    {% for method in sales_by_payment_method %}
+                        <tr class="border-b hover:bg-gray-50">
+                            <td class="p-3 capitalize">{{ method.payment_method|default:"Unknown" }}</td>
+                            <td class="p-3 font-semibold text-green-600">${{ method.total_revenue|default:0|floatformat:2|intcomma }}</td>
+                            <td class="p-3">{{ method.order_count|default:0|intcomma }}</td>
+                            <td class="p-3 text-gray-600">
+                                {% widthratio method.total_revenue total_revenue 100 %}%
                             </td>
-                            <td class="p-3">${{ customer.total_spent|floatformat:2|intcomma }}</td>
-                            <td class="p-3">{{ customer.order_count|intcomma }}</td>
                         </tr>
                     {% empty %}
                         <tr>
-                            <td colspan="3" class="p-3 text-center text-gray-500">No customer data available.</td>
+                            <td colspan="4" class="p-3 text-center text-gray-500">No payment method data available.</td>
                         </tr>
                     {% endfor %}
                 </tbody>
             </table>
         </div>
     </div>
-
-    <!-- Monthly Revenue Chart -->
-    <div class="bg-white rounded-lg shadow-sm p-6">
-        <h2 class="text-2xl font-bold mb-4">Monthly Revenue (Last 12 Months)</h2>
-        <div class="chart-container">
-            ```chartjs
-            {
-                "type": "line",
-                "data": {
-                    "labels": {{ monthly_revenue_data.labels|safe }},
-                    "datasets": [{
-                        "label": "Monthly Revenue ($)",
-                        "data": {{ monthly_revenue_data.data|safe }},
-                        "borderColor": "#16a34a",
-                        "backgroundColor": "rgba(22, 163, 74, 0.1)",
-                        "fill": true,
-                        "tension": 0.4
-                    }]
-                },
-                "options": {
-                    "responsive": true,
-                    "maintainAspectRatio": false,
-                    "scales": {
-                        "y": {
-                            "beginAtZero": true,
-                            "title": {
-                                "display": true,
-                                "text": "Revenue ($)"
-                            }
-                        },
-                        "x": {
-                            "title": {
-                                "display": true,
-                                "text": "Month"
-                            }
-                        }
-                    }
-                }
-            }
-            ```
-        </div>
-    </div>
 </div>
 {% endblock %}
 
 {% block extra_js %}
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 <script>
-    $(document).ready(function() {
-        const ctx = document.querySelector('.chart-container canvas').getContext('2d');
-        new Chart(ctx, {{ monthly_revenue_data|safe }});
+document.addEventListener('DOMContentLoaded', function() {
+    // Monthly Revenue Chart
+    const monthlyCtx = document.getElementById('monthlyRevenueChart').getContext('2d');
+    new Chart(monthlyCtx, {
+        type: 'line',
+        data: {
+            labels: {{ monthly_revenue_data.labels|safe }},
+            datasets: [{
+                label: 'Monthly Revenue ($)',
+                data: {{ monthly_revenue_data.data|safe }},
+                borderColor: 'rgba(22, 163, 74, 1)',
+                backgroundColor: 'rgba(22, 163, 74, 0.1)',
+                fill: true,
+                tension: 0.4
+            }]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            scales: {
+                y: {
+                    beginAtZero: true,
+                    title: {
+                        display: true,
+                        text: 'Revenue ($)'
+                    }
+                }
+            }
+        }
     });
+
+    // Daily Sales Chart
+    const dailyCtx = document.getElementById('dailySalesChart').getContext('2d');
+    new Chart(dailyCtx, {
+        type: 'bar',
+        data: {
+            labels: {{ daily_sales_data.labels|safe }},
+            datasets: [{
+                label: 'Daily Revenue ($)',
+                data: {{ daily_sales_data.revenue|safe }},
+                backgroundColor: 'rgba(59, 130, 246, 0.7)',
+                borderColor: 'rgba(59, 130, 246, 1)',
+                borderWidth: 1
+            }]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            scales: {
+                y: {
+                    beginAtZero: true,
+                    title: {
+                        display: true,
+                        text: 'Revenue ($)'
+                    }
+                }
+            }
+        }
+    });
+});
 </script>
 {% endblock %}

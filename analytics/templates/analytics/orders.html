@@ -10,10 +10,21 @@
         border-radius: 0.5rem;
         padding: 1.5rem;
         box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+        border-left: 4px solid;
     }
     .chart-container {
-        max-width: 100%;
-        height: 300px;
+        background: white;
+        border-radius: 0.5rem;
+        padding: 1.5rem;
+        box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+        height: 400px;
+    }
+    .status-badge {
+        padding: 0.25rem 0.75rem;
+        border-radius: 1rem;
+        font-size: 0.75rem;
+        font-weight: 500;
+        text-transform: capitalize;
     }
 </style>
 {% endblock %}
@@ -22,105 +33,248 @@
 <div class="container mx-auto px-4 py-8">
     <h1 class="text-3xl font-bold mb-8 text-center">Orders Analytics</h1>
 
-    <!-- Order Statuses -->
-    <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6 mb-8">
-        <div class="stat-card">
-            <h3 class="text-lg font-semibold text-gray-700">Pending Orders</h3>
-            <p class="text-2xl font-bold text-yellow-600">{{ pending_orders|intcomma }}</p>
+    <!-- Overall Stats -->
+    <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
+        <div class="stat-card border-l-blue-500">
+            <h3 class="text-lg font-semibold text-gray-700">Total Orders</h3>
+            <p class="text-2xl font-bold text-blue-600">{{ total_orders|intcomma }}</p>
         </div>
-        <div class="stat-card">
-            <h3 class="text-lg font-semibold text-gray-700">Processing Orders</h3>
-            <p class="text-2xl font-bold text-orange-600">{{ processing_orders|intcomma }}</p>
+        <div class="stat-card border-l-green-500">
+            <h3 class="text-lg font-semibold text-gray-700">Total Revenue</h3>
+            <p class="text-2xl font-bold text-green-600">${{ total_revenue|floatformat:2|intcomma }}</p>
         </div>
-        <div class="stat-card">
-            <h3 class="text-lg font-semibold text-gray-700">On Delivery Orders</h3>
-            <p class="text-2xl font-bold text-blue-600">{{ on_delivery_orders|intcomma }}</p>
+        <div class="stat-card border-l-purple-500">
+            <h3 class="text-lg font-semibold text-gray-700">Avg Order Value</h3>
+            <p class="text-2xl font-bold text-purple-600">${{ average_order_value|floatformat:2|intcomma }}</p>
         </div>
-        <div class="stat-card">
-            <h3 class="text-lg font-semibold text-gray-700">Confirmed Orders</h3>
-            <p class="text-2xl font-bold text-green-600">{{ confirmed_orders|intcomma }}</p>
-        </div>
-        <div class="stat-card">
-            <h3 class="text-lg font-semibold text-gray-700">Canceled Orders</h3>
-            <p class="text-2xl font-bold text-red-600">{{ canceled_orders|intcomma }}</p>
+        <div class="stat-card border-l-orange-500">
+            <h3 class="text-lg font-semibold text-gray-700">Recent Orders (7d)</h3>
+            <p class="text-2xl font-bold text-orange-600">{{ recent_orders_count|intcomma }}</p>
         </div>
     </div>
 
-    <!-- Order Status Breakdown -->
-    <div class="bg-white rounded-lg shadow-sm p-6 mb-8">
-        <h2 class="text-2xl font-bold mb-4">Order Status Breakdown</h2>
-        <div class="overflow-x-auto">
-            <table class="w-full text-left">
-                <thead>
-                    <tr class="bg-gray-100">
-                        <th class="p-3">Status</th>
-                        <th class="p-3">Count</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    {% for status in order_statuses %}
-                        <tr class="border-b">
-                            <td class="p-3">{{ status.status|title }}</td>
-                            <td class="p-3">{{ status.count|intcomma }}</td>
-                        </tr>
-                    {% empty %}
-                        <tr>
-                            <td colspan="2" class="p-3 text-center text-gray-500">No order data available.</td>
-                        </tr>
-                    {% endfor %}
-                </tbody>
-            </table>
+    <!-- Order Status Overview -->
+    <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4 mb-8">
+        <div class="stat-card border-l-yellow-500">
+            <h3 class="text-sm font-semibold text-gray-700">Pending</h3>
+            <p class="text-xl font-bold text-yellow-600">{{ pending_orders|intcomma }}</p>
+        </div>
+        <div class="stat-card border-l-blue-500">
+            <h3 class="text-sm font-semibold text-gray-700">Processed</h3>
+            <p class="text-xl font-bold text-blue-600">{{ processed_orders|intcomma }}</p>
+        </div>
+        <div class="stat-card border-l-green-500">
+            <h3 class="text-sm font-semibold text-gray-700">Confirmed</h3>
+            <p class="text-xl font-bold text-green-600">{{ confirmed_orders|intcomma }}</p>
+        </div>
+        <div class="stat-card border-l-gray-500">
+            <h3 class="text-sm font-semibold text-gray-700">On Hold</h3>
+            <p class="text-xl font-bold text-gray-600">{{ hold_orders|intcomma }}</p>
+        </div>
+        <div class="stat-card border-l-red-500">
+            <h3 class="text-sm font-semibold text-gray-700">Rejected</h3>
+            <p class="text-xl font-bold text-red-600">{{ rejected_orders|intcomma }}</p>
         </div>
     </div>
 
-    <!-- Daily Orders Chart -->
-    <div class="bg-white rounded-lg shadow-sm p-6">
-        <h2 class="text-2xl font-bold mb-4">Daily Orders (Last 30 Days)</h2>
+    <div class="grid grid-cols-1 lg:grid-cols-2 gap-8 mb-8">
+        <!-- Order Status Breakdown -->
+        <div class="bg-white rounded-lg shadow-sm p-6">
+            <h2 class="text-2xl font-bold mb-4">Order Status Breakdown</h2>
+            <div class="overflow-x-auto">
+                <table class="w-full text-left">
+                    <thead>
+                        <tr class="bg-gray-100">
+                            <th class="p-3">Status</th>
+                            <th class="p-3">Count</th>
+                            <th class="p-3">Percentage</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for status in order_statuses %}
+                            <tr class="border-b hover:bg-gray-50">
+                                <td class="p-3 capitalize">{{ status.order_status }}</td>
+                                <td class="p-3 font-semibold">{{ status.count|intcomma }}</td>
+                                <td class="p-3 text-gray-600">
+                                    {{ status.count|floatformat:1 }}%
+                                </td>
+                            </tr>
+                        {% empty %}
+                            <tr>
+                                <td colspan="3" class="p-3 text-center text-gray-500">No order data available.</td>
+                            </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+
+        <!-- Payment Methods -->
+        <div class="bg-white rounded-lg shadow-sm p-6">
+            <h2 class="text-2xl font-bold mb-4">Payment Methods</h2>
+            <div class="overflow-x-auto">
+                <table class="w-full text-left">
+                    <thead>
+                        <tr class="bg-gray-100">
+                            <th class="p-3">Method</th>
+                            <th class="p-3">Orders</th>
+                            <th class="p-3">Revenue</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for method in payment_methods %}
+                            <tr class="border-b hover:bg-gray-50">
+                                <td class="p-3 capitalize">{{ method.payment_method|default:"Unknown" }}</td>
+                                <td class="p-3 font-semibold">{{ method.count|intcomma }}</td>
+                                <td class="p-3 text-green-600">${{ method.revenue|default:0|floatformat:2|intcomma }}</td>
+                            </tr>
+                        {% empty %}
+                            <tr>
+                                <td colspan="3" class="p-3 text-center text-gray-500">No payment method data available.</td>
+                            </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+
+    <!-- Charts Section -->
+    <div class="grid grid-cols-1 lg:grid-cols-2 gap-8 mb-8">
+        <!-- Daily Orders Chart -->
         <div class="chart-container">
-            ```chartjs
-            {
-                "type": "bar",
-                "data": {
-                    "labels": {{ daily_orders_data.labels|safe }},
-                    "datasets": [{
-                        "label": "Daily Orders",
-                        "data": {{ daily_orders_data.data|safe }},
-                        "backgroundColor": "#2563eb",
-                        "borderColor": "#1e40af",
-                        "borderWidth": 1
-                    }]
-                },
-                "options": {
-                    "responsive": true,
-                    "maintainAspectRatio": false,
-                    "scales": {
-                        "y": {
-                            "beginAtZero": true,
-                            "title": {
-                                "display": true,
-                                "text": "Number of Orders"
-                            }
-                        },
-                        "x": {
-                            "title": {
-                                "display": true,
-                                "text": "Date"
-                            }
-                        }
-                    }
-                }
-            }
-            ```
+            <h2 class="text-xl font-bold mb-4">Daily Orders (Last 30 Days)</h2>
+            <canvas id="dailyOrdersChart"></canvas>
+        </div>
+
+        <!-- Order Status Distribution -->
+        <div class="chart-container">
+            <h2 class="text-xl font-bold mb-4">Order Status Distribution</h2>
+            <canvas id="orderStatusChart"></canvas>
+        </div>
+    </div>
+
+    <!-- Additional Stats -->
+    <div class="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
+        <div class="bg-white rounded-lg shadow-sm p-6">
+            <h3 class="text-lg font-semibold mb-3">Delivery Status</h3>
+            <div class="space-y-2 text-sm">
+                <div class="flex justify-between">
+                    <span>Out for Delivery:</span>
+                    <span class="font-semibold text-blue-600">{{ out_for_delivery_orders }}</span>
+                </div>
+                <div class="flex justify-between">
+                    <span>In Transit:</span>
+                    <span class="font-semibold text-orange-600">{{ in_transit_orders }}</span>
+                </div>
+                <div class="flex justify-between">
+                    <span>Delivered:</span>
+                    <span class="font-semibold text-green-600">{{ delivered_orders }}</span>
+                </div>
+            </div>
+        </div>
+
+        <div class="bg-white rounded-lg shadow-sm p-6">
+            <h3 class="text-lg font-semibold mb-3">Payment Status</h3>
+            <div class="space-y-2 text-sm">
+                <div class="flex justify-between">
+                    <span>Paid:</span>
+                    <span class="font-semibold text-green-600">{{ paid_orders }}</span>
+                </div>
+                <div class="flex justify-between">
+                    <span>Pending:</span>
+                    <span class="font-semibold text-yellow-600">{{ pending_payment_orders }}</span>
+                </div>
+                <div class="flex justify-between">
+                    <span>Failed:</span>
+                    <span class="font-semibold text-red-600">{{ failed_payment_orders }}</span>
+                </div>
+            </div>
+        </div>
+
+        <div class="bg-white rounded-lg shadow-sm p-6">
+            <h3 class="text-lg font-semibold mb-3">Recent Performance</h3>
+            <div class="space-y-2 text-sm">
+                <div class="flex justify-between">
+                    <span>Last 7 Days Revenue:</span>
+                    <span class="font-semibold text-green-600">${{ recent_revenue|floatformat:2|intcomma }}</span>
+                </div>
+                <div class="flex justify-between">
+                    <span>Last 7 Days Orders:</span>
+                    <span class="font-semibold text-blue-600">{{ recent_orders_count }}</span>
+                </div>
+                <div class="flex justify-between">
+                    <span>Avg Daily Orders:</span>
+                    <span class="font-semibold text-purple-600">{{ recent_orders_count|divisibleby:7|floatformat:1 }}</span>
+                </div>
+            </div>
         </div>
     </div>
 </div>
 {% endblock %}
 
 {% block extra_js %}
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 <script>
-    $(document).ready(function() {
-        const ctx = document.querySelector('.chart-container canvas').getContext('2d');
-        new Chart(ctx, {{ daily_orders_data|safe }});
+document.addEventListener('DOMContentLoaded', function() {
+    // Daily Orders Chart
+    const dailyCtx = document.getElementById('dailyOrdersChart').getContext('2d');
+    new Chart(dailyCtx, {
+        type: 'bar',
+        data: {
+            labels: {{ daily_orders_data.labels|safe }},
+            datasets: [{
+                label: 'Daily Orders',
+                data: {{ daily_orders_data.data|safe }},
+                backgroundColor: 'rgba(59, 130, 246, 0.7)',
+                borderColor: 'rgba(59, 130, 246, 1)',
+                borderWidth: 1
+            }]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            scales: {
+                y: {
+                    beginAtZero: true,
+                    title: {
+                        display: true,
+                        text: 'Number of Orders'
+                    }
+                },
+                x: {
+                    title: {
+                        display: true,
+                        text: 'Date'
+                    }
+                }
+            }
+        }
     });
+
+    // Order Status Pie Chart
+    const statusCtx = document.getElementById('orderStatusChart').getContext('2d');
+    new Chart(statusCtx, {
+        type: 'doughnut',
+        data: {
+            labels: {{ order_status_data.labels|safe }},
+            datasets: [{
+                data: {{ order_status_data.data|safe }},
+                backgroundColor: {{ order_status_data.colors|safe }},
+                borderWidth: 2,
+                borderColor: '#fff'
+            }]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: {
+                legend: {
+                    position: 'bottom'
+                }
+            }
+        }
+    });
+});
 </script>
 {% endblock %}
