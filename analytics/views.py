@@ -14,6 +14,8 @@ from django.db.models import Count, Sum, F, Q, ExpressionWrapper, DecimalField
 # Helper Expression for Available Stock (Total - Reserved)
 AVAILABLE_STOCK = F('quantity') - F('reserved_quantity')
 
+
+
 class AnalyticsDashboard(TemplateView):
     template_name = 'analytics/dashboard.html'
 
@@ -26,7 +28,35 @@ class AnalyticsDashboard(TemplateView):
         context['total_revenue'] = Order.objects.filter(order_status='confirmed').aggregate(total=Sum('total'))['total'] or 0
         context['total_orders'] = Order.objects.count()
         context['average_order_value'] = Order.objects.filter(order_status='confirmed').aggregate(avg=Avg('total'))['avg'] or 0
-        context['total_customers'] = User.objects.count()
+        
+        # Count unique customers by phone number
+        # For registered users: count unique users who placed orders
+        unique_registered_customers = Order.objects.filter(
+            user__isnull=False
+        ).values('user').distinct().count()
+        context['total_registered_customers'] = unique_registered_customers
+        
+        # For guest customers: count unique phone numbers (excluding null/empty)
+        guest_customers_count = Order.objects.filter(
+            user__isnull=True
+        ).exclude(phone_number__isnull=True).exclude(phone_number='').values('phone_number').distinct().count()
+        context['total_guest_customers'] = guest_customers_count
+        
+        # Total unique customers (registered + guest by phone)
+        context['total_customers'] = context['total_registered_customers'] + context['total_guest_customers']
+
+        # Count unique phone numbers across all orders (for debugging)
+        context['unique_phone_numbers_total'] = Order.objects.exclude(
+            phone_number__isnull=True
+        ).exclude(phone_number='').values('phone_number').distinct().count()
+        
+        context['unique_phone_numbers_registered'] = Order.objects.filter(
+            user__isnull=False
+        ).exclude(phone_number__isnull=True).exclude(phone_number='').values('phone_number').distinct().count()
+        
+        context['unique_phone_numbers_guest'] = Order.objects.filter(
+            user__isnull=True
+        ).exclude(phone_number__isnull=True).exclude(phone_number='').values('phone_number').distinct().count()
 
         # Order statuses
         context['confirmed_orders'] = Order.objects.filter(order_status='confirmed').count()
@@ -39,23 +69,29 @@ class AnalyticsDashboard(TemplateView):
         context['out_for_delivery_orders'] = Order.objects.filter(courier_status='out_for_delivery').count()
         context['delivered_orders'] = Order.objects.filter(courier_status='delivered').count()
 
-        # Inventory stats (FIXED: Using F expressions for database computation)
+        # Inventory stats
         inventory_qs = Inventory.objects.annotate(available_stock=AVAILABLE_STOCK)
         
         context['total_stock'] = inventory_qs.aggregate(total=Sum('available_stock'))['total'] or 0
-        
         context['in_stock_items'] = inventory_qs.filter(available_stock__gt=0).count()
-        
         context['low_stock_items'] = inventory_qs.filter(
             available_stock__gt=0,
             available_stock__lte=F('low_stock_threshold')
         ).count()
-        
         context['out_of_stock_items'] = inventory_qs.filter(available_stock__lte=0).count()
 
         # Recent activity (last 30 days)
         context['new_customers_last_30'] = User.objects.filter(date_joined__gte=last_30_days).count()
         context['revenue_last_30'] = Order.objects.filter(order_status='confirmed', created_at__gte=last_30_days).aggregate(total=Sum('total'))['total'] or 0
+
+        # Order type statistics
+        context['guest_orders_count'] = Order.objects.filter(user__isnull=True).count()
+        context['registered_orders_count'] = Order.objects.filter(user__isnull=False).count()
+
+        # Sample data for debugging
+        context['sample_phone_numbers'] = list(Order.objects.exclude(
+            phone_number__isnull=True
+        ).exclude(phone_number='').values('customer_name', 'phone_number', 'user__username')[:10])
 
         # Charts data (daily sales for last 30 days)
         daily_sales = Order.objects.filter(order_status='confirmed', created_at__gte=last_30_days).annotate(
@@ -67,6 +103,7 @@ class AnalyticsDashboard(TemplateView):
         }
 
         return context
+
 
 class SalesAnalyticsView(TemplateView):
     template_name = 'analytics/sales.html'
@@ -261,24 +298,81 @@ class RevenueAnalyticsView(TemplateView):
         return context
 
 
+
+
+
+
 class CustomerListView(ListView):
-    model = User
     template_name = 'analytics/customer_list.html'
     context_object_name = 'customers'
     paginate_by = 20
 
     def get_queryset(self):
-        queryset = User.objects.annotate(
-            order_count=Count('orders'),
-            total_spent=Sum('orders__total', filter=Q(orders__order_status='confirmed')),
-            last_order_date=Max('orders__created_at')
-        ).order_by(F('total_spent').desc(nulls_last=True))
-        return queryset
+        from orders.models import Order
+        from django.core.paginator import Paginator
+        
+        # Get all unique customers from orders
+        all_customers = []
+        
+        # Process registered users
+        registered_orders = Order.objects.filter(
+            user__isnull=False
+        ).select_related('user').values(
+            'user__id', 'user__username', 'user__email', 
+            'user__first_name', 'user__last_name'
+        ).annotate(
+            order_count=Count('id'),
+            total_spent=Sum('total', filter=Q(order_status='confirmed')),
+            last_order_date=Max('created_at')
+        ).filter(order_count__gt=0)
+        
+        for order in registered_orders:
+            display_name = order['user__username'] or order['user__email'] or f"User {order['user__id']}"
+            all_customers.append({
+                'id': order['user__id'],
+                'display_name': display_name,
+                'email': order['user__email'],
+                'phone_number': '',
+                'order_count': order['order_count'],
+                'total_spent': order['total_spent'] or 0,
+                'last_order_date': order['last_order_date'],
+                'customer_type': 'registered'
+            })
+        
+        # Process guest customers
+        guest_orders = Order.objects.filter(
+            user__isnull=True
+        ).values(
+            'customer_name', 'phone_number', 'email'
+        ).annotate(
+            order_count=Count('id'),
+            total_spent=Sum('total', filter=Q(order_status='confirmed')),
+            last_order_date=Max('created_at')
+        ).filter(order_count__gt=0)
+        
+        for guest in guest_orders:
+            display_name = guest['customer_name'] or 'Guest Customer'
+            all_customers.append({
+                'id': f"guest_{guest['phone_number'] or guest['email'] or guest['customer_name']}",
+                'display_name': display_name,
+                'email': guest['email'],
+                'phone_number': guest['phone_number'],
+                'order_count': guest['order_count'],
+                'total_spent': guest['total_spent'] or 0,
+                'last_order_date': guest['last_order_date'],
+                'customer_type': 'guest'
+            })
+        
+        # Sort by total spent
+        all_customers.sort(key=lambda x: x['total_spent'], reverse=True)
+        return all_customers
 
-
-
-
-
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        context['total_customers'] = len(self.object_list)
+        context['registered_customers_count'] = len([c for c in self.object_list if c['customer_type'] == 'registered'])
+        context['guest_customers_count'] = len([c for c in self.object_list if c['customer_type'] == 'guest'])
+        return context
 
 
 class CustomerDetailView(DetailView):

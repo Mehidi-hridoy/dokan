@@ -10,39 +10,93 @@
         border-radius: 0.5rem;
         box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
     }
+    .customer-type-badge {
+        padding: 0.25rem 0.5rem;
+        border-radius: 0.25rem;
+        font-size: 0.75rem;
+        font-weight: 500;
+    }
+    .badge-registered {
+        background-color: #dbeafe;
+        color: #1e40af;
+    }
+    .badge-guest {
+        background-color: #f3e8ff;
+        color: #7e22ce;
+    }
 </style>
 {% endblock %}
 
 {% block content %}
 <div class="container mx-auto px-4 py-8">
-    <h1 class="text-3xl font-bold mb-8 text-center">Customer List</h1>
+    <div class="flex justify-between items-center mb-6">
+        <h1 class="text-3xl font-bold">Customer List</h1>
+        <div class="text-sm text-gray-600">
+            Total: {{ total_customers|intcomma }} 
+            ({{ registered_customers_count }} registered, {{ guest_customers_count }} guest)
+        </div>
+    </div>
 
     <div class="table-container p-6">
         <div class="overflow-x-auto">
             <table class="w-full text-left">
                 <thead>
                     <tr class="bg-gray-100">
-                        <th class="p-3">Customer</th>
+                        <th class="p-3">Customer Name</th>
+                        <th class="p-3">Type</th>
+                        <th class="p-3">Contact</th>
                         <th class="p-3">Order Count</th>
                         <th class="p-3">Total Spent</th>
                         <th class="p-3">Last Order</th>
+                        <th class="p-3">Actions</th>
                     </tr>
                 </thead>
                 <tbody>
                     {% for customer in customers %}
-                        <tr class="border-b">
+                        <tr class="border-b hover:bg-gray-50">
                             <td class="p-3">
-                                <a href="{% url 'analytics:customer_detail' customer.id %}" class="text-blue-600 hover:underline">
-                                    {{ customer.username }}
-                                </a>
+                                <div class="font-medium text-gray-900">
+                                    {{ customer.display_name }}
+                                </div>
                             </td>
-                            <td class="p-3">{{ customer.order_count|intcomma }}</td>
-                            <td class="p-3">${{ customer.total_spent|floatformat:2|intcomma }}</td>
-                            <td class="p-3">{{ customer.last_order_date|date:"M d, Y" }}</td>
+                            <td class="p-3">
+                                <span class="customer-type-badge badge-{{ customer.customer_type }}">
+                                    {{ customer.customer_type|title }}
+                                </span>
+                            </td>
+                            <td class="p-3">
+                                <div class="text-sm">
+                                    {% if customer.email %}
+                                        <div class="text-gray-600">{{ customer.email }}</div>
+                                    {% endif %}
+                                    {% if customer.phone_number %}
+                                        <div class="text-gray-500">{{ customer.phone_number }}</div>
+                                    {% endif %}
+                                </div>
+                            </td>
+                            <td class="p-3">
+                                <span class="font-semibold text-blue-600">{{ customer.order_count|intcomma }}</span>
+                            </td>
+                            <td class="p-3">
+                                <span class="font-semibold text-green-600">${{ customer.total_spent|floatformat:2|intcomma }}</span>
+                            </td>
+                            <td class="p-3 text-gray-500">
+                                {{ customer.last_order_date|date:"M d, Y"|default:"Never" }}
+                            </td>
+                            <td class="p-3">
+                                {% if customer.customer_type == 'registered' %}
+                                    <a href="{% url 'analytics:customer_detail' customer.id %}" 
+                                       class="text-blue-600 hover:text-blue-800 hover:underline text-sm">
+                                        View Details
+                                    </a>
+                                {% else %}
+                                    <span class="text-gray-400 text-sm">No details</span>
+                                {% endif %}
+                            </td>
                         </tr>
                     {% empty %}
                         <tr>
-                            <td colspan="4" class="p-3 text-center text-gray-500">No customers found.</td>
+                            <td colspan="7" class="p-3 text-center text-gray-500">No customers found.</td>
                         </tr>
                     {% endfor %}
                 </tbody>

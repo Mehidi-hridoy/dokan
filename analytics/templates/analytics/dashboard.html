@@ -31,7 +31,36 @@
                 <i class="fas fa-users text-yellow-500"></i>
             </div>
             <p class="text-2xl font-bold text-gray-900 mt-1">{{ total_customers|intcomma }}</p>
+            <div class="flex justify-between text-xs text-gray-500 mt-1">
+                <span>Registered: {{ total_registered_customers }}</span>
+                <span>Guest: {{ total_guest_customers }}</span>
+            </div>
         </div>
+
+<!-- Customer Breakdown by Phone -->
+<div class="bg-white p-4 rounded-lg shadow">
+    <p class="text-lg font-semibold text-gray-700 mb-2">Customer Breakdown (by Phone Number)</p>
+    <div class="space-y-2 text-sm">
+        <div class="flex justify-between items-center">
+            <span class="text-gray-600">Total Unique Phone Numbers:</span>
+            <span class="font-medium text-blue-600">{{ unique_phone_numbers_total|intcomma }}</span>
+        </div>
+        <div class="flex justify-between items-center">
+            <span class="text-gray-600">Registered Users (by Phone):</span>
+            <span class="font-medium text-green-600">{{ unique_phone_numbers_registered|intcomma }}</span>
+        </div>
+        <div class="flex justify-between items-center">
+            <span class="text-gray-600">Guest Customers (by Phone):</span>
+            <span class="font-medium text-purple-600">{{ unique_phone_numbers_guest|intcomma }}</span>
+        </div>
+        <div class="flex justify-between items-center border-t pt-2">
+            <span class="text-gray-600 font-medium">Total Unique Customers:</span>
+            <span class="font-bold text-gray-800">{{ total_customers|intcomma }}</span>
+        </div>
+    </div>
+</div>
+
+
 
         <div class="bg-white p-6 rounded-lg shadow-lg border-l-4 border-red-500">
             <div class="flex items-center justify-between">
@@ -73,16 +102,45 @@
                     <p>Rejected: <span class="float-right text-red-600 font-medium">{{ rejected_orders|intcomma }}</span></p>
                 </div>
             </div>
+
+            <!-- Customer Breakdown Card -->
+            <div class="bg-white p-4 rounded-lg shadow">
+                <p class="text-lg font-semibold text-gray-700 mb-2">Customer Breakdown</p>
+                <div class="space-y-2 text-sm">
+                    <div class="flex justify-between items-center">
+                        <span class="text-gray-600">Registered Users:</span>
+                        <span class="font-medium text-blue-600">{{ total_registered_customers|intcomma }}</span>
+                    </div>
+                    <div class="flex justify-between items-center">
+                        <span class="text-gray-600">Guest Users:</span>
+                        <span class="font-medium text-purple-600">{{ total_guest_customers|intcomma }}</span>
+                    </div>
+                    <div class="flex justify-between items-center border-t pt-2">
+                        <span class="text-gray-600 font-medium">Total:</span>
+                        <span class="font-bold text-gray-800">{{ total_customers|intcomma }}</span>
+                    </div>
+                </div>
+            </div>
         </div>
     </div>
     
-    <div class="bg-white p-6 rounded-lg shadow-xl">
-        <h2 class="text-xl font-semibold text-gray-700 mb-4">Inventory Summary</h2>
-        <div class="grid grid-cols-4 text-center border-t border-b py-3 text-sm font-medium">
-            <p>Total Stock: <span class="block text-xl text-gray-800">{{ total_stock|intcomma }}</span></p>
-            <p>In Stock Items: <span class="block text-xl text-green-600">{{ in_stock_items|intcomma }}</span></p>
-            <p>Low Stock Items: <span class="block text-xl text-yellow-600">{{ low_stock_items|intcomma }}</span></p>
-            <p>Out of Stock Items: <span class="block text-xl text-red-600">{{ out_of_stock_items|intcomma }}</span></p>
+    <div class="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-8">
+        <div class="bg-white p-6 rounded-lg shadow-xl">
+            <h2 class="text-xl font-semibold text-gray-700 mb-4">Inventory Summary</h2>
+            <div class="grid grid-cols-2 md:grid-cols-4 text-center border-t border-b py-3 text-sm font-medium">
+                <p>Total Stock: <span class="block text-xl text-gray-800">{{ total_stock|intcomma }}</span></p>
+                <p>In Stock Items: <span class="block text-xl text-green-600">{{ in_stock_items|intcomma }}</span></p>
+                <p>Low Stock Items: <span class="block text-xl text-yellow-600">{{ low_stock_items|intcomma }}</span></p>
+                <p>Out of Stock Items: <span class="block text-xl text-red-600">{{ out_of_stock_items|intcomma }}</span></p>
+            </div>
+        </div>
+
+        <div class="bg-white p-6 rounded-lg shadow-xl">
+            <h2 class="text-xl font-semibold text-gray-700 mb-4">Order Types</h2>
+            <div class="grid grid-cols-2 text-center border-t border-b py-3 text-sm font-medium">
+                <p>Registered User Orders: <span class="block text-xl text-blue-600">{{ registered_orders_count|intcomma }}</span></p>
+                <p>Guest User Orders: <span class="block text-xl text-purple-600">{{ guest_orders_count|intcomma }}</span></p>
+            </div>
         </div>
     </div>
 
