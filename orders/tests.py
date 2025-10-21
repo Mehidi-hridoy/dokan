@@ -8,6 +8,16 @@ git commit -m "Prepare project for Heroku"
 git push -u origin main
 python manage.py runserver
 
+
+git add .
+git commit -m "Prepare for Heroku deployment with Postgres"
+git push origin main
+python manage.py runserver
+
+
+git push heroku main
+
+
 git pull origin main
 
 

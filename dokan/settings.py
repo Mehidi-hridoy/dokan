@@ -7,19 +7,20 @@ from datetime import timedelta
 # Base directory
 BASE_DIR = Path(__file__).resolve().parent.parent
 
+# DEBUG
+DEBUG = config('DEBUG', default=True, cast=bool)  # True for local by default
 
-
-
-DEBUG = config('DEBUG', default=False, cast=bool)
+# SECRET KEY
 SECRET_KEY = config('SECRET_KEY')
-ALLOWED_HOSTS = [
-    'localhost',
-    '127.0.0.1',
-    'dokan-ecommerce-7f870e769b90.herokuapp.com'
-]
 
+# ALLOWED_HOSTS
+ALLOWED_HOSTS = config(
+    'ALLOWED_HOSTS', 
+    default='127.0.0.1,localhost', 
+    cast=Csv()
+)
 
-# Default SQLite (for local)
+# DATABASES
 DATABASES = {
     'default': {
         'ENGINE': 'django.db.backends.sqlite3',
@@ -27,10 +28,10 @@ DATABASES = {
     }
 }
 
-# If DATABASE_URL exists (on Heroku), override with Postgres
+# Override with DATABASE_URL if on Heroku
 DATABASE_URL = config('DATABASE_URL', default=None)
 if DATABASE_URL:
-    DATABASES['default'] = dj_database_url.parse(DATABASE_URL, conn_max_age=600)
+    DATABASES['default'] = dj_database_url.parse(DATABASE_URL, conn_max_age=600, ssl_require=True)
 
 # JWT Settings
 SIMPLE_JWT = {
@@ -212,6 +213,7 @@ USE_L10N = True
 STATIC_URL = '/static/'
 STATICFILES_DIRS = [os.path.join(BASE_DIR, 'static')]
 STATIC_ROOT = BASE_DIR / 'staticfiles'    # for collectstatic output
+STATICFILES_STORAGE = "whitenoise.storage.CompressedManifestStaticFilesStorage"
 
 MEDIA_URL = '/media/'
 MEDIA_ROOT = os.path.join(BASE_DIR, 'media')
