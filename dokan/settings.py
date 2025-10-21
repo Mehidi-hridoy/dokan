@@ -6,10 +6,8 @@ from datetime import timedelta
 
 # Base directory
 BASE_DIR = Path(__file__).resolve().parent.parent
-
 # DEBUG
 DEBUG = config('DEBUG', default=True, cast=bool)  # True for local by default
-
 # SECRET KEY
 SECRET_KEY = config('SECRET_KEY')
 ALLOWED_HOSTS = config('ALLOWED_HOSTS', default='127.0.0.1,localhost').split(',')
@@ -23,8 +21,11 @@ DATABASES = {
     }
 }
 
-# If DATABASE_URL exists (Heroku), override with Postgres
+
+
 DATABASE_URL = config('DATABASE_URL', default=None)
+if DATABASE_URL:
+    DATABASES['default'] = dj_database_url.parse(DATABASE_URL, conn_max_age=600)
 
 # JWT Settings
 SIMPLE_JWT = {

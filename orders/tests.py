@@ -6,7 +6,7 @@ python manage.py runserver
 git add .
 git commit -m "Prepare for Heroku deployment with Postgres"
 git push -u origin main
-python manage.py runserver
+# python manage.py runserver
 
 
 
