@@ -9,13 +9,13 @@ git push -u origin main
 python manage.py runserver
 
 
+
 git add .
-git commit -m "Prepare for Heroku deployment with Postgres"
-git push origin main
+git commit -m "Fix DB connection and migrations"
+git push heroku main
 python manage.py runserver
 
 
-git push heroku main
 
 
 git pull origin main
