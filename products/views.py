@@ -44,6 +44,7 @@ def _get_user_order(request):
     return None
 
 
+
 def home(request, category_slug=None, brand_slug=None):
     """
     Home page view:
@@ -63,8 +64,17 @@ def home(request, category_slug=None, brand_slug=None):
     if brand_slug:
         products_qs = products_qs.filter(brand__slug=brand_slug)
 
+    # Get featured products - using the is_featured field from your model
+    featured_products_qs = Product.objects.filter(
+        is_active=True,
+        is_featured=True
+    ).select_related(
+        'category', 'brand', 'inventory_reverse'
+    ).prefetch_related('images')[:8]  # Limit to 8 featured products
+
     # Calculate discounts
     products = [calculate_discount(p) for p in products_qs]
+    featured_products = [calculate_discount(p) for p in featured_products_qs]
 
     # Sort: in-stock first, then newest
     products = sorted(
@@ -72,8 +82,13 @@ def home(request, category_slug=None, brand_slug=None):
         key=lambda p: (not p.is_in_stock, -p.created_at.timestamp())
     )
 
-    # Add color and size choices
+    # Add color and size choices to main products
     for p in products:
+        p.color_choices = p._meta.get_field('color').choices if hasattr(p, 'color') and p.color else []
+        p.size_choices = p._meta.get_field('size').choices if hasattr(p, 'size') and p.size else []
+
+    # Add color and size choices to featured products
+    for p in featured_products:
         p.color_choices = p._meta.get_field('color').choices if hasattr(p, 'color') and p.color else []
         p.size_choices = p._meta.get_field('size').choices if hasattr(p, 'size') and p.size else []
 
@@ -91,6 +106,7 @@ def home(request, category_slug=None, brand_slug=None):
 
     context = {
         'products': products,
+        'featured_products': featured_products,  # Add featured products to context
         'categories': categories,
         'brands': brands,
         'order': order,
