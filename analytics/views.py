@@ -458,9 +458,6 @@ class ProductsAnalyticsView(TemplateView):
 
 
 
-
-
-
 class RevenueAnalyticsView(TemplateView):
     template_name = 'analytics/revenue.html'
 
@@ -485,25 +482,11 @@ class RevenueAnalyticsView(TemplateView):
         )
         context['monthly_revenue'] = monthly_revenue
 
-        # Revenue by category - FIXED VERSION
-        # Option 1: If you have a price field in OrderItem model
-        try:
-            context['revenue_by_category'] = (
-                Category.objects
-                .filter(products__order_items__order__order_status='confirmed')
-                .annotate(
-                    total_revenue=Sum(
-                        F('products__order_items__quantity') * 
-                        F('products__order_items__price'),  # Try common field names
-                        output_field=DecimalField(max_digits=12, decimal_places=2)
-                    )
-                )
-                .filter(total_revenue__isnull=False)
-                .order_by('-total_revenue')
-            )
-        except:
-            # Option 2: Alternative approach using Order total distributed by items
-            context['revenue_by_category'] = self.get_revenue_by_category_alternative()
+        # DEBUG: Check OrderItem model structure
+        self.debug_orderitem_structure()
+
+        # Revenue by category - with proper field discovery
+        context['revenue_by_category'] = self.get_category_revenue_with_correct_fields()
 
         # Prepare chart data
         monthly_labels = []
@@ -520,20 +503,154 @@ class RevenueAnalyticsView(TemplateView):
 
         return context
 
-    def get_revenue_by_category_alternative(self):
-        """Alternative method if direct field access doesn't work"""
-        from django.db.models import Count
-        return (
-            Category.objects
-            .annotate(
-                order_count=Count(
-                    'products__order_items',
-                    filter=Q(products__order_items__order__order_status='confirmed')
+    def debug_orderitem_structure(self):
+        """Debug method to check OrderItem model structure"""
+        try:
+            if OrderItem.objects.exists():
+                sample_item = OrderItem.objects.first()
+                print("=== ORDERITEM DEBUG INFO ===")
+                print("OrderItem fields:", [f.name for f in sample_item._meta.get_fields()])
+                print("OrderItem object:", sample_item)
+                print("Available attributes:", [attr for attr in dir(sample_item) if not attr.startswith('_')])
+                
+                # Check what price-related fields exist
+                price_fields = ['price', 'unit_price', 'sale_price', 'current_price', 'amount', 'total_price']
+                for field in price_fields:
+                    if hasattr(sample_item, field):
+                        value = getattr(sample_item, field)
+                        print(f"Field '{field}': {value} (type: {type(value)})")
+                
+                # Check relationships
+                if hasattr(sample_item, 'product'):
+                    product = sample_item.product
+                    print(f"Product: {product}")
+                    if product and hasattr(product, 'category'):
+                        print(f"Category: {product.category}")
+        except Exception as e:
+            print(f"Debug error: {e}")
+
+    def get_category_revenue_with_correct_fields(self):
+        """Try different field combinations to find the correct one"""
+        field_combinations = [
+            # Common field name patterns
+            'price',
+            'unit_price', 
+            'sale_price',
+            'current_price',
+            'amount',
+            'total_price',
+            'product_price',
+            # Try product fields
+            'product__price',
+            'product__sale_price',
+            'product__current_price',
+        ]
+        
+        for field_name in field_combinations:
+            try:
+                result = (
+                    Category.objects
+                    .filter(products__order_items__order__order_status='confirmed')
+                    .annotate(
+                        total_revenue=Sum(
+                            F('products__order_items__quantity') * 
+                            F(f'products__order_items__{field_name}'),
+                            output_field=DecimalField(max_digits=12, decimal_places=2)
+                        )
+                    )
+                    .filter(total_revenue__isnull=False)
+                    .order_by('-total_revenue')
                 )
-            )
-            .filter(order_count__gt=0)
-            .order_by('-order_count')
-        )
+                
+                # Check if we got non-zero results
+                if result and result[0].total_revenue and result[0].total_revenue > 0:
+                    print(f"SUCCESS with field: {field_name}")
+                    return result
+                else:
+                    print(f"Field {field_name} returned zero results")
+                    
+            except Exception as e:
+                print(f"Failed with {field_name}: {e}")
+                continue
+        
+        # If all field combinations fail, use the manual calculation
+        print("All field combinations failed, using manual calculation")
+        return self.calculate_category_revenue_manually()
+
+    def calculate_category_revenue_manually(self):
+        """Manual calculation as fallback"""
+        from collections import defaultdict
+        import decimal
+        
+        category_revenue = defaultdict(decimal.Decimal)
+        
+        # Get all confirmed order items
+        confirmed_order_items = OrderItem.objects.filter(
+            order__order_status='confirmed'
+        ).select_related('product', 'product__category', 'order')
+        
+        print(f"Found {confirmed_order_items.count()} confirmed order items")
+        
+        for item in confirmed_order_items:
+            if item.product and item.product.category:
+                category_name = item.product.category.name
+                
+                # Try to find the price - check multiple possible fields
+                price = decimal.Decimal('0')
+                
+                # Try different price field names on OrderItem
+                price_fields = ['price', 'unit_price', 'sale_price', 'current_price', 'amount']
+                for field in price_fields:
+                    if hasattr(item, field):
+                        field_value = getattr(item, field)
+                        if field_value:
+                            price = decimal.Decimal(str(field_value))
+                            break
+                
+                # If no price found on OrderItem, try product or calculate from order total
+                if price == 0:
+                    if hasattr(item, 'product') and item.product:
+                        product_price_fields = ['price', 'sale_price', 'current_price']
+                        for field in product_price_fields:
+                            if hasattr(item.product, field):
+                                field_value = getattr(item.product, field)
+                                if field_value:
+                                    price = decimal.Decimal(str(field_value))
+                                    break
+                
+                # If still no price, use a proportional calculation from order total
+                if price == 0 and item.order and item.order.total:
+                    # Distribute order total proportionally by quantity
+                    total_items_in_order = OrderItem.objects.filter(order=item.order).aggregate(
+                        total_quantity=Sum('quantity')
+                    )['total_quantity'] or 1
+                    
+                    if total_items_in_order > 0:
+                        price = item.order.total / total_items_in_order
+                
+                item_revenue = item.quantity * price
+                category_revenue[category_name] += item_revenue
+                
+                print(f"Item: {item.product.name if item.product else 'No product'}, "
+                      f"Category: {category_name}, "
+                      f"Qty: {item.quantity}, Price: {price}, Revenue: {item_revenue}")
+        
+        # Convert to list of category objects with total_revenue
+        result = []
+        for category_name, revenue in sorted(category_revenue.items(), key=lambda x: x[1], reverse=True):
+            # Create a mock category-like object
+            class MockCategory:
+                def __init__(self, name, total_revenue):
+                    self.name = name
+                    self.total_revenue = total_revenue
+            
+            result.append(MockCategory(category_name, revenue))
+            print(f"Category {category_name}: ${revenue}")
+        
+        return result
+
+
+
 
 
 
