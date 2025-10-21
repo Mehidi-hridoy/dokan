@@ -2,3 +2,8 @@
 db.sqlite3
 /staticfiles
 venv/
+
+# Python
+*.pyc
+__pycache__/
+
