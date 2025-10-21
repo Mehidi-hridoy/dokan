@@ -12,6 +12,7 @@ DEBUG = config('DEBUG', default=True, cast=bool)  # True for local by default
 
 # SECRET KEY
 SECRET_KEY = config('SECRET_KEY')
+ALLOWED_HOSTS = config('ALLOWED_HOSTS', default='127.0.0.1,localhost').split(',')
 
 
 # Local default (SQLite)
