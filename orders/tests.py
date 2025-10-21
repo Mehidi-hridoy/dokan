@@ -4,7 +4,7 @@ python manage.py migrate
 python manage.py runserver
 
 git add .
-git commit -m "Updated List Catgory "
+git commit -m "Prepare project for Heroku"
 git push -u origin main
 python manage.py runserver
 
