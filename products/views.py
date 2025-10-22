@@ -297,9 +297,10 @@ def submit_review(request, product_id):
     return redirect('products:product_detail', slug=product.slug)
 
 
+
 def search(request):
     """
-    Simple search by product name or description.
+    Search by product name or description.
     """
     query = request.GET.get('q', '').strip()
     products_qs = Product.objects.filter(is_active=True).select_related('category', 'brand')
@@ -307,15 +308,27 @@ def search(request):
     if query:
         products_qs = products_qs.filter(
             Q(products_name__icontains=query) |
-            Q(description__icontains=query)
+            Q(description__icontains=query) |
+            Q(short_description__icontains=query) |
+            Q(category__name__icontains=query) |
+            Q(brand__name__icontains=query)
         )
+    else:
+        # If no query, return some featured products or empty
+        products_qs = Product.objects.filter(is_active=True, is_featured=True)[:12]
 
+    # Regular search results
     products = [calculate_discount(p) for p in products_qs]
 
-    # Cart handling (same logic as home page)
+    # Add color and size choices for template
+    for product in products:
+        product.color_choices = product._meta.get_field('color').choices if hasattr(product, 'color') and product.color else []
+        product.size_choices = product._meta.get_field('size').choices if hasattr(product, 'size') and product.size else []
+
+    # Cart handling
     if request.user.is_authenticated:
         order = _get_user_order(request)
-        cart_items, cart_total = [], Decimal('0.00')  # No OrderItem, so empty
+        cart_items, cart_total = [], Decimal('0.00')
     else:
         order = None
         cart_items, cart_total = _get_session_cart(request)
@@ -334,28 +347,40 @@ def search(request):
 
 def search_suggestions(request):
     """
-    AJAX endpoint that powers the live-search dropdown.
-    Returns up to 5 matching products (name, slug, price, image).
+    AJAX view for search suggestions (returns JSON)
     """
     query = request.GET.get('q', '').strip()
-    products_qs = Product.objects.filter(is_active=True)
-
-    if query:
-        products_qs = products_qs.filter(
-            Q(products_name__icontains=query) |
-            Q(description__icontains=query)
-        )[:5]
-
     suggestions = []
-    for p in products_qs:
-        suggestions.append({
-            'name': p.products_name,
-            'slug': p.slug,
-            'price': str(p.sale_price or p.base_price),
-            'image': p.products_image.url if p.products_image else None,
-        })
+    
+    if len(query) >= 2:  # Only search if query has at least 2 characters
+        products = Product.objects.filter(
+            Q(products_name__icontains=query) |
+            Q(description__icontains=query) |
+            Q(short_description__icontains=query) |
+            Q(category__name__icontains=query) |
+            Q(brand__name__icontains=query),
+            is_active=True
+        )[:8]  # Limit to 8 suggestions
+        
+        for product in products:
+            # Get the first image or use default
+            image_url = ''
+            if product.images.exists():
+                image_url = product.images.first().image.url
+            elif product.image:
+                image_url = product.image.url
+            else:
+                image_url = '/static/images/default-product.jpg'
+            
+            suggestions.append({
+                'name': product.products_name,
+                'url': product.get_absolute_url(),
+                'price': str(product.sale_price) if product.sale_price else str(product.price),
+                'image': image_url
+            })
+    
+    return JsonResponse({'suggestions': suggestions})
 
-    return JsonResponse({'products': suggestions})
 
 
 def calculate_discount(product):

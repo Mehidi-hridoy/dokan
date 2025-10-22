@@ -10,6 +10,7 @@ from store.models import Category, Brand
 from users.models import User
 from django.contrib.auth import get_user_model
 from decimal import Decimal
+from django.urls import reverse
 
 COLOR_CHOICES = [
     ('Red', 'Red'), ('Blue', 'Blue'), ('Pink', 'Pink'), ('Orange', 'Orange'),
@@ -129,6 +130,9 @@ class Product(models.Model):
     def __str__(self):
         return f"{self.products_name} ({self.product_code})"
 
+    def get_absolute_url(self):
+        return reverse('products:product_detail', kwargs={'slug': self.slug})
+    
     @property
     def current_price(self):
         """

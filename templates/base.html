@@ -15,7 +15,7 @@
     
     <style>
         /* Dropdown Styling */
-        .cart-dropdown, .notification-dropdown, .user-menu, .analytics-dropdown, #searchBar {
+        .cart-dropdown, .notification-dropdown, .user-menu, .analytics-dropdown{
             z-index: 1000;
         }
         .notification-dropdown {
@@ -74,26 +74,123 @@
             visibility: visible;
             transform: translateY(0);
         }
-        /* Search Suggestions */
+        /* Enhanced Search Styling */
         #searchSuggestions {
             position: absolute;
             top: 100%;
             left: 0;
             right: 0;
             background: white;
-            border: 1px solid #ddd;
-            max-height: 300px;
+            border: 1px solid #e5e7eb;
+            border-top: none;
+            border-radius: 0 0 0.5rem 0.5rem;
+            max-height: 320px;
             overflow-y: auto;
-            z-index: 50;
+            z-index: 1000;
+            box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05);
             display: none;
         }
-        .suggestion-item {
-            padding: 8px;
+
+        #searchSuggestions:not(.hidden) {
+            display: block;
+        }
+
+        .search-suggestion-item {
+            padding: 12px;
             cursor: pointer;
+            border-bottom: 1px solid #f3f4f6;
+            transition: all 0.2s ease;
+            text-decoration: none;
+            display: block;
         }
-        .suggestion-item:hover {
-            background: #f0f0f0;
+
+        .search-suggestion-item:last-child {
+            border-bottom: none;
         }
+
+        .search-suggestion-item:hover {
+            background-color: #f8fafc;
+            transform: translateX(2px);
+        }
+/* Enhanced Search Styling */
+#searchBar {
+    position: absolute;
+    top: 100%;
+    right: 0;
+    background: white;
+    shadow-xl;
+    rounded-lg;
+    p-4;
+    z-index: 1000;
+    width: 24rem; /* w-96 equivalent */
+    opacity: 0;
+    visibility: hidden;
+    transform: translateY(-10px) scale(0.95);
+    transition: all 0.3s ease-in-out;
+    transform-origin: top right;
+    box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04);
+}
+
+#searchBar.show {
+    opacity: 1;
+    visibility: visible;
+    transform: translateY(0) scale(1);
+}
+
+#searchBar.hidden {
+    opacity: 0;
+    visibility: hidden;
+    transform: translateY(-10px) scale(0.95);
+}
+
+#searchSuggestions {
+    position: absolute;
+    top: 100%;
+    left: 0;
+    right: 0;
+    background: white;
+    border: 1px solid #e5e7eb;
+    border-top: none;
+    border-radius: 0 0 0.5rem 0.5rem;
+    max-height: 320px;
+    overflow-y: auto;
+    z-index: 1001;
+    box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05);
+    opacity: 0;
+    visibility: hidden;
+    transform: translateY(-5px);
+    transition: all 0.2s ease-in-out;
+}
+
+#searchSuggestions.show {
+    opacity: 1;
+    visibility: visible;
+    transform: translateY(0);
+}
+
+#searchSuggestions.hidden {
+    opacity: 0;
+    visibility: hidden;
+    transform: translateY(-5px);
+}
+
+.search-suggestion-item {
+    padding: 12px;
+    cursor: pointer;
+    border-bottom: 1px solid #f3f4f6;
+    transition: all 0.2s ease;
+    text-decoration: none;
+    display: block;
+}
+
+.search-suggestion-item:last-child {
+    border-bottom: none;
+}
+
+.search-suggestion-item:hover {
+    background-color: #f8fafc;
+    transform: translateX(2px);
+}
         /* Cart Badge */
         .cart-count-badge {
             display: flex;
@@ -185,21 +282,35 @@
             </div>
 
             <div class="flex items-center space-x-3">
-                <div class="relative">
-                    <button onclick="toggleSearch()" class="p-2 hover:bg-blue-500 rounded-full transition duration-200 text-white">
-                        <i class="fas fa-search"></i>
-                    </button>
-                    <div id="searchBar" class="absolute top-12 right-0 bg-white shadow-xl rounded-lg p-4 z-50 hidden min-w-96">
-                        <form action="{% url 'products:search' %}" method="GET" class="flex relative">
-                            <input type="text" id="searchInput" name="q" placeholder="Search products..." 
-                                    class="flex-1 px-4 py-3 border border-gray-300 rounded-l-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent">
-                            <button type="submit" class="bg-blue-600 text-white px-6 py-3 rounded-r-lg hover:bg-blue-700 transition duration-200 font-medium">
-                                <i class="fas fa-search mr-2"></i>Search
-                            </button>
-                            <div id="searchSuggestions" class="absolute top-full left-0 right-0 bg-white border border-gray-200 rounded-lg mt-1 shadow-lg"></div>
-                        </form>
-                    </div>
-                </div>
+                <!-- Search Section - Updated -->
+<!-- Search Section - Fixed -->
+<div class="relative">
+    <button onclick="toggleSearch()" class="p-2 hover:bg-blue-500 rounded-full transition duration-200 text-white">
+        <i class="fas fa-search"></i>
+    </button>
+    <div id="searchBar" class="hidden">
+<div class="flex relative">
+    <input 
+        type="text" 
+        id="searchInput" 
+        name="q" 
+        placeholder="Search products..." 
+        class="flex-1 px-4 py-3 border border-gray-300 rounded-l-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent text-black placeholder-gray-500"
+        autocomplete="off">
+    
+    <button 
+        type="button" 
+        onclick="performSearch()" 
+        class="bg-white border border-gray-300 text-black px-6 py-3 rounded-r-lg hover:bg-gray-100 transition duration-200 font-medium flex items-center">
+        <i class="fas fa-search mr-2 text-black"></i>
+        Search
+    </button>
+    
+    <div id="searchSuggestions" class="hidden"></div>
+</div>
+
+    </div>
+</div>
 
                 <div class="relative">
                     <button onclick="toggleNotifications()" class="flex items-center space-x-2 p-2 hover:bg-blue-500 rounded-lg transition duration-200 text-white relative">
@@ -353,80 +464,230 @@
         }
         const csrftoken = getCookie('csrftoken');
         
-        // Enhanced Toggle Functions
-        function toggleSearch() {
-            const searchBar = document.getElementById('searchBar');
-            const isVisible = !searchBar.classList.contains('hidden');
-            
-            // Close all other dropdowns
-            closeAllDropdowns();
-            
-            if (!isVisible) {
-                searchBar.classList.remove('hidden');
-                // Focus on search input when opened
-                setTimeout(() => {
-                    const searchInput = document.getElementById('searchInput');
-                    if (searchInput) searchInput.focus();
-                }, 100);
-            } else {
+// Enhanced Search Functionality
+let searchTimeout = null;
+let isSearchOpen = false;
+
+function toggleSearch() {
+    const searchBar = document.getElementById('searchBar');
+    const isVisible = searchBar.classList.contains('show');
+    
+    // Close all other dropdowns
+    closeAllDropdowns();
+    
+    if (!isVisible) {
+        // Show search bar
+        searchBar.classList.remove('hidden');
+        // Use setTimeout to ensure the element is visible before adding show class
+        setTimeout(() => {
+            searchBar.classList.add('show');
+            isSearchOpen = true;
+        }, 10);
+        
+        // Focus on search input when opened
+        setTimeout(() => {
+            const searchInput = document.getElementById('searchInput');
+            if (searchInput) {
+                searchInput.focus();
+                searchInput.value = ''; // Clear previous search
+            }
+            hideSuggestions();
+        }, 100);
+    } else {
+        // Hide search bar
+        searchBar.classList.remove('show');
+        isSearchOpen = false;
+        // Wait for animation to complete before hiding
+        setTimeout(() => {
+            if (!isSearchOpen) {
                 searchBar.classList.add('hidden');
             }
-        }
+        }, 300);
+        hideSuggestions();
+    }
+}
 
-        function toggleNotifications() {
-            const dropdown = document.getElementById('notificationDropdown');
-            const isVisible = !dropdown.classList.contains('hidden');
-            
-            closeAllDropdowns();
-            
-            if (!isVisible) {
-                dropdown.classList.remove('hidden');
+function performSearch() {
+    const searchInput = document.getElementById('searchInput');
+    const query = searchInput.value.trim();
+    
+    if (query.length > 0) {
+        // Redirect to search results page
+        window.location.href = `{% url 'products:search' %}?q=${encodeURIComponent(query)}`;
+    } else {
+        showFlyingMessage('Please enter a search term', 'error');
+        searchInput.focus();
+    }
+}
+
+function hideSuggestions() {
+    const searchSuggestionsDiv = document.getElementById('searchSuggestions');
+    searchSuggestionsDiv.classList.remove('show');
+    setTimeout(() => {
+        searchSuggestionsDiv.classList.add('hidden');
+        searchSuggestionsDiv.innerHTML = '';
+    }, 200);
+}
+
+function showSuggestions(suggestions) {
+    const searchSuggestionsDiv = document.getElementById('searchSuggestions');
+    
+    if (suggestions.length === 0) {
+        searchSuggestionsDiv.innerHTML = `
+            <div class="p-4 text-center text-gray-500">
+                <i class="fas fa-search mr-2"></i>No products found
+            </div>
+        `;
+    } else {
+        let html = '';
+        suggestions.forEach(item => {
+            html += `
+            <a href="${item.url}" class="flex items-center p-3 hover:bg-blue-50 border-b border-gray-100 transition-colors duration-150 group search-suggestion-item">
+                <div class="flex-shrink-0 w-10 h-10 bg-gray-200 rounded-lg flex items-center justify-center mr-3">
+                    ${item.image && item.image !== '/static/images/default-product.jpg' ? 
+                        `<img src="${item.image}" alt="${item.name}" class="w-10 h-10 object-cover rounded-lg">` :
+                        `<i class="fas fa-cube text-gray-400"></i>`
+                    }
+                </div>
+                <div class="flex-1 min-w-0">
+                    <p class="text-sm font-medium text-gray-900 truncate group-hover:text-blue-600">${item.name}</p>
+                    <p class="text-sm text-green-600 font-semibold">$${item.price}</p>
+                </div>
+                <i class="fas fa-chevron-right text-gray-400 group-hover:text-blue-600 ml-2"></i>
+            </a>`;
+        });
+        
+        // Add "View all results" link
+        const searchInput = document.getElementById('searchInput');
+        const query = searchInput.value.trim();
+        html += `
+        <div class="p-3 bg-gray-50 border-t border-gray-200">
+            <button onclick="performSearch()" class="w-full text-center text-blue-600 hover:text-blue-700 font-medium text-sm py-2 bg-white rounded border border-blue-200 hover:border-blue-300 transition-colors duration-150">
+                <i class="fas fa-list mr-2"></i>View all ${suggestions.length}+ results
+            </button>
+        </div>`;
+        
+        searchSuggestionsDiv.innerHTML = html;
+    }
+    
+    // Show suggestions with animation
+    searchSuggestionsDiv.classList.remove('hidden');
+    setTimeout(() => {
+        searchSuggestionsDiv.classList.add('show');
+    }, 10);
+}
+
+function fetchSuggestions(query) {
+    if (query.length < 2) {
+        hideSuggestions();
+        return;
+    }
+
+    // Use the new AJAX suggestions URL
+    const suggestUrl = `{% url 'products:search_suggestions' %}?q=${encodeURIComponent(query)}`;
+
+    $.ajax({
+        url: suggestUrl,
+        method: 'GET',
+        success: function(data) {
+            showSuggestions(data.suggestions || []);
+        },
+        error: function() {
+            hideSuggestions();
+        }
+    });
+}
+
+// Close search when clicking outside
+function handleClickOutside(event) {
+    const searchBar = document.getElementById('searchBar');
+    const searchIcon = event.target.closest('button[onclick="toggleSearch()"]');
+    
+    if (searchBar && !searchBar.contains(event.target) && !searchIcon) {
+        if (isSearchOpen) {
+            searchBar.classList.remove('show');
+            isSearchOpen = false;
+            setTimeout(() => {
+                if (!isSearchOpen) {
+                    searchBar.classList.add('hidden');
+                }
+            }, 300);
+            hideSuggestions();
+        }
+    }
+}
+
+// Initialize search functionality when DOM is loaded
+document.addEventListener('DOMContentLoaded', function() {
+    const searchInput = document.getElementById('searchInput');
+
+    // Add click outside listener
+    document.addEventListener('click', handleClickOutside);
+
+    if (searchInput) {
+        // Input event for real-time suggestions
+        searchInput.addEventListener('input', function() {
+            clearTimeout(searchTimeout);
+            const query = this.value.trim();
+
+            if (query.length > 1) {
+                searchTimeout = setTimeout(() => {
+                    fetchSuggestions(query);
+                }, 300);
             } else {
-                dropdown.classList.add('hidden');
+                hideSuggestions();
             }
-        }
+        });
 
-        function toggleUserMenu() {
-            const userMenu = document.getElementById('userMenu');
-            const isVisible = userMenu.classList.contains('show');
-            
-            closeAllDropdowns();
-            
-            if (!isVisible) {
-                userMenu.classList.add('show');
-            } else {
-                userMenu.classList.remove('show');
+        // Enter key to search
+        searchInput.addEventListener('keypress', function(e) {
+            if (e.key === 'Enter') {
+                e.preventDefault();
+                performSearch();
             }
-        }
+        });
 
-        function toggleAnalyticsMenu() {
-            const analyticsMenu = document.querySelector('#analyticsDropdown .analytics-dropdown');
-            const isVisible = analyticsMenu.classList.contains('show');
-            
-            closeAllDropdowns();
-            
-            if (!isVisible) {
-                analyticsMenu.classList.add('show');
-            } else {
-                analyticsMenu.classList.remove('show');
+        // Show suggestions when input is focused and has content
+        searchInput.addEventListener('focus', function() {
+            const query = this.value.trim();
+            if (query.length > 1) {
+                fetchSuggestions(query);
             }
-        }
+        });
 
-        function toggleMobileMenu() {
-            const menu = document.getElementById('mobileMenu');
-            menu.classList.toggle('hidden');
-        }
-
-        function closeAllDropdowns() {
-            // Close all dropdowns
-            document.querySelectorAll('.dropdown-content').forEach(el => {
-                el.classList.remove('show');
+        // Prevent search bar from closing when clicking on suggestions
+        const searchSuggestionsDiv = document.getElementById('searchSuggestions');
+        if (searchSuggestionsDiv) {
+            searchSuggestionsDiv.addEventListener('click', function(e) {
+                e.stopPropagation();
             });
-            document.querySelectorAll('#searchBar, #notificationDropdown, .cart-dropdown-content').forEach(el => {
-                el.classList.add('hidden', 'd-none');
-            });
         }
+    }
+});
 
+// Update closeAllDropdowns function to include search
+function closeAllDropdowns() {
+    // Close all dropdowns
+    document.querySelectorAll('.dropdown-content').forEach(el => {
+        el.classList.remove('show');
+    });
+    document.querySelectorAll('#notificationDropdown, .cart-dropdown-content').forEach(el => {
+        el.classList.add('hidden', 'd-none');
+    });
+    
+    // Close search bar
+    const searchBar = document.getElementById('searchBar');
+    if (searchBar) {
+        searchBar.classList.remove('show');
+        isSearchOpen = false;
+        setTimeout(() => {
+            if (!isSearchOpen) {
+                searchBar.classList.add('hidden');
+            }
+        }, 300);
+    }
+    hideSuggestions();
+} 
         // Enhanced Cart Functionality
         function loadCartDropdown() {
             $.ajax({
@@ -434,7 +695,6 @@
                 method: "GET",
                 success: function(data) {
                     $('#cartDropdownContent').html(data);
-                    // Extract cart count from the loaded content (assuming an element with class/id)
                     const cartCount = $(data).find('#cart-count-value').val() || 0; 
                     $('#cart-count-badge').text(cartCount);
                 },
@@ -467,13 +727,11 @@
 
         // --- FIX: AJAX Cart Item Removal ---
         $(document).on('click', '.remove-cart-item-ajax', function(e) {
-            e.preventDefault(); // CRUCIAL: Prevents the default action (form submission or link redirect)
+            e.preventDefault();
 
             const $button = $(this);
             const itemId = $button.data('item-id');
             const removeUrl = $button.data('remove-url');
-            
-            // Element to remove from the DOM - must have the class 'cart-item-row'
             const $cartItemContainer = $button.closest('.cart-item-row'); 
 
             if (!itemId || !removeUrl) {
@@ -481,12 +739,11 @@
                 return;
             }
 
-            // Show loading state
             $button.prop('disabled', true).html('<i class="fas fa-spinner fa-spin"></i>');
 
             $.ajax({
                 type: 'POST',
-                url: removeUrl, // Should point to your Django view
+                url: removeUrl,
                 data: {
                     'item_id': itemId,
                     'csrfmiddlewaretoken': csrftoken
@@ -497,18 +754,11 @@
                 },
                 success: function(response) {
                     if (response.success) {
-                        // 1. Remove the item from the dropdown UI with animation
                         $cartItemContainer.slideUp(300, function() {
                             $(this).remove();
-                            // 2. Refresh the cart dropdown content after removal
-                            // We call this to update totals/empty cart message 
                             loadCartDropdown(); 
                         });
-
-                        // 3. Update the cart count badge immediately
                         $('#cart-count-badge').text(response.new_cart_count || 0);
-
-                        // 4. Show confirmation message
                         showFlyingMessage(response.message || 'Item removed from cart.', 'success');
                     } else {
                         showFlyingMessage(response.message || 'Error removing item.', 'error');
@@ -521,7 +771,6 @@
                 }
             });
         });
-        // --- END AJAX FIX ---
 
         // Event Listeners for Dropdowns
         document.addEventListener('DOMContentLoaded', function() {
@@ -567,7 +816,6 @@
             const $button = $form.find('button[type="submit"]');
             const originalText = $button.html();
             
-            // Show loading state
             $button.prop('disabled', true).html('<i class="fas fa-spinner fa-spin mr-2"></i>Adding...');
 
             $.ajax({
@@ -579,21 +827,14 @@
                 },
                 success: function(data) {
                     if (data.success) {
-                        // Update cart badge
                         $('#cart-count-badge').text(data.cart_count || 0);
-                        
-                        // Show success message
                         showFlyingMessage(data.message || 'Product added to cart!', 'success');
-                        
-                        // Trigger cart update event
                         $(document).trigger('cart-updated', data);
                         
-                        // If cart dropdown is open, refresh it
                         if (!$('#cartDropdownContent').hasClass('d-none')) {
                             loadCartDropdown();
                         }
                         
-                        // Button success animation
                         $button.html('<i class="fas fa-check mr-2"></i>Added!')
                                .removeClass('bg-blue-600 hover:bg-blue-700')
                                .addClass('bg-green-600');
@@ -638,7 +879,6 @@
             
             $('#messageContainer').append(messageHtml);
             
-            // Auto remove after 5 seconds
             setTimeout(() => {
                 closeFlyingMessage(messageId);
             }, 5000);
@@ -649,69 +889,6 @@
                 $(this).remove();
             });
         }
-
- // Search suggestions
-        const searchInput = document.getElementById('searchInput');
-        const searchSuggestionsDiv = document.getElementById('searchSuggestions');
-        let searchTimeout = null;
-
-        // Function to fetch suggestions
-        function fetchSuggestions(query) {
-            if (query.length < 2) {
-                searchSuggestionsDiv.style.display = 'none';
-                return;
-            }
-
-            // Assuming a Django URL for AJAX suggestions: /products/search/suggest/?q=...
-            const suggestUrl = `{% url 'products:search' %}?q=${encodeURIComponent(query)}`;
-
-            $.ajax({
-                url: suggestUrl,
-                method: 'GET',
-                success: function(data) {
-                    let html = '';
-                    if (data.suggestions && data.suggestions.length > 0) {
-                        data.suggestions.forEach(item => {
-                            // Example item structure: { name: 'Product Name', url: '/product/slug/' }
-                            html += `<a href="${item.url}" class="suggestion-item block text-gray-700 hover:text-blue-600">
-                                <i class="fas fa-arrow-right text-xs mr-2"></i>${item.name}
-                            </a>`;
-                        });
-                    } else {
-                        html = '<div class="suggestion-item text-gray-500 italic">No suggestions found.</div>';
-                    }
-                    searchSuggestionsDiv.innerHTML = html;
-                    searchSuggestionsDiv.style.display = 'block';
-                },
-                error: function() {
-                    searchSuggestionsDiv.style.display = 'none';
-                }
-            });
-        }
-
-        // Input event listener for debounced suggestions
-        if (searchInput) {
-            searchInput.addEventListener('input', function() {
-                clearTimeout(searchTimeout);
-                const query = this.value.trim();
-
-                if (query.length > 1) {
-                    // Debounce the request to limit server load
-                    searchTimeout = setTimeout(() => {
-                        fetchSuggestions(query);
-                    }, 300);
-                } else {
-                    searchSuggestionsDiv.style.display = 'none';
-                }
-            });
-
-            // Hide suggestions when input is blurred (but not if click on suggestion itself)
-            searchInput.addEventListener('blur', function() {
-                setTimeout(() => {
-                    searchSuggestionsDiv.style.display = 'none';
-                }, 200); // Small delay to allow click on suggestion to register
-            });
-        }
     </script>
 
     {% block extra_js %}{% endblock %}

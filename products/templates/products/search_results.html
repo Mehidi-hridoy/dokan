@@ -5,126 +5,102 @@
 
 {% block content %}
 <div class="container mx-auto px-4 py-8">
-    <!-- Search Header -->
     <div class="mb-8">
-        <h1 class="text-3xl font-bold text-gray-800 mb-2">Search Results</h1>
+        <h1 class="text-3xl font-bold text-gray-900 mb-4">Search Results</h1>
         
         {% if query %}
-        <p class="text-gray-600">
-            Showing results for: <span class="font-semibold">"{{ query }}"</span>
-            {% if products %}
-            - {{ products|length }} product{{ products|length|pluralize }} found
-            {% endif %}
-        </p>
+            <p class="text-lg text-gray-600">
+                Showing results for: <span class="font-semibold">"{{ query }}"</span>
+            </p>
+            <p class="text-sm text-gray-500 mt-2">
+                Found {{ products|length }} product{{ products|length|pluralize }}
+            </p>
+        {% else %}
+            <p class="text-lg text-gray-600">Showing featured products</p>
         {% endif %}
     </div>
 
-    <!-- Results Grid -->
     {% if products %}
-    <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
-        {% for product in products %}
-        <div class="bg-white rounded-xl shadow-md hover:shadow-xl transition duration-300 overflow-hidden border border-gray-100">
-            <!-- Product Image -->
-            <div class="relative overflow-hidden">
-                <a href="{% url 'products:product_detail' product.slug %}">
-                    {% if product.products_image %}
-                    <img src="{{ product.products_image.url }}" alt="{{ product.products_name }}" 
-                         class="w-full h-48 object-cover transition duration-300 hover:scale-105">
-                    {% else %}
-                    <div class="w-full h-48 bg-gray-200 flex items-center justify-center">
-                        <i class="fas fa-image text-gray-400 text-4xl"></i>
-                    </div>
-                    {% endif %}
-                </a>
-                
-                <!-- Discount Badge -->
-                {% if product.discount_percentage > 0 %}
-                <span class="absolute top-3 left-3 bg-red-500 text-white px-2 py-1 rounded-full text-sm font-bold">
-                    -{{ product.discount_percentage }}%
-                </span>
-                {% endif %}
-            </div>
-
-            <!-- Product Info -->
-            <div class="p-4">
-                <h3 class="font-semibold text-lg mb-2">
-                    <a href="{% url 'products:product_detail' product.slug %}" class="text-gray-800 hover:text-blue-600 transition duration-150">
-                        {{ product.products_name }}
-                    </a>
-                </h3>
-                
-                <p class="text-gray-600 text-sm mb-3 line-clamp-2">{{ product.short_description|default:product.description|truncatewords:10 }}</p>
-                
-                <!-- Price -->
-                <div class="flex items-center justify-between mb-3">
-                    <div class="flex items-center space-x-2">
-                        {% if product.discount_percentage > 0 %}
-                        <span class="text-lg font-bold text-gray-900">${{ product.current_price_display }}</span>
-                        <span class="text-sm text-gray-500 line-through">${{ product.base_price }}</span>
+        <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
+            {% for product in products %}
+                <div class="bg-white rounded-lg shadow-md overflow-hidden hover:shadow-lg transition-shadow duration-300">
+                    <a href="{{ product.get_absolute_url }}" class="block">
+                        {% if product.image %}
+                            <img src="{{ product.image.url }}" alt="{{ product.products_name }}" 
+                                 class="w-full h-48 object-cover">
                         {% else %}
-                        <span class="text-lg font-bold text-gray-900">${{ product.base_price }}</span>
+                            <div class="w-full h-48 bg-gray-200 flex items-center justify-center">
+                                <i class="fas fa-cube text-gray-400 text-4xl"></i>
+                            </div>
+                        {% endif %}
+                    </a>
+                    
+                    <div class="p-4">
+                        <h3 class="font-semibold text-lg mb-2">
+                            <a href="{{ product.get_absolute_url }}" class="text-gray-900 hover:text-blue-600">
+                                {{ product.products_name }}
+                            </a>
+                        </h3>
+                        
+                        <p class="text-gray-600 text-sm mb-3 line-clamp-2">
+                            {{ product.short_description|default:product.description|truncatewords:20 }}
+                        </p>
+                        
+                        <div class="flex items-center justify-between">
+                            <div class="flex items-center space-x-2">
+                                {% if product.discount_percentage > 0 %}
+                                    <span class="text-lg font-bold text-green-600">
+                                        ${{ product.sale_price }}
+                                    </span>
+                                    <span class="text-sm text-gray-500 line-through">
+                                        ${{ product.base_price }}
+                                    </span>
+                                    <span class="text-xs bg-red-100 text-red-600 px-2 py-1 rounded">
+                                        -{{ product.discount_percentage }}%
+                                    </span>
+                                {% else %}
+                                    <span class="text-lg font-bold text-gray-900">
+                                        ${{ product.price }}
+                                    </span>
+                                {% endif %}
+                            </div>
+                        </div>
+                        
+                        {% if not product.is_in_stock %}
+                            <span class="inline-block mt-2 text-sm text-red-600 font-medium">
+                                Out of Stock
+                            </span>
                         {% endif %}
                     </div>
                 </div>
-
-                <!-- Quick Actions -->
-                <div class="flex space-x-2">
-                    <a href="{% url 'products:product_detail' product.slug %}" 
-                       class="flex-1 bg-gray-100 text-gray-700 py-2 px-3 rounded-lg text-sm font-semibold hover:bg-gray-200 transition duration-200 text-center">
-                        View Details
+            {% endfor %}
+        </div>
+    {% else %}
+        <div class="text-center py-12">
+            <div class="max-w-md mx-auto">
+                <i class="fas fa-search text-gray-400 text-6xl mb-4"></i>
+                <h3 class="text-xl font-semibold text-gray-900 mb-2">No products found</h3>
+                <p class="text-gray-600 mb-6">
+                    {% if query %}
+                        We couldn't find any products matching "{{ query }}". Try different keywords or browse our categories.
+                    {% else %}
+                        No featured products available at the moment.
+                    {% endif %}
+                </p>
+                <div class="space-x-4">
+                    <a href="{% url 'products:product_list' %}" 
+                       class="bg-blue-600 text-white px-6 py-2 rounded-lg hover:bg-blue-700 transition duration-200">
+                        Browse All Products
                     </a>
-                    <form action="{% url 'orders:add_to_cart' product.slug %}" method="POST" class="add-to-cart-form flex-1">
-                        {% csrf_token %}
-                        <input type="hidden" name="quantity" value="1">
-                        <button type="submit" 
-                                class="w-full bg-blue-600 text-white py-2 px-3 rounded-lg text-sm font-semibold hover:bg-blue-700 transition duration-200 flex items-center justify-center">
-                            <i class="fas fa-shopping-cart mr-1"></i> Add
+                    {% if query %}
+                        <button onclick="window.history.back()" 
+                                class="bg-gray-200 text-gray-700 px-6 py-2 rounded-lg hover:bg-gray-300 transition duration-200">
+                            Go Back
                         </button>
-                    </form>
+                    {% endif %}
                 </div>
             </div>
         </div>
-        {% endfor %}
-    </div>
-    {% else %}
-    <!-- No Results -->
-    <div class="text-center py-16">
-        <i class="fas fa-search text-6xl text-gray-400 mb-6"></i>
-        <h2 class="text-2xl font-bold text-gray-600 mb-4">No products found</h2>
-        <p class="text-gray-500 mb-8 max-w-md mx-auto">
-            We couldn't find any products matching your search. Try different keywords or browse our categories.
-        </p>
-        <div class="space-x-4">
-            <a href="{% url 'products:product_list' %}" class="bg-blue-600 text-white px-6 py-3 rounded-lg font-semibold hover:bg-blue-700">
-                Browse All Products
-            </a>
-            <a href="{% url 'products:home' %}" class="bg-gray-200 text-gray-700 px-6 py-3 rounded-lg font-semibold hover:bg-gray-300">
-                Go Home
-            </a>
-        </div>
-    </div>
-    {% endif %}
-
-    <!-- Search Suggestions -->
-    {% if not products and query %}
-    <div class="mt-12">
-        <h3 class="text-xl font-semibold mb-4 text-gray-800">Search Suggestions</h3>
-        <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-            {% for category in categories|slice:":4" %}
-            <a href="{% url 'products:product_list' %}?category={{ category.slug }}" 
-               class="bg-white rounded-lg p-4 text-center shadow-sm hover:shadow-md transition duration-200 border border-gray-100">
-                {% if category.image %}
-                <img src="{{ category.image.url }}" alt="{{ category.name }}" class="w-12 h-12 mx-auto mb-2 rounded-full object-cover">
-                {% else %}
-                <div class="w-12 h-12 mx-auto mb-2 bg-gray-100 rounded-full flex items-center justify-center">
-                    <i class="fas fa-folder text-gray-400"></i>
-                </div>
-                {% endif %}
-                <h4 class="font-medium text-gray-700">{{ category.name }}</h4>
-            </a>
-            {% endfor %}
-        </div>
-    </div>
     {% endif %}
 </div>
 {% endblock %}

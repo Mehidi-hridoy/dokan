@@ -4,7 +4,7 @@ python manage.py migrate
 python manage.py runserver
 
 git add .
-git commit -m "Updated Dashboard  "
+git commit -m "Updated Search Bar  "
 git push -u origin main
 python manage.py runserver
 
