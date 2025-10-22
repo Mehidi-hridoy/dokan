@@ -4,7 +4,7 @@ python manage.py migrate
 python manage.py runserver
 
 git add .
-git commit -m "Dashboard"
+git commit -m "Dashboard AUth"
 git push origin main
 python manage.py runserver
 

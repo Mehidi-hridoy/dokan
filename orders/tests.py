@@ -7,7 +7,7 @@ git add .
 git commit -m "Updated Search Bar Responsive   "
 git push -u origin main
 python manage.py runserver
-
+ 
 
 
 git add .

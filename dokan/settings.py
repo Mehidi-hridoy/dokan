@@ -92,6 +92,7 @@ INSTALLED_APPS = [
     'corsheaders',
     'django_filters',
     'django_cleanup',
+    'social_django',
 
     # Local apps
     'core',
@@ -108,10 +109,24 @@ INSTALLED_APPS = [
 ]
 AUTH_USER_MODEL = 'users.User'
 
-# # Add these settings
-# LOGIN_REDIRECT_URL = 'products:home'  # Redirect to home after login
-# LOGOUT_REDIRECT_URL = 'products:home'  # Redirect to home after logout
-# LOGIN_URL = 'login'  # URL to redirect to for 
+
+
+# URL Settings
+LOGIN_URL = 'login'
+LOGIN_REDIRECT_URL = 'products:home'
+LOGOUT_REDIRECT_URL = 'products:home'
+SOCIAL_AUTH_LOGIN_REDIRECT_URL = 'products:home'
+SOCIAL_AUTH_NEW_USER_REDIRECT_URL = 'products:home'
+SOCIAL_AUTH_LOGIN_ERROR_URL = 'login'
+
+# Additional Social Auth Settings
+SOCIAL_AUTH_URL_NAMESPACE = 'social'
+SOCIAL_AUTH_GOOGLE_OAUTH2_SCOPE = [
+    'https://www.googleapis.com/auth/userinfo.email',
+    'https://www.googleapis.com/auth/userinfo.profile',
+]
+
+
 
 CKEDITOR_5_UPLOAD_PATH = "uploads/"
 
@@ -154,12 +169,38 @@ MIDDLEWARE = [
     'whitenoise.middleware.WhiteNoiseMiddleware',
     'corsheaders.middleware.CorsMiddleware',
     'django.contrib.sessions.middleware.SessionMiddleware',
+     'social_django.middleware.SocialAuthExceptionMiddleware',
     'django.middleware.common.CommonMiddleware',
     'django.middleware.csrf.CsrfViewMiddleware',
     'django.contrib.auth.middleware.AuthenticationMiddleware',
     'django.contrib.messages.middleware.MessageMiddleware',
     'django.middleware.clickjacking.XFrameOptionsMiddleware',
 ]
+
+# Authentication Backends
+AUTHENTICATION_BACKENDS = (
+    'social_core.backends.google.GoogleOAuth2',
+    'django.contrib.auth.backends.ModelBackend',
+)
+
+# Social Auth Settings
+SOCIAL_AUTH_GOOGLE_OAUTH2_KEY = config('GOOGLE_OAUTH2_KEY', default='')
+SOCIAL_AUTH_GOOGLE_OAUTH2_SECRET = config('GOOGLE_OAUTH2_SECRET', default='')
+
+# Social Auth Pipeline
+SOCIAL_AUTH_PIPELINE = (
+    'social_core.pipeline.social_auth.social_details',
+    'social_core.pipeline.social_auth.social_uid',
+    'social_core.pipeline.social_auth.auth_allowed',
+    'social_core.pipeline.social_auth.social_user',
+    'social_core.pipeline.user.get_username',
+    'social_core.pipeline.user.create_user',
+    'social_core.pipeline.social_auth.associate_user',
+    'social_core.pipeline.social_auth.load_extra_data',
+    'social_core.pipeline.user.user_details',
+    'users.pipeline.update_user_profile',  # Custom pipeline we'll create
+)
+
 
 CORS_ALLOW_ALL_ORIGINS = True
 CORS_ALLOW_CREDENTIALS = True
