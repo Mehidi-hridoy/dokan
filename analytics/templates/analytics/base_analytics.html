@@ -1,0 +1,181 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{% block title %}Analytics Dashboard - Dokan{% endblock %}</title>
+    <link href="https://cdn.jsdelivr.net/npm/tailwindcss@2.2.19/dist/tailwind.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <style>
+        .sidebar {
+            transition: all 0.3s ease;
+        }
+        .sidebar.collapsed {
+            width: 70px;
+        }
+        .sidebar.collapsed .sidebar-text {
+            display: none;
+        }
+        .main-content {
+            transition: all 0.3s ease;
+        }
+        .active-menu {
+            background-color: #3b82f6;
+            color: white;
+        }
+        .active-menu:hover {
+            background-color: #2563eb;
+        }
+    </style>
+    {% block extra_css %}{% endblock %}
+</head>
+<body class="font-inter bg-gray-50">
+    <div class="flex h-screen">
+        <!-- Sidebar -->
+        <div id="sidebar" class="sidebar bg-white shadow-lg w-64 flex flex-col">
+            <!-- Header -->
+            <div class="p-6 border-b border-gray-200">
+                <div class="flex items-center justify-between">
+                    <div class="flex items-center">
+                        <i class="fas fa-chart-bar text-blue-600 text-2xl mr-3"></i>
+                        <h1 class="text-xl font-bold text-gray-800 sidebar-text">Analytics</h1>
+                    </div>
+                    <button onclick="toggleSidebar()" class="lg:hidden text-gray-500 hover:text-gray-700">
+                        <i class="fas fa-times"></i>
+                    </button>
+                </div>
+            </div>
+
+            <!-- Navigation Menu -->
+            <nav class="flex-1 p-4 space-y-2">
+                <a href="{% url 'analytics:dashboard' %}" 
+                   class="flex items-center px-4 py-3 text-gray-700 rounded-lg hover:bg-blue-50 hover:text-blue-600 transition duration-200 {% if request.resolver_match.url_name == 'dashboard' %}active-menu{% endif %}">
+                    <i class="fas fa-tachometer-alt w-6 text-center"></i>
+                    <span class="ml-3 font-medium sidebar-text">Dashboard</span>
+                </a>
+
+                <a href="{% url 'analytics:sales' %}" 
+                   class="flex items-center px-4 py-3 text-gray-700 rounded-lg hover:bg-blue-50 hover:text-blue-600 transition duration-200 {% if request.resolver_match.url_name == 'sales' %}active-menu{% endif %}">
+                    <i class="fas fa-chart-line w-6 text-center"></i>
+                    <span class="ml-3 font-medium sidebar-text">Sales Analytics</span>
+                </a>
+
+                <a href="{% url 'analytics:orders' %}" 
+                   class="flex items-center px-4 py-3 text-gray-700 rounded-lg hover:bg-blue-50 hover:text-blue-600 transition duration-200 {% if request.resolver_match.url_name == 'orders' %}active-menu{% endif %}">
+                    <i class="fas fa-shopping-bag w-6 text-center"></i>
+                    <span class="ml-3 font-medium sidebar-text">Orders</span>
+                </a>
+
+                <a href="{% url 'analytics:inventory' %}" 
+                   class="flex items-center px-4 py-3 text-gray-700 rounded-lg hover:bg-blue-50 hover:text-blue-600 transition duration-200 {% if request.resolver_match.url_name == 'inventory' %}active-menu{% endif %}">
+                    <i class="fas fa-boxes w-6 text-center"></i>
+                    <span class="ml-3 font-medium sidebar-text">Inventory</span>
+                </a>
+
+                <a href="{% url 'analytics:products' %}" 
+                   class="flex items-center px-4 py-3 text-gray-700 rounded-lg hover:bg-blue-50 hover:text-blue-600 transition duration-200 {% if request.resolver_match.url_name == 'products' %}active-menu{% endif %}">
+                    <i class="fas fa-cube w-6 text-center"></i>
+                    <span class="ml-3 font-medium sidebar-text">Products</span>
+                </a>
+
+                <a href="{% url 'analytics:revenue' %}" 
+                   class="flex items-center px-4 py-3 text-gray-700 rounded-lg hover:bg-blue-50 hover:text-blue-600 transition duration-200 {% if request.resolver_match.url_name == 'revenue' %}active-menu{% endif %}">
+                    <i class="fas fa-money-bill-wave w-6 text-center"></i>
+                    <span class="ml-3 font-medium sidebar-text">Revenue</span>
+                </a>
+
+                <a href="{% url 'analytics:customer_list' %}" 
+                   class="flex items-center px-4 py-3 text-gray-700 rounded-lg hover:bg-blue-50 hover:text-blue-600 transition duration-200 {% if request.resolver_match.url_name == 'customer_list' %}active-menu{% endif %}">
+                    <i class="fas fa-users w-6 text-center"></i>
+                    <span class="ml-3 font-medium sidebar-text">Customers</span>
+                </a>
+            </nav>
+
+            <!-- Footer -->
+            <div class="p-4 border-t border-gray-200">
+                <a href="{% url 'products:home' %}" 
+                   class="flex items-center px-4 py-3 text-gray-700 rounded-lg hover:bg-gray-100 transition duration-200">
+                    <i class="fas fa-arrow-left w-6 text-center"></i>
+                    <span class="ml-3 font-medium sidebar-text">Back to Store</span>
+                </a>
+            </div>
+        </div>
+
+        <!-- Main Content -->
+        <div class="main-content flex-1 flex flex-col overflow-hidden">
+            <!-- Top Bar -->
+            <header class="bg-white shadow-sm border-b border-gray-200">
+                <div class="flex items-center justify-between p-4">
+                    <div class="flex items-center">
+                        <button onclick="toggleSidebar()" class="lg:hidden text-gray-500 hover:text-gray-700 mr-4">
+                            <i class="fas fa-bars text-xl"></i>
+                        </button>
+                        <h2 class="text-lg font-semibold text-gray-800">
+                            {% block page_title %}Analytics Dashboard{% endblock %}
+                        </h2>
+                    </div>
+                    
+                    <div class="flex items-center space-x-4">
+                        <div class="text-sm text-gray-600">
+                            <i class="fas fa-user mr-2"></i>
+                            {{ request.user.username }}
+                        </div>
+                        <a href="{% url 'logout' %}" class="text-gray-500 hover:text-gray-700">
+                            <i class="fas fa-sign-out-alt"></i>
+                        </a>
+                    </div>
+                </div>
+            </header>
+
+            <!-- Page Content -->
+            <main class="flex-1 overflow-y-auto p-6">
+                {% block content %}
+                {% endblock %}
+            </main>
+        </div>
+    </div>
+
+    <script>
+        function toggleSidebar() {
+            const sidebar = document.getElementById('sidebar');
+            const isMobile = window.innerWidth < 1024;
+            
+            if (isMobile) {
+                sidebar.classList.toggle('hidden');
+            } else {
+                sidebar.classList.toggle('collapsed');
+            }
+        }
+
+        // Close sidebar on mobile when clicking outside
+        document.addEventListener('click', function(e) {
+            const sidebar = document.getElementById('sidebar');
+            const isMobile = window.innerWidth < 1024;
+            
+            if (isMobile && !sidebar.contains(e.target) && !e.target.closest('button[onclick="toggleSidebar()"]')) {
+                sidebar.classList.add('hidden');
+            }
+        });
+
+        // Handle window resize
+        window.addEventListener('resize', function() {
+            const sidebar = document.getElementById('sidebar');
+            if (window.innerWidth >= 1024) {
+                sidebar.classList.remove('hidden');
+            }
+        });
+
+        // Auto-hide sidebar on mobile on page load
+        document.addEventListener('DOMContentLoaded', function() {
+            if (window.innerWidth < 1024) {
+                document.getElementById('sidebar').classList.add('hidden');
+            }
+        });
+    </script>
+
+    {% block extra_js %}{% endblock %}
+</body>
+</html>
