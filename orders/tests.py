@@ -4,7 +4,7 @@ python manage.py migrate
 python manage.py runserver
 
 git add .
-git commit -m "Updated Search Bar  "
+git commit -m "Updated Search Bar Responsive   "
 git push -u origin main
 python manage.py runserver
 

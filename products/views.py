@@ -324,6 +324,9 @@ def search(request):
     for product in products:
         product.color_choices = product._meta.get_field('color').choices if hasattr(product, 'color') and product.color else []
         product.size_choices = product._meta.get_field('size').choices if hasattr(product, 'size') and product.size else []
+        
+        # Add main image for template display
+        product.main_image_url = get_product_main_image(product)
 
     # Cart handling
     if request.user.is_authenticated:
@@ -344,6 +347,33 @@ def search(request):
     }
     return render(request, 'products/search_results.html', context)
 
+# Helper function to get main product image
+def get_product_main_image(product):
+    """
+    Get the main image URL for a product, handling different field structures
+    """
+    try:
+        # Method 1: Check images relation
+        if hasattr(product, 'images') and product.images.exists():
+            first_image = product.images.first()
+            if first_image and hasattr(first_image, 'image') and first_image.image:
+                return first_image.image.url
+        
+        # Method 2: Check direct image fields
+        image_fields = ['image', 'main_image', 'thumbnail', 'product_image']
+        for field in image_fields:
+            if hasattr(product, field):
+                field_value = getattr(product, field)
+                if field_value:
+                    return field_value.url
+        
+        # Method 3: Default image
+        return '/static/images/default-product.jpg'
+    except Exception as e:
+        print(f"Error getting image for product {product.id}: {e}")
+        return '/static/images/default-product.jpg'
+
+
 
 def search_suggestions(request):
     """
@@ -352,7 +382,7 @@ def search_suggestions(request):
     query = request.GET.get('q', '').strip()
     suggestions = []
     
-    if len(query) >= 2:  # Only search if query has at least 2 characters
+    if len(query) >= 1:  # Changed to 1 character for immediate feedback
         products = Product.objects.filter(
             Q(products_name__icontains=query) |
             Q(description__icontains=query) |
@@ -363,19 +393,42 @@ def search_suggestions(request):
         )[:8]  # Limit to 8 suggestions
         
         for product in products:
-            # Get the first image or use default
+            # Get the first image from the images relation or use default
             image_url = ''
-            if product.images.exists():
-                image_url = product.images.first().image.url
-            elif product.image:
-                image_url = product.image.url
-            else:
+            try:
+                if product.images.exists():
+                    # Get the first image from the related images
+                    first_image = product.images.first()
+                    if first_image and hasattr(first_image, 'image') and first_image.image:
+                        image_url = first_image.image.url
+                else:
+                    # Try other possible image fields
+                    if hasattr(product, 'main_image') and product.main_image:
+                        image_url = product.main_image.url
+                    elif hasattr(product, 'thumbnail') and product.thumbnail:
+                        image_url = product.thumbnail.url
+                    else:
+                        image_url = '/static/images/default-product.jpg'
+            except Exception as e:
+                # Fallback if any image processing fails
                 image_url = '/static/images/default-product.jpg'
+                print(f"Image error for product {product.id}: {e}")
+            
+            # Get the correct price - handle both sale_price and price fields
+            price = '0.00'
+            if hasattr(product, 'sale_price') and product.sale_price:
+                price = str(product.sale_price)
+            elif hasattr(product, 'price') and product.price:
+                price = str(product.price)
+            elif hasattr(product, 'current_price') and product.current_price:
+                price = str(product.current_price)
+            elif hasattr(product, 'base_price') and product.base_price:
+                price = str(product.base_price)
             
             suggestions.append({
                 'name': product.products_name,
                 'url': product.get_absolute_url(),
-                'price': str(product.sale_price) if product.sale_price else str(product.price),
+                'price': price,
                 'image': image_url
             })
     

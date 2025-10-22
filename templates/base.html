@@ -13,210 +13,420 @@
     <link rel="stylesheet" href="{% static 'products/css/products.css' %}">
     {% block extra_css %}{% endblock %}
     
-    <style>
-        /* Dropdown Styling */
-        .cart-dropdown, .notification-dropdown, .user-menu, .analytics-dropdown{
-            z-index: 1000;
-        }
-        .notification-dropdown {
-            max-height: 400px;
-            overflow-y: auto;
-            width: 300px;
-        }
-        .notification-item {
-            transition: background-color 0.2s;
-        }
-        .notification-item:hover {
-            background-color: #f9fafb;
-        }
-        /* Flying Messages */
-        .flying-message {
-            position: fixed;
-            top: 100px;
-            right: 20px;
-            z-index: 1000;
-            min-width: 300px;
-            transform: translateX(400px);
-            transition: transform 0.3s ease-in-out;
-            box-shadow: 0 4px 12px rgba(0,0,0,0.15);
-        }
-        .flying-message.show {
-            transform: translateX(0);
-        }
-        .flying-message.hide {
-            transform: translateX(400px);
-        }
-        /* Cart Dropdown */
-        .cart-dropdown-content {
-            display: none;
-            width: 320px;
-        }
-        .cart-dropdown-content.show {
-            display: block;
-        }
-        /* User Menu Dropdown */
-        .user-menu {
-            min-width: 200px;
-        }
-        /* Analytics Dropdown */
-        .analytics-dropdown {
-            min-width: 220px;
-        }
-        /* Dropdown Animations */
-        .dropdown-content {
-            opacity: 0;
-            visibility: hidden;
-            transform: translateY(-10px);
-            transition: all 0.3s ease;
-        }
-        .dropdown-content.show {
-            opacity: 1;
-            visibility: visible;
-            transform: translateY(0);
-        }
-        /* Enhanced Search Styling */
-        #searchSuggestions {
+
+    
+<style>
+    /* Dropdown Styling */
+    .cart-dropdown, .notification-dropdown, .user-menu, .analytics-dropdown {
+        z-index: 1000;
+    }
+    .notification-dropdown {
+        max-height: 400px;
+        overflow-y: auto;
+        width: 300px;
+    }
+    .notification-item {
+        transition: background-color 0.2s;
+    }
+    .notification-item:hover {
+        background-color: #f9fafb;
+    }
+    /* Flying Messages */
+    .flying-message {
+        position: fixed;
+        top: 100px;
+        right: 20px;
+        z-index: 1000;
+        min-width: 300px;
+        transform: translateX(400px);
+        transition: transform 0.3s ease-in-out;
+        box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+    }
+    .flying-message.show {
+        transform: translateX(0);
+    }
+    .flying-message.hide {
+        transform: translateX(400px);
+    }
+    /* Cart Dropdown */
+    .cart-dropdown-content {
+        display: none;
+        width: 320px;
+    }
+    .cart-dropdown-content.show {
+        display: block;
+    }
+    /* User Menu Dropdown */
+    .user-menu {
+        min-width: 200px;
+    }
+    /* Analytics Dropdown */
+    .analytics-dropdown {
+        min-width: 220px;
+    }
+    /* Dropdown Animations */
+    .dropdown-content {
+        opacity: 0;
+        visibility: hidden;
+        transform: translateY(-10px);
+        transition: all 0.3s ease;
+    }
+    .dropdown-content.show {
+        opacity: 1;
+        visibility: visible;
+        transform: translateY(0);
+    }
+    /* Cart Badge */
+    .cart-count-badge {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+    }
+    /* Navigation Links */
+    .nav-link {
+        position: relative;
+        transition: all 0.3s ease;
+    }
+    .nav-link:hover {
+        transform: translateY(-2px);
+    }
+    /* Mobile Menu Improvements */
+    .mobile-menu-item {
+        transition: background-color 0.2s ease;
+    }
+    .mobile-menu-item:hover {
+        background-color: #f8fafc;
+    }
+    /* Dropdown Trigger */
+    .dropdown-trigger {
+        cursor: pointer;
+    }
+
+    /* ========== ENHANCED SEARCH STYLING - RESPONSIVE ========== */
+    #searchBar {
+        position: fixed;
+        top: 0;
+        left: 0;
+        right: 0;
+        bottom: 0;
+        background: white;
+        z-index: 1000;
+        opacity: 0;
+        visibility: hidden;
+        transform: translateY(-20px);
+        transition: all 0.3s ease-in-out;
+        overflow-y: auto;
+    }
+
+    #searchBar.show {
+        opacity: 1;
+        visibility: visible;
+        transform: translateY(0);
+    }
+
+    #searchBar.hidden {
+        opacity: 0;
+        visibility: hidden;
+        transform: translateY(-20px);
+    }
+
+    /* Desktop styles */
+    @media (min-width: 1024px) {
+        #searchBar {
             position: absolute;
+            top: 100%;
+            right: 0;
+            left: auto;
+            bottom: auto;
+            width: 28rem; /* Slightly reduced width */
+            background: white;
+            border-radius: 0.5rem;
+            padding: 0.75rem; /* Reduced padding */
+            box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.1), 0 5px 10px -5px rgba(0, 0, 0, 0.04);
+            transform: translateY(-8px) scale(0.98); /* Reduced animation */
+            overflow-y: visible;
+        }
+
+        #searchBar.show {
+            transform: translateY(0) scale(1);
+        }
+
+        #searchBar.hidden {
+            transform: translateY(-8px) scale(0.98);
+        }
+    }
+
+    /* Search Suggestions - Responsive */
+    #searchSuggestions {
+        position: absolute;
+        background: white;
+        border: 1px solid #e5e7eb;
+        border-radius: 0.5rem;
+        max-height: 70vh; /* Reduced height */
+        overflow-y: auto;
+        z-index: 1001;
+        box-shadow: 0 8px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05);
+        opacity: 0;
+        visibility: hidden;
+        transform: translateY(-3px); /* Reduced animation */
+        transition: all 0.15s ease-in-out; /* Faster transition */
+        width: calc(100% - 1.5rem); /* Reduced spacing */
+    }
+
+    #searchSuggestions.show {
+        opacity: 1;
+        visibility: visible;
+        transform: translateY(0);
+    }
+
+    #searchSuggestions.hidden {
+        opacity: 0;
+        visibility: hidden;
+        transform: translateY(-3px);
+    }
+
+    /* Mobile suggestions */
+    @media (max-width: 1023px) {
+        #searchSuggestions {
+            top: 5.5rem; /* Reduced spacing */
+            left: 0.75rem;
+            right: 0.75rem;
+            max-height: 55vh; /* Reduced height */
+        }
+    }
+
+    /* Desktop suggestions */
+    @media (min-width: 1024px) {
+        #searchSuggestions {
             top: 100%;
             left: 0;
             right: 0;
-            background: white;
-            border: 1px solid #e5e7eb;
-            border-top: none;
             border-radius: 0 0 0.5rem 0.5rem;
-            max-height: 320px;
-            overflow-y: auto;
-            z-index: 1000;
-            box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05);
-            display: none;
+            border-top: none;
+            max-height: 350px; /* Reduced height */
         }
+    }
 
-        #searchSuggestions:not(.hidden) {
-            display: block;
+    /* Horizontal layout for suggestions - Responsive */
+    .suggestions-grid {
+        display: grid;
+        gap: 0;
+        max-height: 100%;
+    }
+
+    /* Mobile: 1 column */
+    @media (max-width: 1023px) {
+        .suggestions-grid {
+            grid-template-columns: 1fr;
         }
-
+        
         .search-suggestion-item {
-            padding: 12px;
-            cursor: pointer;
             border-bottom: 1px solid #f3f4f6;
-            transition: all 0.2s ease;
-            text-decoration: none;
-            display: block;
+            border-right: none;
+            padding: 10px 12px; /* Reduced padding */
+            min-height: 65px; /* Reduced height */
         }
-
+        
         .search-suggestion-item:last-child {
             border-bottom: none;
         }
 
-        .search-suggestion-item:hover {
-            background-color: #f8fafc;
-            transform: translateX(2px);
+        .suggestion-image {
+            width: 45px; /* Reduced size */
+            height: 45px;
         }
-/* Enhanced Search Styling */
-#searchBar {
-    position: absolute;
-    top: 100%;
-    right: 0;
-    background: white;
-    shadow-xl;
-    rounded-lg;
-    p-4;
-    z-index: 1000;
-    width: 24rem; /* w-96 equivalent */
-    opacity: 0;
-    visibility: hidden;
-    transform: translateY(-10px) scale(0.95);
-    transition: all 0.3s ease-in-out;
-    transform-origin: top right;
-    box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04);
-}
 
-#searchBar.show {
-    opacity: 1;
-    visibility: visible;
-    transform: translateY(0) scale(1);
-}
-
-#searchBar.hidden {
-    opacity: 0;
-    visibility: hidden;
-    transform: translateY(-10px) scale(0.95);
-}
-
-#searchSuggestions {
-    position: absolute;
-    top: 100%;
-    left: 0;
-    right: 0;
-    background: white;
-    border: 1px solid #e5e7eb;
-    border-top: none;
-    border-radius: 0 0 0.5rem 0.5rem;
-    max-height: 320px;
-    overflow-y: auto;
-    z-index: 1001;
-    box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05);
-    opacity: 0;
-    visibility: hidden;
-    transform: translateY(-5px);
-    transition: all 0.2s ease-in-out;
-}
-
-#searchSuggestions.show {
-    opacity: 1;
-    visibility: visible;
-    transform: translateY(0);
-}
-
-#searchSuggestions.hidden {
-    opacity: 0;
-    visibility: hidden;
-    transform: translateY(-5px);
-}
-
-.search-suggestion-item {
-    padding: 12px;
-    cursor: pointer;
-    border-bottom: 1px solid #f3f4f6;
-    transition: all 0.2s ease;
-    text-decoration: none;
-    display: block;
-}
-
-.search-suggestion-item:last-child {
-    border-bottom: none;
-}
-
-.search-suggestion-item:hover {
-    background-color: #f8fafc;
-    transform: translateX(2px);
-}
-        /* Cart Badge */
-        .cart-count-badge {
-            display: flex;
-            align-items: center;
-            justify-content: center;
+        .suggestion-name {
+            font-size: 14px;
         }
-        /* Navigation Links */
-        .nav-link {
-            position: relative;
-            transition: all 0.3s ease;
+        
+        .suggestion-price {
+            font-size: 14px;
         }
-        .nav-link:hover {
-            transform: translateY(-2px);
+    }
+
+    /* Desktop: 2 columns */
+    @media (min-width: 1024px) {
+        .suggestions-grid {
+            grid-template-columns: 1fr 1fr;
+            max-height: 320px; /* Reduced height */
         }
-        /* Mobile Menu Improvements */
-        .mobile-menu-item {
-            transition: background-color 0.2s ease;
+        
+        .search-suggestion-item {
+            border-bottom: 1px solid #f3f4f6;
+            border-right: 1px solid #f3f4f6;
+            padding: 8px 10px; /* Reduced padding */
+            min-height: 60px; /* Reduced height */
         }
-        .mobile-menu-item:hover {
-            background-color: #f8fafc;
+        
+        .search-suggestion-item:nth-child(2n) {
+            border-right: none;
         }
-        /* Dropdown Trigger */
-        .dropdown-trigger {
-            cursor: pointer;
+        
+        .search-suggestion-item:nth-last-child(-n+2) {
+            border-bottom: none;
         }
-    </style>
+
+        .suggestion-image {
+            width: 40px; /* Reduced size */
+            height: 40px;
+            margin-right: 8px; /* Reduced spacing */
+        }
+
+        .suggestion-name {
+            font-size: 12px; /* Smaller text */
+        }
+        
+        .suggestion-price {
+            font-size: 12px; /* Smaller text */
+        }
+    }
+
+    .search-suggestion-item {
+        cursor: pointer;
+        transition: all 0.1s ease; /* Faster transition */
+        text-decoration: none;
+        display: flex;
+        align-items: center;
+        border-left: 2px solid transparent; /* Thinner border */
+    }
+
+    /* Reduced hover effects */
+    .search-suggestion-item:hover {
+        background-color: #f8fafc;
+        transform: translateX(1px); /* Reduced movement */
+        border-left-color: #3b82f6;
+    }
+
+    .search-suggestion-item.bg-blue-50 {
+        background-color: #eff6ff !important;
+        border-left-color: #3b82f6;
+        transform: translateX(1px); /* Reduced movement */
+    }
+
+    /* Compact layout for suggestions */
+    .suggestion-image {
+        flex-shrink: 0;
+        border-radius: 6px; /* Smaller radius */
+        background-color: #f3f4f6;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        overflow: hidden;
+    }
+
+    .suggestion-image img {
+        width: 100%;
+        height: 100%;
+        object-fit: cover;
+    }
+
+    .suggestion-content {
+        flex: 1;
+        min-width: 0;
+    }
+
+    .suggestion-name {
+        font-weight: 500; /* Reduced weight */
+        color: #1f2937;
+        margin-bottom: 2px; /* Reduced spacing */
+        line-height: 1.2; /* Tighter line height */
+        display: -webkit-box;
+        -webkit-line-clamp: 2;
+        -webkit-box-orient: vertical;
+        overflow: hidden;
+    }
+
+    .suggestion-price {
+        font-weight: 600; /* Reduced weight */
+        color: #059669;
+    }
+
+    .suggestion-arrow {
+        flex-shrink: 0;
+        margin-left: 6px; /* Reduced spacing */
+        color: #9ca3af;
+        transition: color 0.1s ease; /* Faster transition */
+        font-size: 0.75rem; /* Smaller arrow */
+    }
+
+    .search-suggestion-item:hover .suggestion-arrow {
+        color: #3b82f6;
+    }
+
+    /* View all results button - More compact */
+    .view-all-results {
+        padding: 12px; /* Reduced padding */
+        background-color: #f9fafb;
+        border-top: 1px solid #e5e7eb;
+    }
+
+    .view-all-results button {
+        padding: 8px 12px; /* More compact button */
+        font-size: 0.875rem; /* Smaller text */
+    }
+
+    /* Mobile optimizations */
+    @media (max-width: 1023px) {
+        .view-all-results {
+            position: sticky;
+            bottom: 0;
+            background: white;
+            border-top: 1px solid #e5e7eb;
+            padding: 10px; /* Reduced padding */
+        }
+    }
+
+    /* Loading animation */
+    @keyframes spin {
+        to {
+            transform: rotate(360deg);
+        }
+    }
+
+    .fa-spinner {
+        animation: spin 1s linear infinite;
+    }
+
+    /* Smooth scrolling for suggestions */
+    #searchSuggestions {
+        scroll-behavior: smooth;
+    }
+
+    /* Backdrop for mobile */
+    .search-backdrop {
+        position: fixed;
+        top: 0;
+        left: 0;
+        right: 0;
+        bottom: 0;
+        background: rgba(0, 0, 0, 0.5);
+        z-index: 999;
+        opacity: 0;
+        visibility: hidden;
+        transition: all 0.2s ease-in-out; /* Faster transition */
+    }
+
+    .search-backdrop.show {
+        opacity: 1;
+        visibility: visible;
+    }
+
+    /* Search input compact styling */
+    #searchInput {
+        padding: 0.5rem 1rem; /* More compact input */
+        font-size: 0.9rem;
+    }
+
+    /* Search button compact styling */
+    #searchBar button[onclick="performSearch()"] {
+        padding: 0.5rem 1rem; /* More compact button */
+        font-size: 0.9rem;
+    }
+</style>
+
+
+
 </head>
 
 <body class="font-inter bg-gray-50 text-gray-900">
@@ -283,34 +493,68 @@
 
             <div class="flex items-center space-x-3">
                 <!-- Search Section - Updated -->
-<!-- Search Section - Fixed -->
+
+<!-- Search Section - Responsive -->
 <div class="relative">
-    <button onclick="toggleSearch()" class="p-2 hover:bg-blue-500 rounded-full transition duration-200 text-white">
+    <!-- Search Icon - Visible on all screens -->
+    <button onclick="toggleSearch()" class="p-2 hover:bg-blue-500 rounded-full transition duration-200 text-white lg:hidden">
         <i class="fas fa-search"></i>
     </button>
-    <div id="searchBar" class="hidden">
-<div class="flex relative">
-    <input 
-        type="text" 
-        id="searchInput" 
-        name="q" 
-        placeholder="Search products..." 
-        class="flex-1 px-4 py-3 border border-gray-300 rounded-l-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent text-black placeholder-gray-500"
-        autocomplete="off">
     
-    <button 
-        type="button" 
-        onclick="performSearch()" 
-        class="bg-white border border-gray-300 text-black px-6 py-3 rounded-r-lg hover:bg-gray-100 transition duration-200 font-medium flex items-center">
-        <i class="fas fa-search mr-2 text-black"></i>
-        Search
-    </button>
-    
-    <div id="searchSuggestions" class="hidden"></div>
-</div>
+    <!-- Desktop Search Bar (hidden on mobile) -->
+    <div class="hidden lg:block">
+        <button onclick="toggleSearch()" class="p-2 hover:bg-blue-500 rounded-full transition duration-200 text-white">
+            <i class="fas fa-search"></i>
+        </button>
+    </div>
 
+    <!-- Search Dropdown - Enhanced for mobile -->
+    <div id="searchBar" class="hidden fixed lg:absolute inset-0 lg:inset-auto lg:top-12 lg:right-0 bg-white lg:shadow-xl lg:rounded-lg lg:p-4 z-50 w-full lg:w-96">
+        <!-- Mobile Header -->
+        <div class="flex items-center justify-between p-4 border-b lg:hidden bg-blue-600 text-white">
+            <h3 class="text-lg font-semibold">Search Products</h3>
+            <button onclick="toggleSearch()" class="p-2 hover:bg-blue-700 rounded-full transition duration-200">
+                <i class="fas fa-times text-xl"></i>
+            </button>
+        </div>
+
+        <!-- Search Input Container -->
+        <div class="p-4 lg:p-0">
+            <div class="flex relative">
+                <!-- Search Input -->
+                <input type="text" id="searchInput" name="q" placeholder="Search products..." 
+                        class="flex-1 px-4 py-3 lg:py-3 border border-gray-300 rounded-l-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent text-base lg:text-sm"
+                        autocomplete="off">
+                
+                <!-- Search Button -->
+                <button type="button" onclick="performSearch()" class="bg-blue-600 text-white px-4 lg:px-6 py-3 rounded-r-lg hover:bg-blue-700 transition duration-200 font-medium whitespace-nowrap">
+                    <span class="lg:hidden">Search</span>
+                    <span class="hidden lg:inline"><i class="fas fa-search mr-2"></i>Search</span>
+                </button>
+
+                <!-- Mobile Close Button inside input (optional) -->
+                <button onclick="toggleSearch()" class="lg:hidden absolute right-20 top-1/2 transform -translate-y-1/2 text-gray-500 hover:text-gray-700 p-1">
+                    <i class="fas fa-times"></i>
+                </button>
+            </div>
+
+            <!-- Search Suggestions -->
+            <div id="searchSuggestions" class="absolute lg:top-full top-24 lg:top-full left-4 lg:left-0 right-4 lg:right-0 bg-white border border-gray-200 rounded-lg lg:rounded-b-lg mt-2 lg:mt-1 shadow-xl max-h-80 lg:max-h-80 overflow-y-auto z-50 hidden"></div>
+        </div>
+
+        <!-- Mobile Recent Searches/Quick Links (Optional) -->
+        <div class="lg:hidden p-4 border-t bg-gray-50">
+            <h4 class="text-sm font-semibold text-gray-700 mb-3">Popular Categories</h4>
+            <div class="flex flex-wrap gap-2">
+                <button onclick="quickSearch('shoes')" class="bg-white border border-gray-300 px-3 py-2 rounded-lg text-sm text-gray-700 hover:bg-gray-100 transition duration-150">Shoes</button>
+                <button onclick="quickSearch('clothing')" class="bg-white border border-gray-300 px-3 py-2 rounded-lg text-sm text-gray-700 hover:bg-gray-100 transition duration-150">Clothing</button>
+                <button onclick="quickSearch('electronics')" class="bg-white border border-gray-300 px-3 py-2 rounded-lg text-sm text-gray-700 hover:bg-gray-100 transition duration-150">Electronics</button>
+                <button onclick="quickSearch('sports')" class="bg-white border border-gray-300 px-3 py-2 rounded-lg text-sm text-gray-700 hover:bg-gray-100 transition duration-150">Sports</button>
+            </div>
+        </div>
     </div>
 </div>
+
 
                 <div class="relative">
                     <button onclick="toggleNotifications()" class="flex items-center space-x-2 p-2 hover:bg-blue-500 rounded-lg transition duration-200 text-white relative">
@@ -446,27 +690,30 @@
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
     <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
 
-    <script>
-        // Function to get CSRF token (Required for POST requests)
-        function getCookie(name) {
-            let cookieValue = null;
-            if (document.cookie && document.cookie !== '') {
-                const cookies = document.cookie.split(';');
-                for (let i = 0; i < cookies.length; i++) {
-                    let cookie = cookies[i].trim();
-                    if (cookie.substring(0, name.length + 1) === (name + '=')) {
-                        cookieValue = decodeURIComponent(cookie.substring(name.length + 1));
-                        break;
-                    }
-                }
+    
+<script>
+    // Function to get CSRF token (Required for POST requests)
+function getCookie(name) {
+    let cookieValue = null;
+    if (document.cookie && document.cookie !== '') {
+        const cookies = document.cookie.split(';');
+        for (let i = 0; i < cookies.length; i++) {
+            let cookie = cookies[i].trim();
+            if (cookie.substring(0, name.length + 1) === (name + '=')) {
+                cookieValue = decodeURIComponent(cookie.substring(name.length + 1));
+                break;
             }
-            return cookieValue;
         }
-        const csrftoken = getCookie('csrftoken');
-        
-// Enhanced Search Functionality
+    }
+    return cookieValue;
+}
+const csrftoken = getCookie('csrftoken');
+
+// Enhanced Search Functionality - Mobile Responsive
 let searchTimeout = null;
 let isSearchOpen = false;
+let currentSuggestions = [];
+let selectedSuggestionIndex = -1;
 
 function toggleSearch() {
     const searchBar = document.getElementById('searchBar');
@@ -482,6 +729,15 @@ function toggleSearch() {
         setTimeout(() => {
             searchBar.classList.add('show');
             isSearchOpen = true;
+            
+            // Add backdrop for mobile
+            if (window.innerWidth < 1024) {
+                const backdrop = document.createElement('div');
+                backdrop.className = 'search-backdrop';
+                backdrop.onclick = toggleSearch;
+                document.body.appendChild(backdrop);
+                setTimeout(() => backdrop.classList.add('show'), 10);
+            }
         }, 10);
         
         // Focus on search input when opened
@@ -492,11 +748,22 @@ function toggleSearch() {
                 searchInput.value = ''; // Clear previous search
             }
             hideSuggestions();
+            resetSelection();
         }, 100);
     } else {
         // Hide search bar
         searchBar.classList.remove('show');
         isSearchOpen = false;
+        
+        // Remove backdrop for mobile
+        if (window.innerWidth < 1024) {
+            const backdrop = document.querySelector('.search-backdrop');
+            if (backdrop) {
+                backdrop.classList.remove('show');
+                setTimeout(() => backdrop.remove(), 300);
+            }
+        }
+        
         // Wait for animation to complete before hiding
         setTimeout(() => {
             if (!isSearchOpen) {
@@ -504,7 +771,16 @@ function toggleSearch() {
             }
         }, 300);
         hideSuggestions();
+        resetSelection();
     }
+}
+
+// Quick search function for mobile quick links
+function quickSearch(term) {
+    const searchInput = document.getElementById('searchInput');
+    searchInput.value = term;
+    searchInput.focus();
+    fetchSuggestions(term);
 }
 
 function performSearch() {
@@ -526,11 +802,13 @@ function hideSuggestions() {
     setTimeout(() => {
         searchSuggestionsDiv.classList.add('hidden');
         searchSuggestionsDiv.innerHTML = '';
+        resetSelection();
     }, 200);
 }
 
 function showSuggestions(suggestions) {
     const searchSuggestionsDiv = document.getElementById('searchSuggestions');
+    currentSuggestions = suggestions;
     
     if (suggestions.length === 0) {
         searchSuggestionsDiv.innerHTML = `
@@ -539,33 +817,43 @@ function showSuggestions(suggestions) {
             </div>
         `;
     } else {
-        let html = '';
-        suggestions.forEach(item => {
+        const isMobile = window.innerWidth < 1024;
+        
+        let html = `<div class="suggestions-grid">`;
+        
+        suggestions.forEach((item, index) => {
+            const isSelected = index === selectedSuggestionIndex;
             html += `
-            <a href="${item.url}" class="flex items-center p-3 hover:bg-blue-50 border-b border-gray-100 transition-colors duration-150 group search-suggestion-item">
-                <div class="flex-shrink-0 w-10 h-10 bg-gray-200 rounded-lg flex items-center justify-center mr-3">
-                    ${item.image && item.image !== '/static/images/default-product.jpg' ? 
-                        `<img src="${item.image}" alt="${item.name}" class="w-10 h-10 object-cover rounded-lg">` :
-                        `<i class="fas fa-cube text-gray-400"></i>`
-                    }
-                </div>
-                <div class="flex-1 min-w-0">
-                    <p class="text-sm font-medium text-gray-900 truncate group-hover:text-blue-600">${item.name}</p>
-                    <p class="text-sm text-green-600 font-semibold">$${item.price}</p>
-                </div>
-                <i class="fas fa-chevron-right text-gray-400 group-hover:text-blue-600 ml-2"></i>
-            </a>`;
+                <a href="${item.url}" class="search-suggestion-item ${isSelected ? 'bg-blue-50 border-blue-200' : 'hover:bg-blue-50'}" 
+                   data-index="${index}"
+                   onmouseenter="setSelectedSuggestion(${index})">
+                    <div class="suggestion-image">
+                        ${item.image && item.image !== '/static/images/default-product.jpg' ? 
+                            `<img src="${item.image}" alt="${item.name}" class="suggestion-img">` :
+                            `<i class="fas fa-cube text-gray-400 text-lg"></i>`
+                        }
+                    </div>
+                    <div class="suggestion-content">
+                        <div class="suggestion-name">${item.name}</div>
+                        <div class="suggestion-price">$${item.price}</div>
+                    </div>
+                    <div class="suggestion-arrow">
+                        <i class="fas fa-chevron-right text-sm ${isSelected ? 'text-blue-600' : ''}"></i>
+                    </div>
+                </a>
+            `;
         });
         
         // Add "View all results" link
         const searchInput = document.getElementById('searchInput');
         const query = searchInput.value.trim();
         html += `
-        <div class="p-3 bg-gray-50 border-t border-gray-200">
-            <button onclick="performSearch()" class="w-full text-center text-blue-600 hover:text-blue-700 font-medium text-sm py-2 bg-white rounded border border-blue-200 hover:border-blue-300 transition-colors duration-150">
-                <i class="fas fa-list mr-2"></i>View all ${suggestions.length}+ results
-            </button>
-        </div>`;
+            <div class="view-all-results" style="grid-column: 1 / -1;">
+                <button onclick="performSearch()" class="w-full text-center text-blue-600 hover:text-blue-700 font-medium text-sm py-3 bg-white rounded-lg border border-blue-200 hover:border-blue-300 transition-colors duration-150 hover:shadow-sm">
+                    <i class="fas fa-list mr-2"></i>View all ${suggestions.length} results for "${query}"
+                </button>
+            </div>
+        </div>`; // Close suggestions-grid
         
         searchSuggestionsDiv.innerHTML = html;
     }
@@ -578,9 +866,23 @@ function showSuggestions(suggestions) {
 }
 
 function fetchSuggestions(query) {
-    if (query.length < 2) {
+    if (query.length < 1) {
         hideSuggestions();
         return;
+    }
+
+    // Show loading state for very short queries
+    if (query.length === 1) {
+        const searchSuggestionsDiv = document.getElementById('searchSuggestions');
+        searchSuggestionsDiv.innerHTML = `
+            <div class="p-4 text-center text-gray-500">
+                <i class="fas fa-spinner fa-spin mr-2"></i>Loading suggestions...
+            </div>
+        `;
+        searchSuggestionsDiv.classList.remove('hidden');
+        setTimeout(() => {
+            searchSuggestionsDiv.classList.add('show');
+        }, 10);
     }
 
     // Use the new AJAX suggestions URL
@@ -598,6 +900,59 @@ function fetchSuggestions(query) {
     });
 }
 
+function setSelectedSuggestion(index) {
+    selectedSuggestionIndex = index;
+    updateSuggestionSelection();
+}
+
+function resetSelection() {
+    selectedSuggestionIndex = -1;
+    currentSuggestions = [];
+}
+
+function updateSuggestionSelection() {
+    const suggestions = document.querySelectorAll('.search-suggestion-item');
+    suggestions.forEach((suggestion, index) => {
+        if (index === selectedSuggestionIndex) {
+            suggestion.classList.add('bg-blue-50', 'border-blue-200');
+            const nameElement = suggestion.querySelector('.suggestion-name');
+            const arrowElement = suggestion.querySelector('.fa-chevron-right');
+            if (nameElement) nameElement.classList.add('text-blue-600');
+            if (arrowElement) arrowElement.classList.add('text-blue-600');
+        } else {
+            suggestion.classList.remove('bg-blue-50', 'border-blue-200');
+            const nameElement = suggestion.querySelector('.suggestion-name');
+            const arrowElement = suggestion.querySelector('.fa-chevron-right');
+            if (nameElement) nameElement.classList.remove('text-blue-600');
+            if (arrowElement) arrowElement.classList.remove('text-blue-600');
+        }
+    });
+}
+
+function navigateSuggestions(direction) {
+    if (currentSuggestions.length === 0) return;
+
+    if (direction === 'down') {
+        selectedSuggestionIndex = (selectedSuggestionIndex + 1) % currentSuggestions.length;
+    } else if (direction === 'up') {
+        selectedSuggestionIndex = selectedSuggestionIndex <= 0 ? currentSuggestions.length - 1 : selectedSuggestionIndex - 1;
+    }
+    
+    updateSuggestionSelection();
+    
+    // Scroll selected item into view
+    const selectedElement = document.querySelector(`.search-suggestion-item[data-index="${selectedSuggestionIndex}"]`);
+    if (selectedElement) {
+        selectedElement.scrollIntoView({ block: 'nearest' });
+    }
+}
+
+function selectCurrentSuggestion() {
+    if (selectedSuggestionIndex >= 0 && currentSuggestions[selectedSuggestionIndex]) {
+        window.location.href = currentSuggestions[selectedSuggestionIndex].url;
+    }
+}
+
 // Close search when clicking outside
 function handleClickOutside(event) {
     const searchBar = document.getElementById('searchBar');
@@ -613,9 +968,28 @@ function handleClickOutside(event) {
                 }
             }, 300);
             hideSuggestions();
+            resetSelection();
         }
     }
 }
+
+// Handle window resize
+window.addEventListener('resize', function() {
+    if (isSearchOpen && window.innerWidth >= 1024) {
+        // Remove backdrop when switching to desktop
+        const backdrop = document.querySelector('.search-backdrop');
+        if (backdrop) {
+            backdrop.remove();
+        }
+    }
+});
+
+// Close search on escape key
+document.addEventListener('keydown', function(e) {
+    if (e.key === 'Escape' && isSearchOpen) {
+        toggleSearch();
+    }
+});
 
 // Initialize search functionality when DOM is loaded
 document.addEventListener('DOMContentLoaded', function() {
@@ -625,23 +999,54 @@ document.addEventListener('DOMContentLoaded', function() {
     document.addEventListener('click', handleClickOutside);
 
     if (searchInput) {
-        // Input event for real-time suggestions
+        // Input event for real-time suggestions - more responsive
         searchInput.addEventListener('input', function() {
             clearTimeout(searchTimeout);
             const query = this.value.trim();
+            resetSelection();
 
-            if (query.length > 1) {
+            if (query.length >= 1) {
+                // Faster response for shorter queries
+                const delay = query.length <= 2 ? 200 : 150;
                 searchTimeout = setTimeout(() => {
                     fetchSuggestions(query);
-                }, 300);
+                }, delay);
             } else {
                 hideSuggestions();
             }
         });
 
-        // Enter key to search
+        // Keyboard navigation
+        searchInput.addEventListener('keydown', function(e) {
+            if (!isSearchOpen) return;
+
+            switch(e.key) {
+                case 'ArrowDown':
+                    e.preventDefault();
+                    navigateSuggestions('down');
+                    break;
+                case 'ArrowUp':
+                    e.preventDefault();
+                    navigateSuggestions('up');
+                    break;
+                case 'Enter':
+                    e.preventDefault();
+                    if (selectedSuggestionIndex >= 0) {
+                        selectCurrentSuggestion();
+                    } else {
+                        performSearch();
+                    }
+                    break;
+                case 'Escape':
+                    hideSuggestions();
+                    resetSelection();
+                    break;
+            }
+        });
+
+        // Enter key to search (when no selection)
         searchInput.addEventListener('keypress', function(e) {
-            if (e.key === 'Enter') {
+            if (e.key === 'Enter' && selectedSuggestionIndex === -1) {
                 e.preventDefault();
                 performSearch();
             }
@@ -650,7 +1055,7 @@ document.addEventListener('DOMContentLoaded', function() {
         // Show suggestions when input is focused and has content
         searchInput.addEventListener('focus', function() {
             const query = this.value.trim();
-            if (query.length > 1) {
+            if (query.length >= 1) {
                 fetchSuggestions(query);
             }
         });
@@ -660,6 +1065,8 @@ document.addEventListener('DOMContentLoaded', function() {
         if (searchSuggestionsDiv) {
             searchSuggestionsDiv.addEventListener('click', function(e) {
                 e.stopPropagation();
+                // Reset selection when clicking a suggestion
+                resetSelection();
             });
         }
     }
@@ -687,209 +1094,258 @@ function closeAllDropdowns() {
         }, 300);
     }
     hideSuggestions();
-} 
-        // Enhanced Cart Functionality
-        function loadCartDropdown() {
-            $.ajax({
-                url: "{% url 'orders:cart_dropdown_content' %}",
-                method: "GET",
-                success: function(data) {
-                    $('#cartDropdownContent').html(data);
-                    const cartCount = $(data).find('#cart-count-value').val() || 0; 
-                    $('#cart-count-badge').text(cartCount);
-                },
-                error: function() {
-                    $('#cartDropdownContent').html(
-                        '<div class="p-6 text-center text-red-600">' +
-                        '<i class="fas fa-exclamation-triangle text-2xl mb-2"></i>' +
-                        '<p class="text-sm">Error loading cart</p>' +
-                        '</div>'
-                    );
-                }
-            });
-        }
+    resetSelection();
+}
 
-        function toggleCart() {
-            const dropdown = document.getElementById('cartDropdownContent');
-            const isVisible = !dropdown.classList.contains('d-none');
-            
-            closeAllDropdowns();
-            
-            if (!isVisible) {
-                dropdown.classList.remove('d-none', 'hidden');
-                dropdown.classList.add('show');
-                loadCartDropdown();
+// Rest of your existing functions (toggleNotifications, toggleUserMenu, etc.)
+function toggleNotifications() {
+    const dropdown = document.getElementById('notificationDropdown');
+    const isVisible = !dropdown.classList.contains('hidden');
+    
+    closeAllDropdowns();
+    
+    if (!isVisible) {
+        dropdown.classList.remove('hidden');
+    } else {
+        dropdown.classList.add('hidden');
+    }
+}
+
+function toggleUserMenu() {
+    const userMenu = document.getElementById('userMenu');
+    const isVisible = userMenu.classList.contains('show');
+    
+    closeAllDropdowns();
+    
+    if (!isVisible) {
+        userMenu.classList.add('show');
+    } else {
+        userMenu.classList.remove('show');
+    }
+}
+
+function toggleAnalyticsMenu() {
+    const analyticsMenu = document.querySelector('#analyticsDropdown .analytics-dropdown');
+    const isVisible = analyticsMenu.classList.contains('show');
+    
+    closeAllDropdowns();
+    
+    if (!isVisible) {
+        analyticsMenu.classList.add('show');
+    } else {
+        analyticsMenu.classList.remove('show');
+    }
+}
+
+function toggleMobileMenu() {
+    const menu = document.getElementById('mobileMenu');
+    menu.classList.toggle('hidden');
+}
+
+// Enhanced Cart Functionality
+function loadCartDropdown() {
+    $.ajax({
+        url: "{% url 'orders:cart_dropdown_content' %}",
+        method: "GET",
+        success: function(data) {
+            $('#cartDropdownContent').html(data);
+            const cartCount = $(data).find('#cart-count-value').val() || 0; 
+            $('#cart-count-badge').text(cartCount);
+        },
+        error: function() {
+            $('#cartDropdownContent').html(
+                '<div class="p-6 text-center text-red-600">' +
+                '<i class="fas fa-exclamation-triangle text-2xl mb-2"></i>' +
+                '<p class="text-sm">Error loading cart</p>' +
+                '</div>'
+            );
+        }
+    });
+}
+
+function toggleCart() {
+    const dropdown = document.getElementById('cartDropdownContent');
+    const isVisible = !dropdown.classList.contains('d-none');
+    
+    closeAllDropdowns();
+    
+    if (!isVisible) {
+        dropdown.classList.remove('d-none', 'hidden');
+        dropdown.classList.add('show');
+        loadCartDropdown();
+    } else {
+        dropdown.classList.add('d-none', 'hidden');
+        dropdown.classList.remove('show');
+    }
+}
+
+// --- FIX: AJAX Cart Item Removal ---
+$(document).on('click', '.remove-cart-item-ajax', function(e) {
+    e.preventDefault();
+
+    const $button = $(this);
+    const itemId = $button.data('item-id');
+    const removeUrl = $button.data('remove-url');
+    const $cartItemContainer = $button.closest('.cart-item-row'); 
+
+    if (!itemId || !removeUrl) {
+        showFlyingMessage('Error: Missing item details for removal.', 'error');
+        return;
+    }
+
+    $button.prop('disabled', true).html('<i class="fas fa-spinner fa-spin"></i>');
+
+    $.ajax({
+        type: 'POST',
+        url: removeUrl,
+        data: {
+            'item_id': itemId,
+            'csrfmiddlewaretoken': csrftoken
+        },
+        dataType: 'json',
+        headers: {
+            'X-Requested-With': 'XMLHttpRequest'
+        },
+        success: function(response) {
+            if (response.success) {
+                $cartItemContainer.slideUp(300, function() {
+                    $(this).remove();
+                    loadCartDropdown(); 
+                });
+                $('#cart-count-badge').text(response.new_cart_count || 0);
+                showFlyingMessage(response.message || 'Item removed from cart.', 'success');
             } else {
-                dropdown.classList.add('d-none', 'hidden');
-                dropdown.classList.remove('show');
+                showFlyingMessage(response.message || 'Error removing item.', 'error');
+                $button.prop('disabled', false).html('<i class="fas fa-trash-alt"></i>');
             }
+        },
+        error: function(xhr, status, error) {
+            showFlyingMessage('A server error occurred during removal.', 'error');
+            $button.prop('disabled', false).html('<i class="fas fa-trash-alt"></i>');
         }
+    });
+});
 
-        // --- FIX: AJAX Cart Item Removal ---
-        $(document).on('click', '.remove-cart-item-ajax', function(e) {
-            e.preventDefault();
-
-            const $button = $(this);
-            const itemId = $button.data('item-id');
-            const removeUrl = $button.data('remove-url');
-            const $cartItemContainer = $button.closest('.cart-item-row'); 
-
-            if (!itemId || !removeUrl) {
-                showFlyingMessage('Error: Missing item details for removal.', 'error');
-                return;
-            }
-
-            $button.prop('disabled', true).html('<i class="fas fa-spinner fa-spin"></i>');
-
-            $.ajax({
-                type: 'POST',
-                url: removeUrl,
-                data: {
-                    'item_id': itemId,
-                    'csrfmiddlewaretoken': csrftoken
-                },
-                dataType: 'json',
-                headers: {
-                    'X-Requested-With': 'XMLHttpRequest'
-                },
-                success: function(response) {
-                    if (response.success) {
-                        $cartItemContainer.slideUp(300, function() {
-                            $(this).remove();
-                            loadCartDropdown(); 
-                        });
-                        $('#cart-count-badge').text(response.new_cart_count || 0);
-                        showFlyingMessage(response.message || 'Item removed from cart.', 'success');
-                    } else {
-                        showFlyingMessage(response.message || 'Error removing item.', 'error');
-                        $button.prop('disabled', false).html('<i class="fas fa-trash-alt"></i>');
-                    }
-                },
-                error: function(xhr, status, error) {
-                    showFlyingMessage('A server error occurred during removal.', 'error');
-                    $button.prop('disabled', false).html('<i class="fas fa-trash-alt"></i>');
-                }
-            });
+// Event Listeners for Dropdowns
+document.addEventListener('DOMContentLoaded', function() {
+    // Analytics dropdown
+    const analyticsTrigger = document.querySelector('#analyticsDropdown .dropdown-trigger');
+    if (analyticsTrigger) {
+        analyticsTrigger.addEventListener('click', function(e) {
+            e.stopPropagation();
+            toggleAnalyticsMenu();
         });
+    }
 
-        // Event Listeners for Dropdowns
-        document.addEventListener('DOMContentLoaded', function() {
-            // Analytics dropdown
-            const analyticsTrigger = document.querySelector('#analyticsDropdown .dropdown-trigger');
-            if (analyticsTrigger) {
-                analyticsTrigger.addEventListener('click', function(e) {
-                    e.stopPropagation();
-                    toggleAnalyticsMenu();
-                });
-            }
-
-            // User dropdown
-            const userTrigger = document.querySelector('#userDropdown button');
-            if (userTrigger) {
-                userTrigger.addEventListener('click', function(e) {
-                    e.stopPropagation();
-                    toggleUserMenu();
-                });
-            }
-
-            // Close dropdowns when clicking outside
-            document.addEventListener('click', function(e) {
-                if (!e.target.closest('#analyticsDropdown') && !e.target.closest('#userDropdown') && 
-                    !e.target.closest('#cartDropdown') && !e.target.closest('#searchBar') && 
-                    !e.target.closest('#notificationDropdown')) {
-                    closeAllDropdowns();
-                }
-            });
-
-            // Prevent dropdown close when clicking inside dropdown
-            document.querySelectorAll('.dropdown-content').forEach(dropdown => {
-                dropdown.addEventListener('click', function(e) {
-                    e.stopPropagation();
-                });
-            });
+    // User dropdown
+    const userTrigger = document.querySelector('#userDropdown button');
+    if (userTrigger) {
+        userTrigger.addEventListener('click', function(e) {
+            e.stopPropagation();
+            toggleUserMenu();
         });
+    }
 
-        // Enhanced Add to Cart with better UX
-        $(document).on('submit', '.add-to-cart-form', function(e) {
-            e.preventDefault();
-            const $form = $(this);
-            const $button = $form.find('button[type="submit"]');
-            const originalText = $button.html();
-            
-            $button.prop('disabled', true).html('<i class="fas fa-spinner fa-spin mr-2"></i>Adding...');
+    // Close dropdowns when clicking outside
+    document.addEventListener('click', function(e) {
+        if (!e.target.closest('#analyticsDropdown') && !e.target.closest('#userDropdown') && 
+            !e.target.closest('#cartDropdown') && !e.target.closest('#searchBar') && 
+            !e.target.closest('#notificationDropdown')) {
+            closeAllDropdowns();
+        }
+    });
 
-            $.ajax({
-                url: $form.attr('action'),
-                method: 'POST',
-                data: $form.serialize(),
-                headers: {
-                    'X-Requested-With': 'XMLHttpRequest'
-                },
-                success: function(data) {
-                    if (data.success) {
-                        $('#cart-count-badge').text(data.cart_count || 0);
-                        showFlyingMessage(data.message || 'Product added to cart!', 'success');
-                        $(document).trigger('cart-updated', data);
-                        
-                        if (!$('#cartDropdownContent').hasClass('d-none')) {
-                            loadCartDropdown();
-                        }
-                        
-                        $button.html('<i class="fas fa-check mr-2"></i>Added!')
-                               .removeClass('bg-blue-600 hover:bg-blue-700')
-                               .addClass('bg-green-600');
-                        
-                        setTimeout(() => {
-                            $button.html(originalText)
-                                   .removeClass('bg-green-600')
-                                   .addClass('bg-blue-600 hover:bg-blue-700')
-                                   .prop('disabled', false);
-                        }, 2000);
-                    } else {
-                        showFlyingMessage(data.message || 'Please Select Color and Size', 'error');
-                        $button.html(originalText).prop('disabled', false);
-                    }
-                },
-                error: function(xhr, status, error) {
-                    showFlyingMessage('Error adding product to cart. Please try again.', 'error');
-                    $button.html(originalText).prop('disabled', false);
-                }
-            });
+    // Prevent dropdown close when clicking inside dropdown
+    document.querySelectorAll('.dropdown-content').forEach(dropdown => {
+        dropdown.addEventListener('click', function(e) {
+            e.stopPropagation();
         });
+    });
+});
 
-        // Enhanced flying message function
-        function showFlyingMessage(message, type = 'success') {
-            const messageId = 'msg-' + Date.now();
-            const bgColor = type === 'success' ? 'bg-green-500' : 'bg-red-500';
-            const icon = type === 'success' ? 'fa-check-circle' : 'fa-exclamation-triangle';
-            
-            const messageHtml = `
-                <div id="${messageId}" class="flying-message show ${bgColor} text-white p-4 rounded-lg shadow-lg">
-                    <div class="flex items-center justify-between">
-                        <div class="flex items-center">
-                            <i class="fas ${icon} mr-3 text-lg"></i>
-                            <span class="font-medium">${message}</span>
-                        </div>
-                        <button type="button" class="ml-4 text-white hover:text-gray-200 focus:outline-none transition-colors duration-150" onclick="closeFlyingMessage('${messageId}')">
-                            <i class="fas fa-times"></i>
-                        </button>
-                    </div>
+// Enhanced Add to Cart with better UX
+$(document).on('submit', '.add-to-cart-form', function(e) {
+    e.preventDefault();
+    const $form = $(this);
+    const $button = $form.find('button[type="submit"]');
+    const originalText = $button.html();
+    
+    $button.prop('disabled', true).html('<i class="fas fa-spinner fa-spin mr-2"></i>Adding...');
+
+    $.ajax({
+        url: $form.attr('action'),
+        method: 'POST',
+        data: $form.serialize(),
+        headers: {
+            'X-Requested-With': 'XMLHttpRequest'
+        },
+        success: function(data) {
+            if (data.success) {
+                $('#cart-count-badge').text(data.cart_count || 0);
+                showFlyingMessage(data.message || 'Product added to cart!', 'success');
+                $(document).trigger('cart-updated', data);
+                
+                if (!$('#cartDropdownContent').hasClass('d-none')) {
+                    loadCartDropdown();
+                }
+                
+                $button.html('<i class="fas fa-check mr-2"></i>Added!')
+                       .removeClass('bg-blue-600 hover:bg-blue-700')
+                       .addClass('bg-green-600');
+                
+                setTimeout(() => {
+                    $button.html(originalText)
+                           .removeClass('bg-green-600')
+                           .addClass('bg-blue-600 hover:bg-blue-700')
+                           .prop('disabled', false);
+                }, 2000);
+            } else {
+                showFlyingMessage(data.message || 'Please Select Color and Size', 'error');
+                $button.html(originalText).prop('disabled', false);
+            }
+        },
+        error: function(xhr, status, error) {
+            showFlyingMessage('Error adding product to cart. Please try again.', 'error');
+            $button.html(originalText).prop('disabled', false);
+        }
+    });
+});
+
+// Enhanced flying message function
+function showFlyingMessage(message, type = 'success') {
+    const messageId = 'msg-' + Date.now();
+    const bgColor = type === 'success' ? 'bg-green-500' : 'bg-red-500';
+    const icon = type === 'success' ? 'fa-check-circle' : 'fa-exclamation-triangle';
+    
+    const messageHtml = `
+        <div id="${messageId}" class="flying-message show ${bgColor} text-white p-4 rounded-lg shadow-lg">
+            <div class="flex items-center justify-between">
+                <div class="flex items-center">
+                    <i class="fas ${icon} mr-3 text-lg"></i>
+                    <span class="font-medium">${message}</span>
                 </div>
-            `;
-            
-            $('#messageContainer').append(messageHtml);
-            
-            setTimeout(() => {
-                closeFlyingMessage(messageId);
-            }, 5000);
-        }
+                <button type="button" class="ml-4 text-white hover:text-gray-200 focus:outline-none transition-colors duration-150" onclick="closeFlyingMessage('${messageId}')">
+                    <i class="fas fa-times"></i>
+                </button>
+            </div>
+        </div>
+    `;
+    
+    $('#messageContainer').append(messageHtml);
+    
+    setTimeout(() => {
+        closeFlyingMessage(messageId);
+    }, 5000);
+}
 
-        function closeFlyingMessage(messageId) {
-            $(`#${messageId}`).fadeOut(300, function() {
-                $(this).remove();
-            });
-        }
-    </script>
+function closeFlyingMessage(messageId) {
+    $(`#${messageId}`).fadeOut(300, function() {
+        $(this).remove();
+    });
+}
+</script>
+
+    
 
     {% block extra_js %}{% endblock %}
 </body>
