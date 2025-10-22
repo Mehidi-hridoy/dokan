@@ -13,7 +13,9 @@ urlpatterns = [
     path('analytics/', include('analytics.urls', namespace='analytics')),
     path('login/', auth_views.LoginView.as_view( template_name='users/login.html', redirect_authenticated_user=True ), name='login'),
     path('logout/', auth_views.LogoutView.as_view( next_page='products:home' ), name='logout'),
-        path('oauth/', include('social_django.urls', namespace='social')),
+    path('oauth/', include('social_django.urls', namespace='social')),
+    path('accounts/', include('allauth.urls')),
+
 
 ]
 

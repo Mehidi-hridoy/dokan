@@ -35,6 +35,35 @@ SIMPLE_JWT = {
 
 # Site & admin
 SITE_ID = 1
+
+
+# Allauth settings
+ACCOUNT_EMAIL_REQUIRED = True
+ACCOUNT_USERNAME_REQUIRED = False
+ACCOUNT_AUTHENTICATION_METHOD = 'email'
+ACCOUNT_EMAIL_VERIFICATION = 'optional'
+LOGIN_REDIRECT_URL = 'products:home'
+
+# Social account settings
+SOCIALACCOUNT_PROVIDERS = {
+    'google': {
+        'SCOPE': [
+            'profile',
+            'email',
+        ],
+        'AUTH_PARAMS': {
+            'access_type': 'online',
+        },
+        'APP': {
+            'client_id': config('GOOGLE_OAUTH2_KEY', default=''),
+            'secret': config('GOOGLE_OAUTH2_SECRET', default=''),
+            'key': ''
+        }
+    }
+}
+
+
+
 DOKAN_VERSION = "2.01"
 ADMIN_SITE_HEADER = "Dokan Administration"
 ADMIN_SITE_TITLE = "Dokan Admin Portal"
@@ -92,6 +121,11 @@ INSTALLED_APPS = [
     'corsheaders',
     'django_filters',
     'django_cleanup',
+        'django.contrib.sites',
+    'allauth',
+    'allauth.account',
+    'allauth.socialaccount',
+    'allauth.socialaccount.providers.google',
     'social_django',
 
     # Local apps
@@ -125,6 +159,13 @@ SOCIAL_AUTH_GOOGLE_OAUTH2_SCOPE = [
     'https://www.googleapis.com/auth/userinfo.email',
     'https://www.googleapis.com/auth/userinfo.profile',
 ]
+
+
+SOCIAL_AUTH_GOOGLE_OAUTH2_REDIRECT_URI = 'http://localhost:8000/oauth/complete/google-oauth2/'
+
+# Additional settings to ensure proper redirect
+SOCIAL_AUTH_GOOGLE_OAUTH2_USE_UNIQUE_USER_ID = True
+SOCIAL_AUTH_GOOGLE_OAUTH2_EXTRA_DATA = ['first_name', 'last_name']
 
 
 
@@ -170,6 +211,7 @@ MIDDLEWARE = [
     'corsheaders.middleware.CorsMiddleware',
     'django.contrib.sessions.middleware.SessionMiddleware',
      'social_django.middleware.SocialAuthExceptionMiddleware',
+         'allauth.account.middleware.AccountMiddleware',  # 👈 ADD THIS LINE
     'django.middleware.common.CommonMiddleware',
     'django.middleware.csrf.CsrfViewMiddleware',
     'django.contrib.auth.middleware.AuthenticationMiddleware',
@@ -200,6 +242,12 @@ SOCIAL_AUTH_PIPELINE = (
     'social_core.pipeline.user.user_details',
     'users.pipeline.update_user_profile',  # Custom pipeline we'll create
 )
+
+if DEBUG:
+    os.environ['OAUTHLIB_INSECURE_TRANSPORT'] = '1'
+
+# In settings.py - temporary debug
+SOCIAL_AUTH_GOOGLE_OAUTH2_WHITELISTED_DOMAINS = ['gmail.com']
 
 
 CORS_ALLOW_ALL_ORIGINS = True
