@@ -4,7 +4,7 @@ python manage.py migrate
 python manage.py runserver
 
 git add .
-git commit -m "Dashboard AUth"
+git commit -m "Dashboard User Dropdown"
 git push origin main
 python manage.py runserver
 
@@ -24,6 +24,7 @@ python manage.py createsuperuser
 
 
 """
+
 from orders.models import Order, OrderItem
 from products.models import Product
 from analytics.models import Customer

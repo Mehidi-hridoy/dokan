@@ -40,6 +40,7 @@ python manage.py createsuperuser
 
 
 """
+
 from orders.models import Order, OrderItem
 from products.models import Product
 from analytics.models import Customer
@@ -89,6 +90,7 @@ print("5 orders with order items created successfully!")
 """
 
 """
+
 from products.models import Product
 from store.models import Category, Brand
 from users.models import User

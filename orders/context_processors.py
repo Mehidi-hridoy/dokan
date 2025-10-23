@@ -1,4 +1,3 @@
-# Assuming 'your_app' is where you place this file (e.g., 'orders')
 
 def cart_count_processor(request):
     """Adds the total item count in the cart to the context."""
