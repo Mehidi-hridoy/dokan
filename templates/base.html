@@ -16,19 +16,8 @@
 
 <style>
     /* Dropdown Styling */
-    .cart-dropdown, .notification-dropdown, .user-menu, .analytics-dropdown {
+    .cart-dropdown, .user-menu {
         z-index: 1000;
-    }
-    .notification-dropdown {
-        max-height: 400px;
-        overflow-y: auto;
-        width: 300px;
-    }
-    .notification-item {
-        transition: background-color 0.2s;
-    }
-    .notification-item:hover {
-        background-color: #f9fafb;
     }
     /* Flying Messages */
     .flying-message {
@@ -75,16 +64,10 @@
     /* Specific widths */
     #userMenu { min-width: 200px; right: 0; top: 100%; }
     #cartDropdownContent { width: 320px; right: 0; top: 100%; }
-    #notificationDropdown { width: 300px; right: 0; top: 100%; max-height: 400px; overflow-y: auto; }
-    .analytics-dropdown { min-width: 220px; left: 0; top: 100%; }
 
 
 
 
-    /* Analytics Dropdown */
-    .analytics-dropdown {
-        min-width: 220px;
-    }
     /* Dropdown Animations */
     .dropdown-content {
         opacity: 0;
@@ -561,22 +544,6 @@
 
     
 </div>
-                <div class="relative">
-                    <button onclick="toggleUserMenu()" class="flex items-center space-x-2 p-2 hover:bg-blue-500 rounded-lg transition duration-200 text-white relative">
-                        <i class="fas fa-bell"></i>
-                        {% if messages %}
-                            <span class="absolute -top-1 -right-1 bg-red-500 text-white rounded-full w-5 h-5 flex items-center justify-center text-xs font-bold">
-                                {{ messages|length }}
-                            </span>
-                        {% endif %}
-                    </button>
-                    <div id="notificationDropdown" class="absolute top-12 right-0 bg-white text-gray-800 shadow-2xl rounded-lg notification-dropdown hidden border border-gray-200">
-                        <div class="p-4">
-                            <h3 class="font-semibold text-lg border-b pb-2 mb-3 text-gray-900">Notifications</h3>
-                            {% include 'includes/message.html' %}
-                        </div>
-                    </div>
-                </div>
 <div class="relative" id="cartDropdown">
     <button onclick="toggleCart()" class="flex items-center space-x-2 p-2 hover:bg-blue-500 rounded-lg transition duration-200 text-white relative">
         <i class="fas fa-shopping-cart"></i>
@@ -1070,7 +1037,7 @@ function closeAllDropdowns() {
     document.querySelectorAll('.dropdown-content').forEach(el => {
         el.classList.remove('show');
     });
-    document.querySelectorAll('#notificationDropdown, .cart-dropdown-content').forEach(el => {
+    document.querySelectorAll('.cart-dropdown-content').forEach(el => {
         el.classList.add('hidden', 'd-none');
     });
     
@@ -1089,19 +1056,6 @@ function closeAllDropdowns() {
     resetSelection();
 }
 
-// Rest of your existing functions (toggleNotifications, toggleUserMenu, etc.)
-function toggleNotifications() {
-    const dropdown = document.getElementById('notificationDropdown');
-    const isVisible = !dropdown.classList.contains('hidden');
-    
-    closeAllDropdowns();
-    
-    if (!isVisible) {
-        dropdown.classList.remove('hidden');
-    } else {
-        dropdown.classList.add('hidden');
-    }
-}
 
 function toggleUserMenu() {
     const userMenu = document.getElementById('userMenu');
@@ -1128,7 +1082,7 @@ function closeAllDropdowns() {
     }
     
     // Close other dropdowns
-    document.querySelectorAll('#notificationDropdown, .cart-dropdown-content').forEach(el => {
+    document.querySelectorAll(' .cart-dropdown-content').forEach(el => {
         el.classList.add('hidden', 'd-none');
     });
     
@@ -1159,18 +1113,6 @@ document.addEventListener('click', function(e) {
         }
     }
 });
-function toggleAnalyticsMenu() {
-    const analyticsMenu = document.querySelector('#analyticsDropdown .analytics-dropdown');
-    const isVisible = analyticsMenu.classList.contains('show');
-    
-    closeAllDropdowns();
-    
-    if (!isVisible) {
-        analyticsMenu.classList.add('show');
-    } else {
-        analyticsMenu.classList.remove('show');
-    }
-}
 
 function toggleMobileMenu() {
     const menu = document.getElementById('mobileMenu');
@@ -1263,14 +1205,7 @@ $(document).on('click', '.remove-cart-item-ajax', function(e) {
 
 // Event Listeners for Dropdowns
 document.addEventListener('DOMContentLoaded', function() {
-    // Analytics dropdown
-    const analyticsTrigger = document.querySelector('#analyticsDropdown .dropdown-trigger');
-    if (analyticsTrigger) {
-        analyticsTrigger.addEventListener('click', function(e) {
-            e.stopPropagation();
-            toggleAnalyticsMenu();
-        });
-    }
+
 
     // User dropdown
     const userTrigger = document.querySelector('#userDropdown button');
@@ -1283,9 +1218,7 @@ document.addEventListener('DOMContentLoaded', function() {
 
     // Close dropdowns when clicking outside
     document.addEventListener('click', function(e) {
-        if (!e.target.closest('#analyticsDropdown') && !e.target.closest('#userDropdown') && 
-            !e.target.closest('#cartDropdown') && !e.target.closest('#searchBar') && 
-            !e.target.closest('#notificationDropdown')) {
+        if (!e.target.closest('#cartDropdown') && !e.target.closest('#searchBar')) {
             closeAllDropdowns();
         }
     });

@@ -1,10 +1,14 @@
 """
+
+demouser
+Demo@1234
+
 python manage.py makemigrations 
 python manage.py migrate
 python manage.py runserver
 
 git add .
-git commit -m " User Profile Updated"
+git commit -m " Admin Updated"
 git push origin main
 python manage.py runserver
 
