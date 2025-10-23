@@ -4,7 +4,7 @@ python manage.py migrate
 python manage.py runserver
 
 git add .
-git commit -m "Dashboard User Dropdown"
+git commit -m " User Profile Updated"
 git push origin main
 python manage.py runserver
 

@@ -1,24 +1,22 @@
 # products/views.py
+
 from decimal import Decimal
 from typing import List, Tuple, Dict, Any
-from django.db.models import Count
-from .models import Product, Review,  COLOR_CHOICES, SIZE_CHOICES
-from django.shortcuts import render, get_object_or_404,redirect
+from datetime import timedelta
+
+from django.shortcuts import render, get_object_or_404, redirect
 from django.http import JsonResponse
-from django.db.models import Q, Avg
+from django.db.models import Q, Avg, Count, Exists, OuterRef
 from django.contrib.auth.decorators import login_required
 from django.contrib import messages
 from django.views.generic import ListView, DetailView
-
-from products.models import Product, Review
-from store.models import Category, Brand
-from decimal import Decimal
-from orders.models import OrderItem
 from django.utils import timezone
-from datetime import timedelta
-from django.db.models import Avg
+
+from .models import Product, Review, COLOR_CHOICES, SIZE_CHOICES
 from .utils import calculate_discount
-from django.db.models import Exists, OuterRef
+from store.models import Category, Brand
+from orders.models import OrderItem
+
 
 
 def _get_session_cart(request) -> Tuple[List[Dict[str, Any]], Decimal]:

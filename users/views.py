@@ -3,6 +3,11 @@ from django.contrib.auth import login, authenticate
 from django.contrib import messages
 from django.contrib.auth.decorators import login_required
 from .forms import CustomUserCreationForm
+from orders.models import Order, OrderItem
+from products.models import Product
+from django.db.models import Sum, Count, Q
+from datetime import datetime, timedelta
+from django.utils import timezone
 
 def register(request):
     if request.method == 'POST':
@@ -34,6 +39,54 @@ def login_view(request):
     
     return render(request, 'users/login.html')
 
+
+
+
 @login_required
 def profile(request):
-    return render(request, 'users/profile.html')
+    customer = request.user
+    
+    # Get customer order history
+    orders = Order.objects.filter(user=customer).order_by('-created_at')
+    
+    # Calculate total spent (only confirmed orders) - using 'total' field
+    total_spent = (
+        orders.filter(order_status='confirmed')
+        .aggregate(total=Sum('total'))['total'] or 0
+    )
+    
+    order_count = orders.count()
+
+    # Favorite products
+    favorite_products = (
+        Product.objects.filter(order_items__order__user=customer)
+        .annotate(
+            purchase_count=Sum(
+                'order_items__quantity',
+                filter=Q(order_items__order__order_status='confirmed')
+            )
+        )
+        .order_by('-purchase_count')[:5]
+    )
+
+    # Recent orders (last 30 days)
+    last_30_days = timezone.now().date() - timedelta(days=30)
+    recent_orders = orders.filter(created_at__gte=last_30_days)
+    
+    # Order status breakdown
+    status_breakdown = orders.values('order_status').annotate(
+        count=Count('id')
+    ).order_by('-count')
+
+    context = {
+        'customer': customer,
+        'orders': orders,
+        'total_spent': total_spent,
+        'order_count': order_count,
+        'favorite_products': favorite_products,
+        'recent_orders': recent_orders,
+        'status_breakdown': status_breakdown,
+    }
+    
+    return render(request, 'users/profile.html', context)
+

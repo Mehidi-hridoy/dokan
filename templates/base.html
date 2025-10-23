@@ -47,35 +47,40 @@
     .flying-message.hide {
         transform: translateX(400px);
     }
-    /* Cart Dropdown */
-    .cart-dropdown-content {
-        display: none;
-        width: 320px;
-    }
-    .cart-dropdown-content.show {
-        display: block;
-    }
+
     /* User Menu Dropdown */
-.user-menu {
-    display: none;
-    position: absolute;
-    top: 100%;
-    right: 0;
-    background: white;
-    border: 1px solid #e5e7eb;
-    border-radius: 0.5rem;
-    box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.1);
-    z-index: 1000;
-    min-width: 200px;
-}
 
-.user-menu.show {
-    display: block;
-}
+    /* Unified Dropdown Styling */
+    .dropdown-menu {
+        display: none;
+        position: absolute;
+        background: white;
+        border: 1px solid #e5e7eb;
+        border-radius: 0.5rem;
+        box-shadow: 0 10px 25px -5px rgba(0,0,0,0.1);
+        z-index: 1000;
+        opacity: 0;
+        visibility: hidden;
+        transform: translateY(-10px);
+        transition: all 0.3s ease;
+    }
 
-.user-menu.hidden {
-    display: none;
-}
+    .dropdown-menu.show {
+        display: block;
+        opacity: 1;
+        visibility: visible;
+        transform: translateY(0);
+    }
+
+    /* Specific widths */
+    #userMenu { min-width: 200px; right: 0; top: 100%; }
+    #cartDropdownContent { width: 320px; right: 0; top: 100%; }
+    #notificationDropdown { width: 300px; right: 0; top: 100%; max-height: 400px; overflow-y: auto; }
+    .analytics-dropdown { min-width: 220px; left: 0; top: 100%; }
+
+
+
+
     /* Analytics Dropdown */
     .analytics-dropdown {
         min-width: 220px;
@@ -502,24 +507,15 @@
                 <a href="{% url 'products:home' %}" class="nav-link px-4 py-2 rounded-lg text-white hover:bg-blue-500 transition-all duration-200 no-underline font-medium">
                     <i class="fas fa-home mr-2"></i>Home
                 </a>
-                
-                {% if request.user.is_authenticated and request.user.is_staff %}
-                <div class="relative" id="analyticsDropdown">
-                    <button class="dropdown-trigger nav-link px-4 py-2 rounded-lg text-white hover:bg-blue-500 transition-all duration-200 font-medium flex items-center">
-                        <i class="fas fa-chart-bar mr-2"></i>Analytics
-                        <i class="fas fa-chevron-down ml-1 text-sm"></i>
-                    </button>
-                    <div class="analytics-dropdown absolute top-full left-0 mt-1 bg-white rounded-lg shadow-xl border border-gray-200 dropdown-content">
-                        <a href="{% url 'analytics:dashboard' %}" class="block px-4 py-3 text-gray-700 hover:bg-blue-50 hover:text-blue-600 transition-colors duration-150 border-b border-gray-100">
-                            <i class="fas fa-tachometer-alt mr-2"></i>Dashboard
-                        </a>
-                    </div>
-                </div>
-                {% endif %}
-
                 <a href="{% url 'products:product_list' %}" class="nav-link px-4 py-2 rounded-lg text-white hover:bg-blue-500 transition-all duration-200 no-underline font-medium">
                     <i class="fas fa-shopping-bag mr-2"></i>Shop
+                </a> 
+                {% if request.user.is_authenticated and request.user.is_staff %}
+                <a href="{% url 'analytics:dashboard' %}" 
+                class="nav-link px-4 py-2 rounded-lg text-white hover:bg-blue-500 transition-all duration-200 font-medium flex items-center">
+                    <i class="fas fa-tachometer-alt mr-2"></i>Dashboard
                 </a>
+                {% endif %}
             </div>
 
             <div class="flex items-center space-x-3">
@@ -581,38 +577,37 @@
                         </div>
                     </div>
                 </div>
+<div class="relative" id="cartDropdown">
+    <button onclick="toggleCart()" class="flex items-center space-x-2 p-2 hover:bg-blue-500 rounded-lg transition duration-200 text-white relative">
+        <i class="fas fa-shopping-cart"></i>
+        <span id="cart-count-badge" class="absolute -top-1 -right-1 bg-red-500 text-white rounded-full w-5 h-5 flex items-center justify-center text-xs font-bold">
+            {{ cart_count|default:0 }}
+        </span>
+    </button>
+    <div id="cartDropdownContent" class="dropdown-menu"></div>
+</div>
 
-                <div class="relative" id="cartDropdown">
-                    <button onclick="toggleCart()" class="flex items-center space-x-2 p-2 hover:bg-blue-500 rounded-lg transition duration-200 text-white relative">
-                        <i class="fas fa-shopping-cart"></i>
-                        <span id="cart-count-badge" class="absolute -top-1 -right-1 bg-red-500 text-white rounded-full w-5 h-5 flex items-center justify-center text-xs font-bold cart-count-badge">
-                            {{ cart_count|default:0 }}
-                        </span>
-                    </button>
-                    <div id="cartDropdownContent" class="absolute top-12 right-0 bg-white text-gray-800 shadow-2xl rounded-lg cart-dropdown-content d-none border border-gray-200"></div>
-                </div>
+
 {% if request.user.is_authenticated %}
     <div class="relative" id="userDropdown">
         <button onclick="toggleUserMenu()" class="flex items-center space-x-2 p-2 hover:bg-blue-500 rounded-lg transition duration-200 text-white">
-            <div class="w-8 h-8 bg-blue-400 rounded-full flex items-center justify-center text-white font-semibold text-sm">
-                {{ request.user.username|first|upper }}
-            </div>
-            <span class="font-medium">{{ request.user.username }}</span>
-            <i class="fas fa-chevron-down text-sm"></i>
-        </button>
-        <div id="userMenu" class="user-menu hidden">
+                <div class="w-8 h-8 bg-blue-400 rounded-full flex items-center justify-center text-white font-semibold text-sm">
+                    {{ request.user.username|first|upper }}
+                </div>
+                <span class="font-medium hidden lg:inline">{{ request.user.username }}</span>
+                <i class="fas fa-chevron-down text-sm"></i>
+            </button>
+            <div id="userMenu" class="dropdown-menu">
             <div class="px-4 py-2 border-b border-gray-100">
                 <p class="text-sm font-semibold text-gray-900">Hello, {{ request.user.username }}</p>
                 <p class="text-xs text-gray-500">{{ request.user.email }}</p>
             </div>
+            <a href="{% url 'users:profile' %}" class="block px-4 py-3 hover:bg-blue-50 transition duration-150 text-gray-700">
+                <i class="fas fa-history mr-3 text-gray-400"></i>Profiile
+            </a>
             <a href="{% url 'orders:order_history' %}" class="block px-4 py-3 hover:bg-blue-50 transition duration-150 text-gray-700">
                 <i class="fas fa-history mr-3 text-gray-400"></i>Order History
             </a>
-            {% if request.user.is_staff %}
-            <a href="{% url 'analytics:dashboard' %}" class="block px-4 py-3 hover:bg-blue-50 transition duration-150 text-gray-700">
-                <i class="fas fa-chart-bar mr-3 text-gray-400"></i>Analytics Dashboard
-            </a>
-            {% endif %}
             <div class="border-t border-gray-100 mt-2 pt-2">
                 <form method="POST" action="{% url 'logout' %}" class="block">
                     {% csrf_token %}

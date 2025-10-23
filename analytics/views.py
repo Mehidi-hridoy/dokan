@@ -762,3 +762,6 @@ class CustomerDetailView(DetailView):
         context['recent_orders'] = context['orders'].filter(created_at__gte=last_30_days)
 
         return context
+    
+
+    
