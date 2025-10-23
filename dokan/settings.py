@@ -64,9 +64,8 @@ SOCIALACCOUNT_PROVIDERS = {
 
 
 DOKAN_VERSION = "2.01"
-ADMIN_SITE_HEADER = "Dokan Administration"
-ADMIN_SITE_TITLE = "Dokan Admin Portal"
-ADMIN_INDEX_TITLE = "Welcome to Dokan Admin Panel"
+
+
 
 # REST Framework
 REST_FRAMEWORK = {
@@ -268,8 +267,7 @@ TEMPLATES = [
                 'django.contrib.auth.context_processors.auth',
                 'django.contrib.messages.context_processors.messages',
                 'orders.context_processors.cart_count_processor',
-                # 'users.context_processors.user_orders',
-
+                'core.context_processors.admin_dashboard_data',
             ],
         },
     },

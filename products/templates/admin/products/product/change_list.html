@@ -1,0 +1,116 @@
+<!-- products/templates/admin/products/product/change_list.html -->
+{% extends "admin/change_list.html" %}
+{% load i18n %}
+
+{% block content %}
+<div id="content-main">
+
+<!-- Quick Filters & Actions -->
+<div class="module" style="background: white; border-radius: 12px; padding: 20px; margin-bottom: 25px; box-shadow: 0 2px 8px rgba(0,0,0,0.08);">
+    <div style="display: flex; justify-content: between; align-items: center; margin-bottom: 20px;">
+        <h2 style="margin: 0; color: #4361ee;">📦 Product Management</h2>
+        <a href="{% url 'admin:products_product_add' %}" class="button" style="background: #4361ee;">
+            ➕ Add Product
+        </a>
+    </div>
+
+    <!-- Quick Filters -->
+    <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 15px; margin-bottom: 20px;">
+        <div>
+            <label style="display: block; margin-bottom: 8px; font-weight: 600; color: #495057;">Status</label>
+            <select onchange="window.location.href=this.value" style="width: 100%; padding: 10px; border: 1px solid #e0e0e0; border-radius: 8px;">
+                <option value="?">All Status</option>
+                <option value="?is_active__exact=1" {% if request.GET.is_active == '1' %}selected{% endif %}>Active</option>
+                <option value="?is_active__exact=0" {% if request.GET.is_active == '0' %}selected{% endif %}>Inactive</option>
+            </select>
+        </div>
+        
+        <div>
+            <label style="display: block; margin-bottom: 8px; font-weight: 600; color: #495057;">Featured</label>
+            <select onchange="window.location.href=this.value" style="width: 100%; padding: 10px; border: 1px solid #e0e0e0; border-radius: 8px;">
+                <option value="?">All Products</option>
+                <option value="?is_featured__exact=1" {% if request.GET.is_featured == '1' %}selected{% endif %}>Featured Only</option>
+            </select>
+        </div>
+        
+        <div>
+            <label style="display: block; margin-bottom: 8px; font-weight: 600; color: #495057;">Stock Status</label>
+            <select onchange="window.location.href=this.value" style="width: 100%; padding: 10px; border: 1px solid #e0e0e0; border-radius: 8px;">
+                <option value="?">All Stock</option>
+                <option value="?stock_status=low">Low Stock</option>
+                <option value="?stock_status=out">Out of Stock</option>
+            </select>
+        </div>
+        
+        <div>
+            <label style="display: block; margin-bottom: 8px; font-weight: 600; color: #495057;">Quick Actions</label>
+            <select onchange="if(this.value) window.location.href=this.value" style="width: 100%; padding: 10px; border: 1px solid #e0e0e0; border-radius: 8px;">
+                <option value="">Actions...</option>
+                <option value="{% url 'admin:products_product_quick_add' %}">Quick Add Product</option>
+                <option value="?is_active__exact=1">View Active</option>
+                <option value="?is_featured__exact=1">View Featured</option>
+            </select>
+        </div>
+    </div>
+
+    <!-- Stats -->
+    <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(120px, 1fr)); gap: 15px; background: #f8f9ff; padding: 15px; border-radius: 8px;">
+        <div style="text-align: center;">
+            <div style="font-size: 1.5em; font-weight: bold; color: #4361ee;">{{ cl.result_list|length }}</div>
+            <div style="font-size: 0.8em; color: #666;">Showing</div>
+        </div>
+        <div style="text-align: center;">
+            <div style="font-size: 1.5em; font-weight: bold; color: #28a745;">{{ cl.result_count }}</div>
+            <div style="font-size: 0.8em; color: #666;">Total</div>
+        </div>
+    </div>
+</div>
+
+{{ block.super }}
+
+</div>
+
+<style>
+/* Enhanced table styling */
+#changelist table thead th {
+    position: sticky;
+    top: 0;
+    background: #4361ee !important;
+    color: white;
+    font-weight: 600;
+}
+
+#changelist table tbody tr {
+    transition: background-color 0.2s ease;
+}
+
+#changelist table tbody tr:hover {
+    background-color: #f8f9ff !important;
+}
+
+/* Make action dropdowns more visible */
+.object-tools {
+    margin-bottom: 20px;
+}
+
+.object-tools li {
+    background: #4361ee;
+    border-radius: 6px;
+}
+
+.object-tools li:hover {
+    background: #3a0ca3;
+}
+
+/* Responsive table */
+@media (max-width: 768px) {
+    .module {
+        padding: 15px;
+    }
+    
+    #changelist table {
+        font-size: 14px;
+    }
+}
+</style>
+{% endblock %}

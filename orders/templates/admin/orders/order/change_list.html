@@ -1,0 +1,85 @@
+<!-- orders/templates/admin/orders/order/change_list.html -->
+{% extends "admin/change_list.html" %}
+{% load i18n %}
+
+{% block content %}
+<div id="content-main">
+
+<!-- Order Management Header -->
+<div class="module" style="background: white; border-radius: 12px; padding: 25px; margin-bottom: 25px; box-shadow: 0 2px 8px rgba(0,0,0,0.08);">
+    <div style="display: flex; justify-content: between; align-items: center; margin-bottom: 20px;">
+        <h2 style="margin: 0; color: #4361ee;">🛒 Order Management</h2>
+        <a href="{% url 'admin:orders_order_add' %}" class="button" style="background: #4361ee;">
+            🆕 Create Order
+        </a>
+    </div>
+
+    <!-- Smart Filters -->
+    <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 15px; margin-bottom: 20px;">
+        <div>
+            <label style="display: block; margin-bottom: 8px; font-weight: 600; color: #495057;">Order Status</label>
+            <select onchange="window.location.href=this.value" style="width: 100%; padding: 10px; border: 1px solid #e0e0e0; border-radius: 8px;">
+                <option value="?">All Orders</option>
+                <option value="?order_status__exact=pending" {% if request.GET.order_status == 'pending' %}selected{% endif %}>⏳ Pending</option>
+                <option value="?order_status__exact=confirmed" {% if request.GET.order_status == 'confirmed' %}selected{% endif %}>✅ Confirmed</option>
+                <option value="?order_status__exact=processed" {% if request.GET.order_status == 'processed' %}selected{% endif %}>🚚 Processed</option>
+                <option value="?order_status__exact=hold" {% if request.GET.order_status == 'hold' %}selected{% endif %}>⏸️ On Hold</option>
+            </select>
+        </div>
+        
+        <div>
+            <label style="display: block; margin-bottom: 8px; font-weight: 600; color: #495057;">Payment Status</label>
+            <select onchange="window.location.href=this.value" style="width: 100%; padding: 10px; border: 1px solid #e0e0e0; border-radius: 8px;">
+                <option value="?">All Payments</option>
+                <option value="?payment_status__exact=pending" {% if request.GET.payment_status == 'pending' %}selected{% endif %}>⏳ Pending</option>
+                <option value="?payment_status__exact=paid" {% if request.GET.payment_status == 'paid' %}selected{% endif %}>💰 Paid</option>
+                <option value="?payment_status__exact=failed" {% if request.GET.payment_status == 'failed' %}selected{% endif %}>❌ Failed</option>
+            </select>
+        </div>
+        
+        <div>
+            <label style="display: block; margin-bottom: 8px; font-weight: 600; color: #495057;">Delivery Area</label>
+            <select onchange="window.location.href=this.value" style="width: 100%; padding: 10px; border: 1px solid #e0e0e0; border-radius: 8px;">
+                <option value="?">All Areas</option>
+                {% for area in areas %}
+                <option value="?delivery_area__exact={{ area }}" {% if request.GET.delivery_area == area %}selected{% endif %}>{{ area }}</option>
+                {% endfor %}
+            </select>
+        </div>
+        
+        <div>
+            <label style="display: block; margin-bottom: 8px; font-weight: 600; color: #495057;">Quick Actions</label>
+            <select onchange="if(this.value) window.location.href=this.value" style="width: 100%; padding: 10px; border: 1px solid #e0e0e0; border-radius: 8px;">
+                <option value="">Actions...</option>
+                <option value="?order_status__exact=pending">View Pending</option>
+                <option value="?payment_status__exact=pending">View Unpaid</option>
+                <option value="?assigned_staff__isnull=True">Unassigned Orders</option>
+            </select>
+        </div>
+    </div>
+
+    <!-- Order Stats -->
+    <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); gap: 15px; background: #f8f9ff; padding: 15px; border-radius: 8px;">
+        <div style="text-align: center;">
+            <div style="font-size: 1.5em; font-weight: bold; color: #4361ee;">{{ cl.result_list|length }}</div>
+            <div style="font-size: 0.8em; color: #666;">Showing</div>
+        </div>
+        <div style="text-align: center;">
+            <div style="font-size: 1.5em; font-weight: bold; color: #28a745;">{{ cl.result_count }}</div>
+            <div style="font-size: 0.8em; color: #666;">Total Orders</div>
+        </div>
+        <div style="text-align: center;">
+            <div style="font-size: 1.5em; font-weight: bold; color: #fd7e14;">{{ pending_count }}</div>
+            <div style="font-size: 0.8em; color: #666;">Pending</div>
+        </div>
+    </div>
+</div>
+
+{{ block.super }}
+
+</div>
+
+<script>
+// Add areas data dynamically or pass via context
+</script>
+{% endblock %}

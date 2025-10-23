@@ -1,0 +1,406 @@
+<!-- products/templates/admin/products/product/change_form.html -->
+{% extends "admin/change_form.html" %}
+{% load i18n static %}
+
+{% block content %}
+<div id="content-main">
+
+<!-- Header -->
+<div style="background: white; border-radius: 12px; padding: 25px; margin-bottom: 25px; box-shadow: 0 2px 8px rgba(0,0,0,0.08);">
+    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px;">
+        <h1 style="margin: 0; color: #4361ee; font-size: 1.5em;">
+            {% if original %}✏️ Edit Product{% else %}➕ Add New Product{% endif %}
+        </h1>
+        <div style="display: flex; gap: 10px;">
+            <a href="../" class="button" style="background: #6c757d; color: white; padding: 10px 15px; text-decoration: none; border-radius: 6px;">
+                ← Back to Products
+            </a>
+            <a href="{% url 'admin:products_product_quick_add' %}" class="button" style="background: #28a745; color: white; padding: 10px 15px; text-decoration: none; border-radius: 6px;">
+                🚀 Quick Add
+            </a>
+        </div>
+    </div>
+    
+    {% if not request.user.is_superuser %}
+    <div style="background: #e8f5e8; padding: 15px; border-radius: 8px; border-left: 4px solid #28a745;">
+        <strong>👨‍💼 Staff Access:</strong> You can {% if original %}edit{% else %}create{% endif %} products. Only administrators can delete products.
+    </div>
+    {% endif %}
+</div>
+
+<!-- Smart Form Layout -->
+<div style="display: grid; grid-template-columns: 2fr 1fr; gap: 25px;">
+
+    <!-- Main Form Column -->
+    <div>
+        <!-- Basic Information Card -->
+        <div class="form-card">
+            <div class="form-card-header">
+                <h3>📝 Basic Information</h3>
+            </div>
+            <div class="form-card-body">
+                <div class="form-group">
+                    <label for="id_products_name"><strong>Product Name *</strong></label>
+                    {{ adminform.form.products_name }}
+                    <div class="help">Enter a clear, descriptive product name</div>
+                </div>
+                
+                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 15px;">
+                    <div class="form-group">
+                        <label for="id_category"><strong>Category *</strong></label>
+                        {{ adminform.form.category }}
+                    </div>
+                    <div class="form-group">
+                        <label for="id_brand"><strong>Brand</strong></label>
+                        {{ adminform.form.brand }}
+                    </div>
+                </div>
+                
+                <div class="form-group">
+                    <label for="id_short_description"><strong>Short Description</strong></label>
+                    {{ adminform.form.short_description }}
+                    <div class="help">Brief description shown in product listings</div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Pricing Card -->
+        <div class="form-card">
+            <div class="form-card-header">
+                <h3>💰 Pricing</h3>
+            </div>
+            <div class="form-card-body">
+                <div style="display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 15px;">
+                    <div class="form-group">
+                        <label for="id_base_price"><strong>Base Price ($) *</strong></label>
+                        {{ adminform.form.base_price }}
+                        <div class="help">Regular price</div>
+                    </div>
+                    <div class="form-group">
+                        <label for="id_sale_price"><strong>Sale Price ($)</strong></label>
+                        {{ adminform.form.sale_price }}
+                        <div class="help">Discounted price</div>
+                    </div>
+                    <div class="form-group">
+                        <label for="id_cost_price"><strong>Cost Price ($)</strong></label>
+                        {{ adminform.form.cost_price }}
+                        <div class="help">Your cost</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Description Card -->
+        <div class="form-card">
+            <div class="form-card-header">
+                <h3>📄 Full Description</h3>
+            </div>
+            <div class="form-card-body">
+                <div class="form-group">
+                    {{ adminform.form.description }}
+                    <div class="help">Detailed product description with features and specifications</div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Product Images -->
+        <div class="form-card">
+            <div class="form-card-header">
+                <h3>🖼️ Product Images</h3>
+            </div>
+            <div class="form-card-body">
+                {% for inline_admin_formset in inline_admin_formsets %}
+                    {% include inline_admin_formset.opts.template %}
+                {% endfor %}
+            </div>
+        </div>
+    </div>
+
+    <!-- Sidebar Column -->
+    <div>
+        <!-- Quick Status Card -->
+        <div class="form-card">
+            <div class="form-card-header">
+                <h3>⚡ Quick Status</h3>
+            </div>
+            <div class="form-card-body">
+                <div class="form-group">
+                    <label class="checkbox-label">
+                        {{ adminform.form.is_active }}
+                        <span class="checkbox-text">Active Product</span>
+                    </label>
+                    <div class="help">Show in store</div>
+                </div>
+                
+                <div class="form-group">
+                    <label class="checkbox-label">
+                        {{ adminform.form.is_featured }}
+                        <span class="checkbox-text">Featured Product</span>
+                    </label>
+                    <div class="help">Highlight on homepage</div>
+                </div>
+                
+                <div class="form-group">
+                    <label class="checkbox-label">
+                        {{ adminform.form.is_published }}
+                        <span class="checkbox-text">Published</span>
+                    </label>
+                    <div class="help">Visible to customers</div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Product Variants Card -->
+        <div class="form-card">
+            <div class="form-card-header">
+                <h3>🎨 Variants</h3>
+            </div>
+            <div class="form-card-body">
+                <div class="form-group">
+                    <label for="id_color"><strong>Color</strong></label>
+                    {{ adminform.form.color }}
+                </div>
+                
+                <div class="form-group">
+                    <label for="id_size"><strong>Size</strong></label>
+                    {{ adminform.form.size }}
+                </div>
+                
+                <div class="form-group">
+                    <label for="id_weight"><strong>Weight</strong></label>
+                    {{ adminform.form.weight }}
+                </div>
+            </div>
+        </div>
+
+        <!-- Inventory Card -->
+        <div class="form-card">
+            <div class="form-card-header">
+                <h3>📦 Inventory</h3>
+            </div>
+            <div class="form-card-body">
+                <div class="form-group">
+                    <label class="checkbox-label">
+                        {{ adminform.form.stock_managed_by_inventory }}
+                        <span class="checkbox-text">Manage Stock in Inventory</span>
+                    </label>
+                    <div class="help">Use separate inventory system</div>
+                </div>
+                
+                {% if original %}
+                <div style="background: #f8f9fa; padding: 15px; border-radius: 8px; margin-top: 15px;">
+                    <div style="font-size: 0.9em; color: #666; margin-bottom: 8px;">Current Stock Status</div>
+                    <div style="display: flex; justify-content: space-between; align-items: center;">
+                        <span style="font-weight: 600;">
+                            {% if original.is_in_stock %}
+                                {% if original.is_low_stock %}⚠ Low Stock{% else %}✅ In Stock{% endif %}
+                            {% else %}❌ Out of Stock{% endif %}
+                        </span>
+                        <span style="color: #4361ee; font-weight: 600;">{{ original.available_quantity }} available</span>
+                    </div>
+                </div>
+                {% endif %}
+            </div>
+        </div>
+
+        <!-- SEO Card -->
+        <div class="form-card">
+            <div class="form-card-header">
+                <h3>🔍 SEO</h3>
+            </div>
+            <div class="form-card-body">
+                <div class="form-group">
+                    <label for="id_meta_title"><strong>Meta Title</strong></label>
+                    {{ adminform.form.meta_title }}
+                    <div class="help">Page title for SEO</div>
+                </div>
+                
+                <div class="form-group">
+                    <label for="id_meta_description"><strong>Meta Description</strong></label>
+                    {{ adminform.form.meta_description }}
+                    <div class="help">Brief description for search results</div>
+                </div>
+                
+                <div class="form-group">
+                    <label for="id_tags"><strong>Tags</strong></label>
+                    {{ adminform.form.tags }}
+                    <div class="help">Comma-separated keywords</div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Submit Buttons -->
+<div class="submit-row" style="margin-top: 30px;">
+    <input type="submit" value="💾 Save Product" class="default" name="_save">
+    <input type="submit" value="💾 Save & Add Another" name="_addanother">
+    <input type="submit" value="💾 Save & Continue Editing" name="_continue">
+    
+    {% if original and request.user.is_superuser %}
+    <a href="delete/" class="deletelink">🗑️ Delete</a>
+    {% endif %}
+</div>
+
+</div>
+
+<style>
+.form-card {
+    background: white;
+    border-radius: 12px;
+    margin-bottom: 20px;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.08);
+    overflow: hidden;
+}
+
+.form-card-header {
+    background: linear-gradient(135deg, #4361ee, #3a0ca3);
+    color: white;
+    padding: 15px 20px;
+}
+
+.form-card-header h3 {
+    margin: 0;
+    font-size: 1.1em;
+    font-weight: 600;
+}
+
+.form-card-body {
+    padding: 20px;
+}
+
+.form-group {
+    margin-bottom: 20px;
+}
+
+.form-group label {
+    display: block;
+    margin-bottom: 8px;
+    font-weight: 600;
+    color: #495057;
+}
+
+.form-group input[type="text"],
+.form-group input[type="number"],
+.form-group select,
+.form-group textarea {
+    width: 100%;
+    padding: 12px;
+    border: 1px solid #e0e0e0;
+    border-radius: 8px;
+    font-size: 14px;
+    transition: border-color 0.3s ease;
+}
+
+.form-group input[type="text"]:focus,
+.form-group input[type="number"]:focus,
+.form-group select:focus,
+.form-group textarea:focus {
+    border-color: #4361ee;
+    outline: none;
+    box-shadow: 0 0 0 3px rgba(67, 97, 238, 0.1);
+}
+
+.help {
+    color: #6c757d;
+    font-size: 0.85em;
+    margin-top: 5px;
+}
+
+.checkbox-label {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    cursor: pointer;
+    padding: 8px 0;
+}
+
+.checkbox-label input[type="checkbox"] {
+    transform: scale(1.2);
+}
+
+.checkbox-text {
+    font-weight: 600;
+    color: #495057;
+}
+
+.submit-row {
+    background: white;
+    border-radius: 12px;
+    padding: 20px;
+    border: 1px solid #f0f0f0;
+    display: flex;
+    gap: 10px;
+    flex-wrap: wrap;
+    align-items: center;
+}
+
+.submit-row input[type="submit"] {
+    background: #4361ee;
+    border: none;
+    border-radius: 8px;
+    padding: 12px 24px;
+    color: white;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.3s ease;
+}
+
+.submit-row input[type="submit"]:hover {
+    background: #3a0ca3;
+    transform: translateY(-1px);
+}
+
+.deletelink {
+    background: #dc3545;
+    color: white;
+    padding: 12px 24px;
+    border-radius: 8px;
+    text-decoration: none;
+    margin-left: auto;
+}
+
+.deletelink:hover {
+    background: #c82333;
+    color: white;
+    text-decoration: none;
+}
+
+/* Make form fields look consistent */
+.vTextField, .vIntegerField, .vDecimalField {
+    width: 100% !important;
+    padding: 12px !important;
+    border: 1px solid #e0e0e0 !important;
+    border-radius: 8px !important;
+    font-size: 14px !important;
+}
+
+/* Style the select fields */
+select {
+    width: 100% !important;
+    padding: 12px !important;
+    border: 1px solid #e0e0e0 !important;
+    border-radius: 8px !important;
+    font-size: 14px !important;
+    background: white !important;
+}
+
+/* Style textareas */
+textarea {
+    width: 100% !important;
+    min-height: 100px !important;
+    padding: 12px !important;
+    border: 1px solid #e0e0e0 !important;
+    border-radius: 8px !important;
+    font-size: 14px !important;
+    font-family: inherit !important;
+}
+
+/* Responsive */
+@media (max-width: 1024px) {
+    .form-container {
+        grid-template-columns: 1fr;
+    }
+}
+</style>
+{% endblock %}

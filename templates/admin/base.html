@@ -1,0 +1,58 @@
+{% load i18n static %}<!DOCTYPE html>
+<html lang="en">
+<head>
+    <title>{% block title %}{% endblock %}</title>
+    <link rel="stylesheet" href="{% static 'admin/css/base.css' %}">
+    {% block extrastyle %}{% endblock %}
+    {% block extrahead %}{% endblock %}
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+</head>
+
+<body class="{% block bodyclass %}{% endblock %}">
+
+<div id="container">
+    <!-- Header -->
+    <div id="header">
+        <div id="branding">
+            {% block branding %}{% endblock %}
+        </div>
+        {% block usertools %}
+        <div id="user-tools">
+            Welcome, <strong>{{ user.get_username }}</strong>.
+            <a href="{% url 'admin:logout' %}">Log out</a>
+        </div>
+        {% endblock %}
+        {% block nav-global %}{% endblock %}
+    </div>
+
+    <!-- Breadcrumbs -->
+    {% block breadcrumbs %}
+    <div class="breadcrumbs">
+        <a href="{% url 'admin:index' %}">Home</a>
+        {% if title %} &rsaquo; {{ title }}{% endif %}
+    </div>
+    {% endblock %}
+
+    <!-- Messages -->
+    {% block messages %}
+        {% if messages %}
+        <ul class="messagelist">
+            {% for message in messages %}
+            <li{% if message.tags %} class="{{ message.tags }}"{% endif %}>{{ message }}</li>
+            {% endfor %}
+        </ul>
+        {% endif %}
+    {% endblock %}
+
+    <!-- Main Content -->
+    <div id="content">
+        {% block content_title %}{% if title %}<h1>{{ title }}</h1>{% endif %}{% endblock %}
+        {% block content %}
+            {{ content }}
+        {% endblock %}
+    </div>
+
+</div>
+
+</body>
+</html>

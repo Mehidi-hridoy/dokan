@@ -1,0 +1,16 @@
+<!-- core/templates/admin/includes/quick_filters.html -->
+{% load i18n %}
+
+<div class="quick-filters">
+    <h4>🔍 Quick Filters</h4>
+    <div class="filter-buttons">
+        {% for filter in filters %}
+        <a href="{{ filter.url }}" 
+           class="filter-btn {% if filter.active %}active{% endif %}"
+           title="{{ filter.title }}">
+            {{ filter.label }}
+        </a>
+        {% endfor %}
+        <a href="?" class="filter-btn">🗂️ Show All</a>
+    </div>
+</div>

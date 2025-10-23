@@ -2,10 +2,7 @@
 from django.contrib import admin
 from django.contrib.auth import get_user_model
 from django.utils.html import format_html
-from django.urls import path
-from django.http import HttpResponseRedirect
 from django.contrib import messages
-from django.template.response import TemplateResponse
 from django.db import models
 from .models import Order, OrderItem, BulkOrderOperation
 
@@ -20,30 +17,66 @@ class OrderItemInline(admin.TabularInline):
     def has_add_permission(self, request, obj):
         return False
 
-class QuickOrderAdmin(admin.ModelAdmin):
+class OrderAdmin(admin.ModelAdmin):
+    # OPTION 1: Show badges (visual) but no inline editing
     list_display = [
-        'order_number', 'customer_display', 'order_status_badge', 
-        'payment_status_badge', 'courier_status_badge', 'total',
-        'created_at', 'quick_actions'
+        'order_number', 
+        'customer_display', 
+        'order_status_badge', 
+        'payment_status_badge',
+        'courier_status_badge',
+        'total_display', 
+        'created_at',
+        'quick_actions'
     ]
+    
+    # OPTION 2: Use this if you want inline editing (comment out the badge methods above)
+    # list_display = [
+    #     'order_number', 
+    #     'customer_display', 
+    #     'order_status',  # Direct field for editing
+    #     'payment_status',  # Direct field for editing
+    #     'courier_status',  # Direct field for editing
+    #     'total_display', 
+    #     'created_at',
+    #     'quick_actions'
+    # ]
+    # list_editable = ['order_status', 'payment_status', 'courier_status']
+    
     list_filter = [
-        'order_status', 'payment_status', 'courier_status', 
-        'delivery_area', 'created_at', 'assigned_staff'
+        'order_status', 
+        'payment_status', 
+        'courier_status',
+        'delivery_area', 
+        'created_at',
+        'assigned_staff'
     ]
     search_fields = [
-        'order_number', 'customer_name', 'phone_number', 
-        'email', 'tracking_number'
+        'order_number', 
+        'customer_name', 
+        'phone_number',
+        'email', 
+        'tracking_number'
     ]
     readonly_fields = [
-        'order_number', 'created_at', 'updated_at', 
-        'profit_calculation', 'staff_permission_message'
+        'order_number', 
+        'created_at', 
+        'updated_at',
+        'order_summary',
+        'profit_calculation',
+        'staff_permission_message'
     ]
     list_per_page = 25
     inlines = [OrderItemInline]
     actions = [
-        'confirm_orders', 'hold_orders', 'reject_orders',
-        'mark_paid', 'mark_delivered', 'assign_to_me',
-        'export_orders', 'quick_status_update'
+        'mark_as_confirmed',
+        'mark_as_processed', 
+        'mark_as_on_hold',
+        'mark_as_rejected',
+        'mark_as_paid',
+        'mark_as_delivered',
+        'assign_to_me',
+        'quick_status_update'  # Added this for bulk status updates
     ]
     
     fieldsets = (
@@ -52,26 +85,42 @@ class QuickOrderAdmin(admin.ModelAdmin):
         }),
         ('Order Information', {
             'fields': (
-                'order_number', 'user', 'assigned_staff',
-                'order_status', 'payment_status', 'courier_status'
+                'order_number', 
+                'user', 
+                'assigned_staff',
+                'order_status', 
+                'payment_status', 
+                'courier_status'
             )
         }),
         ('Financial Details', {
             'fields': (
-                'subtotal', 'tax_amount', 'shipping_cost', 
-                'discount_amount', 'total', 'profit_calculation'
+                'subtotal', 
+                'tax_amount', 
+                'shipping_cost', 
+                'discount_amount', 
+                'total',
+                'order_summary',
+                'profit_calculation'
             )
         }),
         ('Customer Information', {
             'fields': (
-                'customer_name', 'phone_number', 'email',
-                'shipping_address', 'billing_address'
+                'customer_name', 
+                'phone_number', 
+                'email',
+                'shipping_address', 
+                'billing_address'
             )
         }),
         ('Delivery Details', {
             'fields': (
-                'delivery_area', 'city', 'zip_code',
-                'courier_name', 'courier_choice', 'tracking_number',
+                'delivery_area', 
+                'city', 
+                'zip_code',
+                'courier_name', 
+                'courier_choice', 
+                'tracking_number',
                 'estimated_delivery'
             )
         }),
@@ -80,7 +129,7 @@ class QuickOrderAdmin(admin.ModelAdmin):
             'classes': ('collapse',)
         }),
         ('Timestamps', {
-            'fields': ('created_at', 'updated_at', 'processed_at', 'delivered_at'),
+            'fields': ('created_at', 'updated_at', 'processed_at', 'delivered_at', 'cancelled_at'),
             'classes': ('collapse',)
         }),
     )
@@ -91,79 +140,83 @@ class QuickOrderAdmin(admin.ModelAdmin):
     
     def order_status_badge(self, obj):
         colors = {
-            'confirmed': 'green',
-            'rejected': 'red', 
-            'hold': 'orange',
-            'pending': 'blue',
-            'processed': 'purple'
+            'pending': '#ffc107',
+            'confirmed': '#28a745', 
+            'processed': '#17a2b8',
+            'hold': '#fd7e14',
+            'rejected': '#dc3545'
         }
-        color = colors.get(obj.order_status, 'gray')
+        color = colors.get(obj.order_status, '#6c757d')
         return format_html(
-            '<span style="background: {}; color: white; padding: 2px 8px; border-radius: 10px; font-size: 12px;">{}</span>',
-            color, obj.get_order_status_display()
+            '<span style="background: {}; color: {}; padding: 4px 8px; border-radius: 12px; font-size: 12px; font-weight: bold;">{}</span>',
+            color,
+            'white' if obj.order_status != 'pending' else 'black',
+            obj.get_order_status_display().upper()
         )
     order_status_badge.short_description = 'Status'
     
     def payment_status_badge(self, obj):
         colors = {
-            'paid': 'green',
-            'pending': 'orange',
-            'failed': 'red',
-            'refunded': 'blue'
+            'pending': '#ffc107',
+            'paid': '#28a745',
+            'failed': '#dc3545',
+            'refunded': '#6c757d'
         }
-        color = colors.get(obj.payment_status, 'gray')
+        color = colors.get(obj.payment_status, '#6c757d')
         return format_html(
-            '<span style="background: {}; color: white; padding: 2px 8px; border-radius: 10px; font-size: 12px;">{}</span>',
-            color, obj.get_payment_status_display()
+            '<span style="background: {}; color: white; padding: 4px 8px; border-radius: 12px; font-size: 12px; font-weight: bold;">{}</span>',
+            color,
+            obj.get_payment_status_display().upper()
         )
     payment_status_badge.short_description = 'Payment'
     
     def courier_status_badge(self, obj):
         colors = {
-            'delivered': 'green',
-            'in_transit': 'blue',
-            'out_for_delivery': 'orange',
-            'pending': 'gray'
+            'pending': '#6c757d',
+            'picked_up': '#17a2b8',
+            'in_transit': '#fd7e14',
+            'out_for_delivery': '#007bff',
+            'delivered': '#28a745',
+            'failed': '#dc3545',
+            'returned': '#6f42c1'
         }
-        color = colors.get(obj.courier_status, 'gray')
+        color = colors.get(obj.courier_status, '#6c757d')
         return format_html(
-            '<span style="background: {}; color: white; padding: 2px 8px; border-radius: 10px; font-size: 12px;">{}</span>',
-            color, obj.get_courier_status_display()
+            '<span style="background: {}; color: white; padding: 4px 8px; border-radius: 12px; font-size: 12px; font-weight: bold;">{}</span>',
+            color,
+            obj.get_courier_status_display().upper()
         )
     courier_status_badge.short_description = 'Courier'
     
+    def total_display(self, obj):
+        return f"${obj.total}"
+    total_display.short_description = 'Total'
+    
     def quick_actions(self, obj):
-        buttons = []
-        
-        # Status update buttons
-        if obj.order_status != 'confirmed':
-            buttons.append(
-                f'<a href="../{obj.id}/confirm/" class="button" style="background: #28a745; color: white; padding: 2px 6px; text-decoration: none; border-radius: 3px; font-size: 11px;">Confirm</a>'
-            )
-        
-        if obj.order_status != 'processed':
-            buttons.append(
-                f'<a href="../{obj.id}/process/" class="button" style="background: #007bff; color: white; padding: 2px 6px; text-decoration: none; border-radius: 3px; font-size: 11px;">Process</a>'
-            )
-        
-        buttons.append(
-            f'<a href="../{obj.id}/change/" class="button" style="background: #6c757d; color: white; padding: 2px 6px; text-decoration: none; border-radius: 3px; font-size: 11px;">Edit</a>'
+        return format_html(
+            '<a href="{}">Edit</a>', 
+            f'{obj.id}/change/'
         )
-        
-        return format_html(' '.join(buttons))
     quick_actions.short_description = 'Actions'
+    
+    def order_summary(self, obj):
+        items_count = obj.items.count()
+        return format_html(
+            '<strong>Items:</strong> {}<br><strong>Subtotal:</strong> ${}<br><strong>Final Total:</strong> ${}',
+            items_count, obj.subtotal, obj.total
+        )
+    order_summary.short_description = 'Order Summary'
     
     def profit_calculation(self, obj):
         """Calculate profit for the order"""
         total_cost = 0
         for item in obj.items.all():
-            if item.product and item.product.cost_price:
-                total_cost += item.product.cost_price * item.quantity
+            if item.product and hasattr(item.product, 'cost_price') and item.product.cost_price:
+                total_cost += float(item.product.cost_price) * item.quantity
         
         if total_cost > 0:
-            from decimal import Decimal
-            profit = obj.total - Decimal(total_cost)
-            profit_margin = (profit / obj.total) * 100 if obj.total > 0 else 0
+            profit = float(obj.total) - total_cost
+            profit_margin = (profit / float(obj.total)) * 100 if obj.total > 0 else 0
             color = 'green' if profit > 0 else 'red'
             return format_html(
                 '''
@@ -178,13 +231,21 @@ class QuickOrderAdmin(admin.ModelAdmin):
         return "Cost data not available for all products"
     profit_calculation.short_description = 'Profit Analysis'
     
-    def staff_permission_message(self, obj):
+    def staff_permission_message(self, obj=None):
+        if not obj:  # For new orders
+            return format_html(
+                '<div style="background: #d4edda; color: #155724; padding: 10px; border-radius: 5px; border: 1px solid #c3e6cb; margin-bottom: 20px;">'
+                '<strong>👨‍💼 Staff Permissions:</strong> You can update order status and information. '
+                'Only administrators can delete orders.'
+                '</div>'
+            )
+        
         assigned_info = ""
         if obj.assigned_staff:
             assigned_info = f"<br><small>Currently assigned to: <strong>{obj.assigned_staff.get_full_name() or obj.assigned_staff.username}</strong></small>"
         
         return format_html(
-            '<div style="background: #d4edda; color: #155724; padding: 10px; border-radius: 5px; border: 1px solid #c3e6cb;">'
+            '<div style="background: #d4edda; color: #155724; padding: 10px; border-radius: 5px; border: 1px solid #c3e6cb; margin-bottom: 20px;">'
             '<strong>👨‍💼 Staff Permissions:</strong> You can update order status and information. '
             'Only administrators can delete orders.{}'
             '</div>',
@@ -193,34 +254,37 @@ class QuickOrderAdmin(admin.ModelAdmin):
     staff_permission_message.short_description = 'Permission Info'
     
     # Custom actions
-    def confirm_orders(self, request, queryset):
+    def mark_as_confirmed(self, request, queryset):
         updated = queryset.update(order_status='confirmed')
-        self.message_user(request, f'{updated} orders confirmed.')
-    confirm_orders.short_description = "Confirm selected orders"
+        self.message_user(request, f'{updated} orders marked as confirmed.')
+    mark_as_confirmed.short_description = "Mark selected orders as confirmed"
     
-    def hold_orders(self, request, queryset):
+    def mark_as_processed(self, request, queryset):
+        from django.utils import timezone
+        updated = queryset.update(order_status='processed', processed_at=timezone.now())
+        self.message_user(request, f'{updated} orders marked as processed.')
+    mark_as_processed.short_description = "Mark selected orders as processed"
+    
+    def mark_as_on_hold(self, request, queryset):
         updated = queryset.update(order_status='hold')
         self.message_user(request, f'{updated} orders put on hold.')
-    hold_orders.short_description = "Put selected orders on hold"
+    mark_as_on_hold.short_description = "Put selected orders on hold"
     
-    def reject_orders(self, request, queryset):
+    def mark_as_rejected(self, request, queryset):
         updated = queryset.update(order_status='rejected')
         self.message_user(request, f'{updated} orders rejected.')
-    reject_orders.short_description = "Reject selected orders"
+    mark_as_rejected.short_description = "Reject selected orders"
     
-    def mark_paid(self, request, queryset):
+    def mark_as_paid(self, request, queryset):
         updated = queryset.update(payment_status='paid')
         self.message_user(request, f'{updated} orders marked as paid.')
-    mark_paid.short_description = "Mark selected orders as paid"
+    mark_as_paid.short_description = "Mark selected orders as paid"
     
-    def mark_delivered(self, request, queryset):
+    def mark_as_delivered(self, request, queryset):
         from django.utils import timezone
-        updated = queryset.update(
-            courier_status='delivered', 
-            delivered_at=timezone.now()
-        )
+        updated = queryset.update(courier_status='delivered', delivered_at=timezone.now())
         self.message_user(request, f'{updated} orders marked as delivered.')
-    mark_delivered.short_description = "Mark selected orders as delivered"
+    mark_as_delivered.short_description = "Mark selected orders as delivered"
     
     def assign_to_me(self, request, queryset):
         updated = queryset.update(assigned_staff=request.user)
@@ -228,148 +292,60 @@ class QuickOrderAdmin(admin.ModelAdmin):
     assign_to_me.short_description = "Assign selected orders to me"
     
     def quick_status_update(self, request, queryset):
-        """Quick status update for multiple orders"""
-        if 'apply' in request.POST:
-            status_type = request.POST.get('status_type')
-            new_status = request.POST.get('new_status')
+        """Quick bulk status update for multiple orders"""
+        if request.POST.get('apply'):
+            order_status = request.POST.get('order_status')
+            payment_status = request.POST.get('payment_status')
+            courier_status = request.POST.get('courier_status')
             
-            if status_type == 'order_status':
-                updated = queryset.update(order_status=new_status)
-            elif status_type == 'payment_status':
-                updated = queryset.update(payment_status=new_status)
-            elif status_type == 'courier_status':
-                updated = queryset.update(courier_status=new_status)
-                if new_status == 'delivered':
+            updates = {}
+            if order_status:
+                updates['order_status'] = order_status
+            if payment_status:
+                updates['payment_status'] = payment_status
+            if courier_status:
+                updates['courier_status'] = courier_status
+                if courier_status == 'delivered':
                     from django.utils import timezone
-                    queryset.update(delivered_at=timezone.now())
+                    updates['delivered_at'] = timezone.now()
             
-            self.message_user(request, f'Updated {updated} orders.')
-            return HttpResponseRedirect(request.get_full_path())
+            if updates:
+                updated_count = queryset.update(**updates)
+                self.message_user(request, f'Updated {updated_count} orders.')
+                return
         
+        # Show simple form
         from django import forms
-        class StatusUpdateForm(forms.Form):
-            status_type = forms.ChoiceField(
-                choices=[
-                    ('order_status', 'Order Status'),
-                    ('payment_status', 'Payment Status'), 
-                    ('courier_status', 'Courier Status')
-                ],
-                initial='order_status'
+        class QuickStatusForm(forms.Form):
+            order_status = forms.ChoiceField(
+                choices=[('', '--- No Change ---')] + list(Order.ORDER_STATUS_CHOICES),
+                required=False
             )
-            new_status = forms.ChoiceField(choices=[])
-            
-            def __init__(self, *args, **kwargs):
-                super().__init__(*args, **kwargs)
-                # Dynamic choices based on status type
-                if 'status_type' in self.data:
-                    status_type = self.data['status_type']
-                    if status_type == 'order_status':
-                        self.fields['new_status'].choices = Order.ORDER_STATUS_CHOICES
-                    elif status_type == 'payment_status':
-                        self.fields['new_status'].choices = Order.PAYMENT_STATUS_CHOICES
-                    elif status_type == 'courier_status':
-                        self.fields['new_status'].choices = Order.COURIER_STATUS_CHOICES
+            payment_status = forms.ChoiceField(
+                choices=[('', '--- No Change ---')] + list(Order.PAYMENT_STATUS_CHOICES),
+                required=False
+            )
+            courier_status = forms.ChoiceField(
+                choices=[('', '--- No Change ---')] + list(Order.COURIER_STATUS_CHOICES),
+                required=False
+            )
         
         context = {
             'orders': queryset,
-            'form': StatusUpdateForm(),
+            'form': QuickStatusForm(),
             'action': 'quick_status_update',
             'title': 'Quick Status Update'
         }
-        return admin.views.decorators.staff_member_required(
-            lambda request: TemplateResponse(
-                request,
-                'admin/orders/order/quick_status_update.html',
-                context
-            )
-        )(request)
+        
+        from django.template.response import TemplateResponse
+        return TemplateResponse(
+            request,
+            'admin/orders/order/quick_status_update.html',
+            context
+        )
     quick_status_update.short_description = "Quick status update for selected orders"
     
-    def get_urls(self):
-        urls = super().get_urls()
-        custom_urls = [
-            path(
-                '<path:object_id>/confirm/',
-                self.admin_site.admin_view(self.confirm_order),
-                name='orders_order_confirm',
-            ),
-            path(
-                '<path:object_id>/process/',
-                self.admin_site.admin_view(self.process_order),
-                name='orders_order_process',
-            ),
-            path(
-                'quick-create/',
-                self.admin_site.admin_view(self.quick_create_view),
-                name='orders_order_quick_create',
-            ),
-        ]
-        return custom_urls + urls
-    
-    def confirm_order(self, request, object_id):
-        order = Order.objects.get(pk=object_id)
-        order.order_status = 'confirmed'
-        order.assigned_staff = request.user  # Auto-assign to confirming staff
-        order.save()
-        messages.success(request, f'Order {order.order_number} confirmed successfully!')
-        return HttpResponseRedirect('../../')
-    
-    def process_order(self, request, object_id):
-        from django.utils import timezone
-        order = Order.objects.get(pk=object_id)
-        order.order_status = 'processed'
-        order.processed_at = timezone.now()
-        order.assigned_staff = request.user  # Auto-assign to processing staff
-        order.save()
-        messages.success(request, f'Order {order.order_number} processed successfully!')
-        return HttpResponseRedirect('../../')
-    
-    def quick_create_view(self, request):
-        """Quick order creation for staff"""
-        if request.method == 'POST':
-            try:
-                from decimal import Decimal
-                # Create order with minimal data
-                order = Order.objects.create(
-                    customer_name=request.POST.get('customer_name'),
-                    phone_number=request.POST.get('phone_number'),
-                    shipping_address=request.POST.get('shipping_address'),
-                    delivery_area=request.POST.get('delivery_area'),
-                    subtotal=Decimal(request.POST.get('subtotal', 0)),
-                    total=Decimal(request.POST.get('total', 0)),
-                    payment_method=request.POST.get('payment_method', 'cod'),
-                    assigned_staff=request.user  # Auto-assign to creating staff
-                )
-                messages.success(request, f'Order {order.order_number} created successfully!')
-                return HttpResponseRedirect(f'../{order.pk}/change/')
-            except Exception as e:
-                messages.error(request, f'Error creating order: {str(e)}')
-        
-        # Simple form for quick order creation
-        from django import forms
-        class QuickOrderForm(forms.Form):
-            customer_name = forms.CharField(max_length=100, required=True)
-            phone_number = forms.CharField(max_length=15, required=True)
-            shipping_address = forms.CharField(widget=forms.Textarea, required=True)
-            delivery_area = forms.CharField(max_length=100, required=True)
-            subtotal = forms.DecimalField(max_digits=10, decimal_places=2, required=True)
-            total = forms.DecimalField(max_digits=10, decimal_places=2, required=True)
-            payment_method = forms.ChoiceField(choices=Order.PAYMENT_METHOD_CHOICES, initial='cod')
-        
-        context = {
-            'form': QuickOrderForm(),
-            'title': 'Quick Create Order',
-            'opts': self.model._meta,
-        }
-        return admin.views.decorators.staff_member_required(
-            lambda request: TemplateResponse(
-                request, 
-                'admin/orders/order/quick_create.html', 
-                context
-            )
-        )(request)
-    
-    # Permission controls for Google OAuth staff
+    # Permission controls
     def has_delete_permission(self, request, obj=None):
         return request.user.is_superuser
     
@@ -396,7 +372,7 @@ class QuickOrderAdmin(admin.ModelAdmin):
             form.base_fields['assigned_staff'].initial = request.user
         return form
 
-admin.site.register(Order, QuickOrderAdmin)
+admin.site.register(Order, OrderAdmin)
 
 @admin.register(OrderItem)
 class OrderItemAdmin(admin.ModelAdmin):
@@ -407,9 +383,6 @@ class OrderItemAdmin(admin.ModelAdmin):
     
     def has_add_permission(self, request):
         return False
-    
-    def has_delete_permission(self, request, obj=None):
-        return request.user.is_superuser
 
 @admin.register(BulkOrderOperation)
 class BulkOrderOperationAdmin(admin.ModelAdmin):

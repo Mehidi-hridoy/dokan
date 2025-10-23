@@ -1,250 +1,197 @@
+# products/admin.py
 from django.contrib import admin
 from django.utils.html import format_html
-from django.db.models import Count, Sum
+from django.urls import path
+from django.http import HttpResponseRedirect
+from django.contrib import messages
+from django.shortcuts import render
 from .models import Product, ProductImage, Review
-from inventory.models import Inventory
-
 
 class ProductImageInline(admin.TabularInline):
     model = ProductImage
     extra = 1
     fields = ['image', 'alt_text', 'is_primary', 'display_order']
-    readonly_fields = ['image_preview']
     
-    def image_preview(self, obj):
-        if obj.image:
-            return format_html('<img src="{}" width="50" height="50" style="object-fit: cover;" />', obj.image.url)
-        return "-"
-    image_preview.short_description = 'Preview'
+    def get_queryset(self, request):
+        qs = super().get_queryset(request)
+        if hasattr(self, 'original') and self.original:
+            return qs.filter(product=self.original)
+        return qs
 
-
-class ReviewInline(admin.TabularInline):
-    model = Review
-    extra = 0
-    readonly_fields = ['user', 'rating', 'title', 'created_at']
-    can_delete = False
-    
-    def has_add_permission(self, request, obj=None):
-        return False
-
-
-@admin.register(Product)
 class ProductAdmin(admin.ModelAdmin):
     list_display = [
         'products_name', 
         'product_code', 
-        'color',
-        'size', 
-        'category',
-        'current_price_display',
+        'category', 
+        'base_price_display',
         'stock_status',
         'is_active',
-        'is_featured',
-        'created_at'
+        'quick_actions'
     ]
-    
-    list_filter = [
-        'is_active',
-        'is_featured', 
-        'is_published',
-        'category',
-        'brand',
-        'color',
-        'size',
-        'created_at'
-    ]
-    
-    search_fields = [
-        'products_name',
-        'product_code',
-        'short_description',
-        'description'
-    ]
-    
-    readonly_fields = [
-        'slug',
-        'product_code',
-        'profit_margin_display',
-        'stock_info_display',
-        'created_at',
-        'updated_at'
-    ]
+    list_filter = ['is_active', 'is_featured', 'category', 'brand']
+    search_fields = ['products_name', 'product_code']
+    readonly_fields = ['product_code', 'slug', 'created_at', 'updated_at', 'staff_permission_message']
+    list_editable = ['is_active']
+    inlines = [ProductImageInline]
+    actions = ['activate_products', 'deactivate_products', 'feature_products', 'unfeature_products']
     
     fieldsets = (
         ('Basic Information', {
             'fields': (
-                'products_name', 
-                'slug', 
-                'product_code',
-                'user',
-                'short_description',
-                'description'
+                'staff_permission_message',
+                'user', 'products_name', 'slug', 'product_code', 
+                'short_description', 'description'
             )
         }),
-        ('Categorization', {
+        ('Categorization & Pricing', {
             'fields': (
-                'category',
-                'sub_category', 
-                'brand'
+                'category', 'sub_category', 'brand',
+                'base_price', 'sale_price', 'cost_price'
             )
         }),
-        ('Pricing', {
-            'fields': (
-                'base_price',
-                'sale_price', 
-                'cost_price',
-                'profit_margin_display'
-            )
+        ('Product Variants', {
+            'fields': ('color', 'size', 'weight'),
+            'classes': ('collapse',)
         }),
-        ('Inventory & Variants', {
-            'fields': (
-                'inventory',
-                'stock_managed_by_inventory',
-                'stock_info_display',
-                'color',
-                'size', 
-                'weight'
-            )
+        ('Inventory & Stock', {
+            'fields': ('stock_managed_by_inventory',),
+            'classes': ('collapse',)
         }),
-        ('Media', {
-            'fields': (
-                'products_image',
-                'gallery_images'
-            )
+        ('Images', {
+            'fields': ('products_image',),
+            'classes': ('collapse',)
         }),
-        ('SEO', {
+        ('SEO & Status', {
             'fields': (
-                'meta_title',
-                'meta_description',
-                'tags'
-            )
-        }),
-        ('Status', {
-            'fields': (
-                'is_active',
-                'is_featured',
-                'is_published'
-            )
-        }),
-        ('Timestamps', {
-            'fields': (
-                'created_at',
-                'updated_at'
+                'meta_title', 'meta_description', 'tags',
+                'is_active', 'is_featured', 'is_published'
             ),
             'classes': ('collapse',)
-        })
+        }),
+        ('Timestamps', {
+            'fields': ('created_at', 'updated_at'),
+            'classes': ('collapse',)
+        }),
     )
     
-    inlines = [ProductImageInline, ReviewInline]
+    def get_urls(self):
+        urls = super().get_urls()
+        custom_urls = [
+            path(
+                'quick-add/',
+                self.admin_site.admin_view(self.quick_add_view),
+                name='products_product_quick_add',
+            ),
+        ]
+        return custom_urls + urls
     
-    actions = ['activate_products', 'deactivate_products', 'feature_products', 'unfeature_products']
+    def quick_add_view(self, request):
+        """Quick product creation with minimal fields"""
+        from store.models import Category, Brand
+        
+        if request.method == 'POST':
+            try:
+                # Create product with minimal data
+                product = Product.objects.create(
+                    products_name=request.POST.get('products_name'),
+                    base_price=request.POST.get('base_price', 0),
+                    category_id=request.POST.get('category'),
+                    brand_id=request.POST.get('brand') or None,
+                    short_description=request.POST.get('short_description', ''),
+                    user=request.user,
+                    is_active=request.POST.get('is_active') == 'on',
+                    is_featured=request.POST.get('is_featured') == 'on',
+                    is_published=request.POST.get('is_published') == 'on',
+                )
+                
+                # Set optional prices
+                if request.POST.get('sale_price'):
+                    product.sale_price = request.POST.get('sale_price')
+                if request.POST.get('cost_price'):
+                    product.cost_price = request.POST.get('cost_price')
+                product.save()
+                
+                messages.success(request, f'Product "{product.products_name}" created successfully!')
+                return HttpResponseRedirect(f'../{product.pk}/change/')
+                
+            except Exception as e:
+                messages.error(request, f'Error creating product: {str(e)}')
+        
+        context = {
+            'categories': Category.objects.all(),
+            'brands': Brand.objects.all(),
+            'title': 'Quick Add Product',
+            'opts': self.model._meta,
+        }
+        return render(request, 'admin/products/product/quick_add.html', context)
     
-    def current_price_display(self, obj):
-        if obj.sale_price and obj.sale_price < obj.base_price:
-            return format_html(
-                '<span style="color: #d9534f;"><del>${}</del> ${}</span>',
-                obj.base_price,
-                obj.sale_price
-            )
-        return format_html('${}', obj.base_price)
-    current_price_display.short_description = 'Price'
-    current_price_display.admin_order_field = 'base_price'
+    def base_price_display(self, obj):
+        return f"${obj.base_price}"
+    base_price_display.short_description = 'Price'
     
     def stock_status(self, obj):
-        if not obj.is_in_stock:
-            return format_html('<span style="color: #d9534f; font-weight: bold;">Out of Stock</span>')
-        elif obj.is_low_stock:
-            return format_html('<span style="color: #f0ad4e; font-weight: bold;">Low Stock</span>')
-        else:
-            return format_html('<span style="color: #5cb85c; font-weight: bold;">In Stock</span>')
-    stock_status.short_description = 'Stock Status'
+        if obj.is_in_stock:
+            if obj.is_low_stock:
+                return format_html('<span style="color: orange;">⚠ Low Stock</span>')
+            return format_html('<span style="color: green;">✓ In Stock</span>')
+        return format_html('<span style="color: red;">✗ Out of Stock</span>')
+    stock_status.short_description = 'Stock'
     
-    def profit_margin_display(self, obj):
-        margin = obj.profit_margin
-        if margin is not None:
-            color = '#5cb85c' if margin > 0 else '#d9534f'
-            return format_html('<span style="color: {}; font-weight: bold;">{:.1f}%</span>', color, margin)
-        return "N/A"
-    profit_margin_display.short_description = 'Profit Margin'
+    def quick_actions(self, obj):
+        return format_html('<a href="{}">✏️ Edit</a>', f'{obj.id}/change/')
+    quick_actions.short_description = 'Actions'
     
-    def stock_info_display(self, obj):
-        if hasattr(obj, 'inventory_reverse') and obj.inventory_reverse:
-            inventory = obj.inventory_reverse
+    def staff_permission_message(self, obj=None):
+        if not obj:
             return format_html(
-                'Available: <strong>{}</strong><br>Low Stock Threshold: <strong>{}</strong><br>Low Stock: <strong>{}</strong>',
-                inventory.available_quantity,
-                inventory.low_stock_threshold,
-                "Yes" if inventory.is_low_stock else "No"
+                '<div style="background: #d4edda; padding: 10px; border-radius: 5px; margin-bottom: 20px;">'
+                '<strong>👨‍💼 Staff Permissions:</strong> You can create and edit products. '
+                'Only administrators can delete products.'
+                '</div>'
             )
-        return "No inventory data available"
-    stock_info_display.short_description = 'Stock Information'
+        return format_html(
+            '<div style="background: #d4edda; padding: 10px; border-radius: 5px; margin-bottom: 20px;">'
+            '<strong>👨‍💼 Staff Permissions:</strong> You can edit this product. '
+            'Only administrators can delete products.'
+            '</div>'
+        )
+    staff_permission_message.short_description = ''
     
+    # Custom actions
     def activate_products(self, request, queryset):
         updated = queryset.update(is_active=True)
-        self.message_user(request, f'{updated} products were successfully activated.')
+        self.message_user(request, f'{updated} products activated successfully.')
     activate_products.short_description = "Activate selected products"
     
     def deactivate_products(self, request, queryset):
         updated = queryset.update(is_active=False)
-        self.message_user(request, f'{updated} products were successfully deactivated.')
+        self.message_user(request, f'{updated} products deactivated successfully.')
     deactivate_products.short_description = "Deactivate selected products"
     
     def feature_products(self, request, queryset):
         updated = queryset.update(is_featured=True)
-        self.message_user(request, f'{updated} products were successfully featured.')
+        self.message_user(request, f'{updated} products marked as featured.')
     feature_products.short_description = "Feature selected products"
     
     def unfeature_products(self, request, queryset):
         updated = queryset.update(is_featured=False)
-        self.message_user(request, f'{updated} products were successfully unfeatured.')
-    unfeature_products.short_description = "Unfeature selected products"
-    
-    def get_queryset(self, request):
-        return super().get_queryset(request).select_related(
-            'category', 'brand', 'inventory_reverse'
-        ).prefetch_related('images', 'reviews')
+        self.message_user(request, f'{updated} products unfeatured.')
+    unfeature_products.short_description = "Remove featured status"
 
+admin.site.register(Product, ProductAdmin)
 
 @admin.register(ProductImage)
 class ProductImageAdmin(admin.ModelAdmin):
-    list_display = ['product', 'image_preview', 'alt_text', 'is_primary', 'display_order']
-    list_filter = ['is_primary', 'product__category']
-    search_fields = ['product__products_name', 'alt_text']
-    list_editable = ['is_primary', 'display_order']
+    list_display = ['product', 'image_tag', 'is_primary']
     
-    def image_preview(self, obj):
+    def image_tag(self, obj):
         if obj.image:
-            return format_html('<img src="{}" width="50" height="50" style="object-fit: cover;" />', obj.image.url)
+            return format_html('<img src="{}" width="50" height="50" />', obj.image.url)
         return "-"
-    image_preview.short_description = 'Image'
-    
-    def get_queryset(self, request):
-        return super().get_queryset(request).select_related('product')
-
+    image_tag.short_description = 'Image'
 
 @admin.register(Review)
 class ReviewAdmin(admin.ModelAdmin):
-    list_display = ['product', 'user', 'rating_stars', 'title', 'is_approved', 'created_at']
-    list_filter = ['rating', 'is_approved', 'created_at', 'product__category']
-    search_fields = ['product__products_name', 'user__username', 'title', 'comment']
-    readonly_fields = ['created_at']
+    list_display = ['product', 'user', 'rating', 'is_approved', 'created_at']
     list_editable = ['is_approved']
-    actions = ['approve_reviews', 'disapprove_reviews']
-    
-    def rating_stars(self, obj):
-        stars = '★' * obj.rating + '☆' * (5 - obj.rating)
-        return format_html('<span style="color: #ffd700; font-size: 14px;">{}</span>', stars)
-    rating_stars.short_description = 'Rating'
-    
-    def approve_reviews(self, request, queryset):
-        updated = queryset.update(is_approved=True)
-        self.message_user(request, f'{updated} reviews were successfully approved.')
-    approve_reviews.short_description = "Approve selected reviews"
-    
-    def disapprove_reviews(self, request, queryset):
-        updated = queryset.update(is_approved=False)
-        self.message_user(request, f'{updated} reviews were successfully disapproved.')
-    disapprove_reviews.short_description = "Disapprove selected reviews"
-    
-    def get_queryset(self, request):
-        return super().get_queryset(request).select_related('product', 'user')
+    list_filter = ['is_approved', 'rating']

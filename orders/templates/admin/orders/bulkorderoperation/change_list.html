@@ -1,0 +1,19 @@
+<!-- orders/templates/admin/orders/bulkorderoperation/change_list.html -->
+{% extends "admin/change_list.html" %}
+{% load i18n %}
+
+{% block content %}
+<div id="content-main">
+
+<div class="module" style="background: #e8f5e8; padding: 15px; margin-bottom: 20px; border-radius: 5px;">
+    <h3>⚡ Bulk Operations</h3>
+    <p>Track and manage bulk order operations performed in the system.</p>
+    <div style="margin-top: 10px;">
+        <a href="{% url 'admin:orders_bulkorderoperation_add' %}" class="button">➕ Add New Bulk Operation</a>
+    </div>
+</div>
+
+{{ block.super }}
+
+</div>
+{% endblock %}

@@ -1,0 +1,16 @@
+<!-- orders/templates/admin/orders/orderitem/change_list.html -->
+{% extends "admin/change_list.html" %}
+{% load i18n %}
+
+{% block content %}
+<div id="content-main">
+
+<div class="module" style="background: #fff3cd; padding: 15px; margin-bottom: 20px; border-radius: 5px;">
+    <h3>📋 Order Items Management</h3>
+    <p>This view shows all order items across all orders. Use the filters to narrow down the list.</p>
+</div>
+
+{{ block.super }}
+
+</div>
+{% endblock %}

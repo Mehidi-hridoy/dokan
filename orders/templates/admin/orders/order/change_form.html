@@ -1,0 +1,55 @@
+<!-- orders/templates/admin/orders/order/change_form.html -->
+{% extends "admin/change_form.html" %}
+{% load i18n %}
+
+{% block content %}
+<div id="content-main">
+
+{% if not request.user.is_superuser %}
+<div class="module" style="background: #d4edda; padding: 15px; margin-bottom: 20px; border-radius: 5px;">
+    <strong>👨‍💼 Staff Access:</strong> You can update order information. Only administrators can delete orders.
+</div>
+{% endif %}
+
+<!-- Order Summary -->
+<div class="module" style="background: #e3f2fd; padding: 15px; margin-bottom: 20px; border-radius: 5px;">
+    <h3>📦 Order #{{ original.order_number }}</h3>
+    <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 15px;">
+        <div>
+            <strong>Customer:</strong> {{ original.customer_name }}<br>
+            <strong>Phone:</strong> {{ original.phone_number|default:"Not provided" }}<br>
+            <strong>Email:</strong> {{ original.email|default:"Not provided" }}
+        </div>
+        <div>
+            <strong>Status:</strong> 
+            <span style="
+                padding: 4px 8px; 
+                border-radius: 12px; 
+                font-size: 12px; 
+                font-weight: bold;
+                background: 
+                {% if original.order_status == 'pending' %}#ffc107
+                {% elif original.order_status == 'confirmed' %}#28a745
+                {% elif original.order_status == 'processed' %}#17a2b8
+                {% elif original.order_status == 'hold' %}#fd7e14
+                {% else %}#dc3545{% endif %};
+                color: {% if original.order_status == 'pending' %}black{% else %}white{% endif %};
+            ">
+                {{ original.get_order_status_display }}
+            </span><br>
+            <strong>Payment:</strong> {{ original.get_payment_status_display }}<br>
+            <strong>Total:</strong> ${{ original.total }}
+        </div>
+    </div>
+</div>
+
+{{ block.super }}
+
+</div>
+{% endblock %}
+
+{% block field_sets %}
+{% for fieldset in adminform %}
+  {% include "admin/includes/fieldset.html" %}
+{% endfor %}
+{% endblock %}

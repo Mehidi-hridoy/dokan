@@ -1,0 +1,16 @@
+<!-- core/templates/admin/includes/staff_permission_message.html -->
+{% load i18n %}
+
+<div class="staff-permission-message">
+    <strong>👨‍💼 {% if request.user.user_type == 'vendor' %}Vendor{% else %}Staff{% endif %} Permissions</strong>
+    <p>
+        {% if request.user.user_type == 'vendor' %}
+        You can manage your products and view related orders. Contact administrator for full access.
+        {% elif not request.user.is_superuser %}
+        You can view and edit records. Only administrators can delete records.
+        {% endif %}
+    </p>
+    {% if not request.user.is_superuser %}
+    <small><strong>Note:</strong> All your actions are logged and associated with your account.</small>
+    {% endif %}
+</div>

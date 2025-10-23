@@ -26,6 +26,7 @@ if settings.DEBUG:
     
 
 # Custom Admin Site Configuration
-admin.site.site_header = "Dokan Ecommer Administration"
-admin.site.site_title = "Dokan Ecommer Admin Portal"
-admin.site.index_title = "Welcome to Dokan Ecommer Admin"
+admin.site.site_header = "Dokan Ecommerce Administration"
+admin.site.site_title = "Dokan Admin Portal"
+admin.site.index_title = "Admin Dashboard"
+
