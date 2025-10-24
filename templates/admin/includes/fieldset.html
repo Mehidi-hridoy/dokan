@@ -1,0 +1,130 @@
+{% load i18n admin_urls %}
+<div class="module aligned {{ fieldset.classes }}">
+    {% if fieldset.name %}<h2>{{ fieldset.name }}</h2>{% endif %}
+    {% if fieldset.description %}
+        <div class="description">{{ fieldset.description|safe }}</div>
+    {% endif %}
+    
+    <div class="fieldset-content">
+    {% for line in fieldset %}
+        <div class="field-row{% if line.fields|length == 1 and line.errors %} errors{% endif %}{% if not line.has_visible_field %} hidden{% endif %}">
+            
+            {% if line.fields|length == 1 %}
+                {{ line.errors }}
+            {% endif %}
+            
+            {% for field in line %}
+                <div class="field-group{% if field.field.name %} field-{{ field.field.name }}{% endif %}{% if not field.is_readonly and field.errors %} errors{% endif %}{% if field.field.is_hidden %} hidden{% endif %}">
+                    
+                    {% if not line.fields|length == 1 and not field.is_readonly %}
+                        {{ field.errors }}
+                    {% endif %}
+
+                    <div class="field-wrapper">
+                        <div class="field-label">
+                            {{ field.label_tag }}
+                        </div>
+
+                        <div class="field-input">
+                            {% if field.is_readonly %}
+                                <div class="readonly">{{ field.contents }}</div>
+                            {% else %}
+                                {{ field.field }}
+                            {% endif %}
+                            
+                            {% if field.field.help_text %}
+                                <div class="help">{{ field.field.help_text|safe }}</div>
+                            {% endif %}
+                        </div>
+                    </div>
+                    
+                </div>
+            {% endfor %}
+            
+        </div>
+    {% endfor %}
+    </div>
+</div>
+
+<style>
+.module {
+    background: #fff;
+    border-radius: 8px;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.05);
+    margin-bottom: 20px;
+    border: 1px solid #e9ecef;
+}
+
+.module h2 {
+    background: linear-gradient(135deg, #f8f9fa 0%, #e9ecef 100%);
+    margin: 0;
+    padding: 16px 20px;
+    font-size: 1.2rem;
+    font-weight: 600;
+    color: #495057;
+    border-bottom: 1px solid #dee2e6;
+    border-radius: 8px 8px 0 0;
+}
+
+.field-row {
+    display: flex;
+    gap: 20px;
+    padding: 15px 20px;
+    border-bottom: 1px solid #f0f0f0;
+    flex-wrap: wrap;
+}
+
+.field-row:last-child {
+    border-bottom: none;
+}
+
+.field-group {
+    flex: 1;
+    min-width: 200px;
+}
+
+.field-label {
+    font-weight: 600;
+    color: #495057;
+    font-size: 0.85rem;
+    margin-bottom: 5px;
+}
+
+.field-input input, .field-input select, .field-input textarea {
+    width: 100%;
+    padding: 8px 12px;
+    border: 1px solid #dee2e6;
+    border-radius: 6px;
+    font-size: 0.9rem;
+}
+
+.field-input input:focus, .field-input select:focus, .field-input textarea:focus {
+    border-color: #4361ee;
+    outline: none;
+    box-shadow: 0 0 0 3px rgba(67, 97, 238, 0.1);
+}
+
+.readonly {
+    padding: 8px 12px;
+    background: #f8f9fa;
+    border: 1px solid #e9ecef;
+    border-radius: 6px;
+}
+
+.help {
+    font-size: 0.75rem;
+    color: #6c757d;
+    margin-top: 4px;
+}
+
+@media (max-width: 768px) {
+    .field-row {
+        flex-direction: column;
+        gap: 15px;
+    }
+    
+    .field-group {
+        min-width: 100%;
+    }
+}
+</style>

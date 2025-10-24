@@ -1,55 +1,201 @@
-<!-- orders/templates/admin/orders/order/change_form.html -->
 {% extends "admin/change_form.html" %}
 {% load i18n %}
 
 {% block content %}
-<div id="content-main">
+<div id="content-main" style="max-width: 1200px; margin: 0 auto;">
 
-{% if not request.user.is_superuser %}
-<div class="module" style="background: #d4edda; padding: 15px; margin-bottom: 20px; border-radius: 5px;">
-    <strong>👨‍💼 Staff Access:</strong> You can update order information. Only administrators can delete orders.
-</div>
-{% endif %}
-
-<!-- Order Summary -->
-<div class="module" style="background: #e3f2fd; padding: 15px; margin-bottom: 20px; border-radius: 5px;">
-    <h3>📦 Order #{{ original.order_number }}</h3>
-    <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 15px;">
+<!-- Quick Status Header -->
+<div style="background: white; padding: 20px; border-radius: 10px; margin-bottom: 20px; border: 1px solid #e0e0e0;">
+    <h1 style="margin: 0 0 20px 0; color: #333;">
+        🚚 Order #{{ original.order_number }}
+    </h1>
+    
+    <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 20px; margin-bottom: 20px;">
         <div>
-            <strong>Customer:</strong> {{ original.customer_name }}<br>
-            <strong>Phone:</strong> {{ original.phone_number|default:"Not provided" }}<br>
-            <strong>Email:</strong> {{ original.email|default:"Not provided" }}
+            <strong>Customer:</strong><br>
+            {{ original.customer_name }}<br>
+            {{ original.phone_number|default:"No phone" }}
         </div>
         <div>
-            <strong>Status:</strong> 
-            <span style="
-                padding: 4px 8px; 
-                border-radius: 12px; 
-                font-size: 12px; 
-                font-weight: bold;
-                background: 
-                {% if original.order_status == 'pending' %}#ffc107
-                {% elif original.order_status == 'confirmed' %}#28a745
-                {% elif original.order_status == 'processed' %}#17a2b8
-                {% elif original.order_status == 'hold' %}#fd7e14
-                {% else %}#dc3545{% endif %};
-                color: {% if original.order_status == 'pending' %}black{% else %}white{% endif %};
-            ">
-                {{ original.get_order_status_display }}
-            </span><br>
-            <strong>Payment:</strong> {{ original.get_payment_status_display }}<br>
-            <strong>Total:</strong> ${{ original.total }}
+            <strong>Shipping:</strong><br>
+            {{ original.delivery_area|default:"No area" }}<br>
+            {{ original.city|default:"No city" }}
         </div>
+        <div>
+            <strong>Total:</strong><br>
+            <span style="font-size: 1.2em; font-weight: bold; color: #4361ee;">
+                ${{ original.total }}
+            </span>
+        </div>
+    </div>
+
+    <!-- Quick Action Buttons -->
+    <div style="display: flex; gap: 10px; flex-wrap: wrap; margin: 20px 0;">
+        <button type="button" onclick="quickUpdate('confirmed')" 
+                style="background: #28a745; color: white; border: none; padding: 10px 15px; border-radius: 5px; cursor: pointer;">
+            ✅ Approve Order
+        </button>
+        <button type="button" onclick="quickUpdate('processed')" 
+                style="background: #17a2b8; color: white; border: none; padding: 10px 15px; border-radius: 5px; cursor: pointer;">
+            🚚 Mark Processed
+        </button>
+        <button type="button" onclick="quickUpdate('hold')" 
+                style="background: #ffc107; color: black; border: none; padding: 10px 15px; border-radius: 5px; cursor: pointer;">
+            ⏸️ Put on Hold
+        </button>
+        <button type="button" onclick="quickUpdate('rejected')" 
+                style="background: #dc3545; color: white; border: none; padding: 10px 15px; border-radius: 5px; cursor: pointer;">
+            ❌ Reject Order
+        </button>
+        
+        <!-- Quick Payment Actions -->
+        <button type="button" onclick="quickPayment('paid')" 
+                style="background: #28a745; color: white; border: none; padding: 10px 15px; border-radius: 5px; cursor: pointer;">
+            💰 Mark Paid
+        </button>
+        <button type="button" onclick="quickPayment('failed')" 
+                style="background: #dc3545; color: white; border: none; padding: 10px 15px; border-radius: 5px; cursor: pointer;">
+            ❌ Payment Failed
+        </button>
     </div>
 </div>
 
-{{ block.super }}
+<!-- Simple Form -->
+<div style="background: white; padding: 20px; border-radius: 10px; border: 1px solid #e0e0e0;">
+    <form action="{{ form_url }}" method="post" id="order_form">
+        {% csrf_token %}
+        
+        <!-- Simple Status Section -->
+        <div style="margin-bottom: 30px;">
+            <h3 style="color: #4361ee; margin-bottom: 15px;">📋 Order Status</h3>
+            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 20px;">
+                <div>
+                    <label style="display: block; margin-bottom: 5px; font-weight: bold;">Order Status:</label>
+                    {{ adminform.form.order_status }}
+                </div>
+                <div>
+                    <label style="display: block; margin-bottom: 5px; font-weight: bold;">Payment Status:</label>
+                    {{ adminform.form.payment_status }}
+                </div>
+            </div>
+        </div>
+
+        <!-- Customer Info -->
+        <div style="margin-bottom: 30px;">
+            <h3 style="color: #4361ee; margin-bottom: 15px;">👤 Customer Information</h3>
+            <div style="display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 15px;">
+                <div>
+                    <label style="display: block; margin-bottom: 5px; font-weight: bold;">Name:</label>
+                    {{ adminform.form.customer_name }}
+                </div>
+                <div>
+                    <label style="display: block; margin-bottom: 5px; font-weight: bold;">Phone:</label>
+                    {{ adminform.form.phone_number }}
+                </div>
+                <div>
+                    <label style="display: block; margin-bottom: 5px; font-weight: bold;">Email:</label>
+                    {{ adminform.form.email }}
+                </div>
+            </div>
+        </div>
+
+        <!-- Shipping Info -->
+        <div style="margin-bottom: 30px;">
+            <h3 style="color: #4361ee; margin-bottom: 15px;">📍 Shipping Details</h3>
+            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 15px; margin-bottom: 15px;">
+                <div>
+                    <label style="display: block; margin-bottom: 5px; font-weight: bold;">Area:</label>
+                    {{ adminform.form.delivery_area }}
+                </div>
+                <div>
+                    <label style="display: block; margin-bottom: 5px; font-weight: bold;">City:</label>
+                    {{ adminform.form.city }}
+                </div>
+            </div>
+            <div>
+                <label style="display: block; margin-bottom: 5px; font-weight: bold;">Address:</label>
+                {{ adminform.form.shipping_address }}
+            </div>
+        </div>
+
+        <!-- Admin Notes -->
+        <div style="margin-bottom: 30px;">
+            <h3 style="color: #4361ee; margin-bottom: 15px;">📝 Admin Notes</h3>
+            {{ adminform.form.admin_comment }}
+        </div>
+
+        <!-- Submit Buttons -->
+        <div style="display: flex; gap: 10px; justify-content: flex-end; padding-top: 20px; border-top: 1px solid #e0e0e0;">
+            <input type="submit" value="💾 Save Order" 
+                   style="background: #4361ee; color: white; border: none; padding: 12px 25px; border-radius: 5px; cursor: pointer; font-size: 16px;">
+            <input type="submit" value="💾 Save & Continue" name="_continue"
+                   style="background: #6c757d; color: white; border: none; padding: 12px 25px; border-radius: 5px; cursor: pointer;">
+        </div>
+    </form>
+</div>
 
 </div>
-{% endblock %}
 
-{% block field_sets %}
-{% for fieldset in adminform %}
-  {% include "admin/includes/fieldset.html" %}
-{% endfor %}
+<script>
+function quickUpdate(status) {
+    const statusField = document.querySelector('[name="order_status"]');
+    if (statusField) {
+        statusField.value = status;
+        // Auto-save the form
+        document.getElementById('order_form').submit();
+    }
+}
+
+function quickPayment(status) {
+    const paymentField = document.querySelector('[name="payment_status"]');
+    if (paymentField) {
+        paymentField.value = status;
+        // Auto-save the form
+        document.getElementById('order_form').submit();
+    }
+}
+
+// Make form inputs look better
+document.addEventListener('DOMContentLoaded', function() {
+    const inputs = document.querySelectorAll('input, select, textarea');
+    inputs.forEach(input => {
+        input.style.width = '100%';
+        input.style.padding = '10px 16px';
+        input.style.border = '1px solid #ddd';
+        input.style.borderRadius = '4px';
+        input.style.boxSizing = 'border-box';
+    });
+    
+    // Style textareas
+    const textareas = document.querySelectorAll('textarea');
+    textareas.forEach(ta => {
+        ta.style.minHeight = '80px';
+        ta.style.resize = 'vertical';
+    });
+});
+</script>
+
+<style>
+/* Make the form look clean */
+select, input[type="text"], input[type="email"], textarea {
+    width: 100%;
+    padding: 8px 12px;
+    border: 1px solid #ddd;
+    border-radius: 4px;
+    box-sizing: border-box;
+}
+
+textarea {
+    min-height: 80px;
+    resize: vertical;
+}
+
+/* Improve readability */
+label {
+    font-weight: 600;
+    color: #333;
+    margin-bottom: 5px;
+    display: block;
+}
+</style>
 {% endblock %}
