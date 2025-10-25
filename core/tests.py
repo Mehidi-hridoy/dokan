@@ -8,7 +8,7 @@ python manage.py migrate
 python manage.py runserver
 
 git add .
-git commit -m " Deploy In render "
+git commit -m " Deploy In render Web "
 git push origin main
 python manage.py runserver
 
