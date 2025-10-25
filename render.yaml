@@ -1,0 +1,7 @@
+services:
+  - type: web
+    name: dokan
+    env: python
+    buildCommand: "./build.sh"
+    startCommand: "gunicorn dokan.wsgi:application"
+    plan: free

@@ -1,1 +1,1 @@
-web: gunicorn dokan.wsgi
+web: gunicorn dokan.wsgi:application

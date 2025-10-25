@@ -8,7 +8,7 @@ python manage.py migrate
 python manage.py runserver
 
 git add .
-git commit -m " Admin Dashboard and Design"
+git commit -m " Deploy In render "
 git push origin main
 python manage.py runserver
 

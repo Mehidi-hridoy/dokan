@@ -1,0 +1,316 @@
+{% extends "admin/change_list.html" %}
+{% load i18n admin_urls static %}
+
+{% block extrahead %}
+{{ block.super }}
+<style>
+.stock-filter {
+    background: white;
+    padding: 15px;
+    margin-bottom: 20px;
+    border-radius: 8px;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+}
+
+.filter-buttons {
+    display: flex;
+    gap: 10px;
+    flex-wrap: wrap;
+}
+
+.filter-btn {
+    padding: 8px 16px;
+    border: 1px solid #d1d5db;
+    border-radius: 6px;
+    background: white;
+    cursor: pointer;
+    transition: all 0.2s;
+    font-size: 14px;
+    font-weight: 500;
+}
+
+.filter-btn.active {
+    background: #2563eb;
+    color: white;
+    border-color: #2563eb;
+}
+
+.filter-btn:hover {
+    background: #f3f4f6;
+}
+
+.filter-btn.active:hover {
+    background: #1d4ed8;
+}
+
+.inventory-stats {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+    gap: 15px;
+    margin: 20px 0;
+}
+
+.stat-card {
+    background: white;
+    padding: 15px;
+    border-radius: 8px;
+    text-align: center;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+    border-top: 3px solid transparent;
+}
+
+.stat-value {
+    font-size: 24px;
+    font-weight: bold;
+    margin: 5px 0;
+}
+
+.stat-label {
+    font-size: 12px;
+    color: #6b7280;
+    text-transform: uppercase;
+    font-weight: 600;
+}
+
+.stat-total { border-top-color: #2563eb; }
+.stat-out { border-top-color: #ef4444; }
+.stat-low { border-top-color: #f59e0b; }
+.stat-healthy { border-top-color: #10b981; }
+
+.bulk-actions {
+    background: #f8f9fa;
+    padding: 15px;
+    border-radius: 8px;
+    margin: 15px 0;
+    border-left: 4px solid #2563eb;
+}
+
+.bulk-action-group {
+    display: flex;
+    gap: 10px;
+    align-items: center;
+    flex-wrap: wrap;
+}
+
+.stock-status-badge {
+    padding: 4px 8px;
+    border-radius: 12px;
+    font-size: 11px;
+    font-weight: bold;
+    color: white;
+    text-transform: uppercase;
+}
+
+.stock-ok { background: #10b981; }
+.stock-low { background: #f59e0b; }
+.stock-out { background: #ef4444; }
+
+.column-stock_status {
+    text-align: center;
+}
+
+.column-quantity, .column-reserved_quantity, .column-available_quantity {
+    text-align: center;
+    font-weight: bold;
+}
+
+.column-available_quantity {
+    color: #10b981;
+}
+
+.column-reserved_quantity {
+    color: #f59e0b;
+}
+</style>
+{% endblock %}
+
+{% block content %}
+<!-- Inventory Statistics -->
+<div class="inventory-stats">
+    <div class="stat-card stat-total">
+        <div class="stat-value" style="color: #2563eb;">{{ cl.result_list|length }}</div>
+        <div class="stat-label">Total Products</div>
+    </div>
+    <div class="stat-card stat-out">
+        <div class="stat-value" style="color: #ef4444;">
+            {% with out_of_stock=cl.queryset.out_of_stock %}{{ out_of_stock.count }}{% endwith %}
+        </div>
+        <div class="stat-label">Out of Stock</div>
+    </div>
+    <div class="stat-card stat-low">
+        <div class="stat-value" style="color: #f59e0b;">
+            {% with low_stock=cl.queryset.low_stock %}{{ low_stock.count }}{% endwith %}
+        </div>
+        <div class="stat-label">Low Stock</div>
+    </div>
+    <div class="stat-card stat-healthy">
+        <div class="stat-value" style="color: #10b981;">
+            {% with in_stock=cl.queryset.in_stock %}{{ in_stock.count }}{% endwith %}
+        </div>
+        <div class="stat-label">In Stock</div>
+    </div>
+</div>
+
+<!-- Quick Filters -->
+<div class="stock-filter">
+    <h3 style="margin-top: 0; margin-bottom: 10px;">📊 Quick Filters:</h3>
+    <div class="filter-buttons">
+        <button class="filter-btn {% if request.GET.stock_status == None %}active{% endif %}" 
+                onclick="window.location='?'">All Items</button>
+        <button class="filter-btn {% if request.GET.stock_status == 'out' %}active{% endif %}" 
+                onclick="window.location='?stock_status=out'">🚫 Out of Stock</button>
+        <button class="filter-btn {% if request.GET.stock_status == 'low' %}active{% endif %}" 
+                onclick="window.location='?stock_status=low'">🔔 Low Stock</button>
+        <button class="filter-btn {% if request.GET.stock_status == 'healthy' %}active{% endif %}" 
+                onclick="window.location='?stock_status=healthy'">✅ Healthy Stock</button>
+        <button class="filter-btn {% if request.GET.needs_restock == '1' %}active{% endif %}" 
+                onclick="window.location='?needs_restock=1'">🔄 Needs Restock</button>
+    </div>
+</div>
+
+<!-- Bulk Actions -->
+<div class="bulk-actions">
+    <h3 style="margin-top: 0; margin-bottom: 10px;">⚡ Bulk Actions:</h3>
+    <div class="bulk-action-group">
+        <select id="bulk-action-select" class="filter-btn">
+            <option value="">Choose action...</option>
+            <option value="restock">🔄 Restock Selected</option>
+            <option value="update_threshold">📊 Update Low Stock Threshold</option>
+            <option value="export">📤 Export Selected</option>
+        </select>
+        <button onclick="executeBulkAction()" class="filter-btn" style="background: #2563eb; color: white;">
+            Apply to Selected
+        </button>
+        <span style="font-size: 12px; color: #6b7280; margin-left: 10px;">
+            Select items from the list below first
+        </span>
+    </div>
+</div>
+
+{{ block.super }}
+{% endblock %}
+
+{% block result_list %}
+{{ block.super }}
+{% endblock %}
+
+{% block pagination %}{{ block.super }}{% endblock %}
+
+{% block javascript %}
+{{ block.super }}
+<script>
+function executeBulkAction() {
+    const action = document.getElementById('bulk-action-select').value;
+    const selected = Array.from(document.querySelectorAll('input.action-select:checked'));
+    
+    if (selected.length === 0) {
+        alert('Please select items from the list first');
+        return;
+    }
+    
+    switch(action) {
+        case 'restock':
+            if (confirm(`Restock ${selected.length} selected items with their reorder quantities?`)) {
+                // This would trigger the admin action
+                document.querySelector('select[name="action"]').value = 'restock_selected';
+                document.getElementById('changelist-form').submit();
+            }
+            break;
+        case 'update_threshold':
+            const newThreshold = prompt('Enter new low stock threshold for all selected items:');
+            if (newThreshold && !isNaN(newThreshold)) {
+                // Make AJAX call to update thresholds
+                updateBulkThresholds(selected.map(s => s.value), parseInt(newThreshold));
+            }
+            break;
+        case 'export':
+            alert(`Preparing export for ${selected.length} items...`);
+            // Export functionality would go here
+            break;
+        default:
+            alert('Please select an action');
+    }
+}
+
+function updateBulkThresholds(inventoryIds, threshold) {
+    // This would be an AJAX call to update thresholds in bulk
+    fetch('/admin/inventory/bulk-update-threshold/', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+            'X-CSRFToken': document.querySelector('[name=csrfmiddlewaretoken]').value
+        },
+        body: JSON.stringify({
+            inventory_ids: inventoryIds,
+            threshold: threshold
+        })
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            alert(`Updated low stock threshold to ${threshold} for ${inventoryIds.length} items`);
+            location.reload();
+        }
+    })
+    .catch(error => {
+        alert('Error updating thresholds');
+        console.error('Error:', error);
+    });
+}
+
+// Enhance the list view with stock status badges
+document.addEventListener('DOMContentLoaded', function() {
+    const rows = document.querySelectorAll('#result_list tr');
+    rows.forEach(row => {
+        // Add status badges
+        const statusCell = row.querySelector('.field-stock_status');
+        if (statusCell) {
+            const status = statusCell.textContent.trim().toLowerCase();
+            let badgeClass = 'stock-ok';
+            let badgeText = 'OK';
+            
+            if (status.includes('out')) {
+                badgeClass = 'stock-out';
+                badgeText = 'OUT';
+            } else if (status.includes('low')) {
+                badgeClass = 'stock-low';
+                badgeText = 'LOW';
+            }
+            
+            statusCell.innerHTML = `<span class="stock-status-badge ${badgeClass}">${badgeText}</span>`;
+        }
+        
+        // Color code quantity cells
+        const quantityCell = row.querySelector('.field-quantity');
+        const availableCell = row.querySelector('.field-available_quantity');
+        const reservedCell = row.querySelector('.field-reserved_quantity');
+        
+        if (quantityCell) {
+            const quantity = parseInt(quantityCell.textContent) || 0;
+            if (quantity === 0) {
+                quantityCell.style.color = '#ef4444';
+                quantityCell.style.fontWeight = 'bold';
+            }
+        }
+        
+        if (availableCell) {
+            const available = parseInt(availableCell.textContent) || 0;
+            if (available === 0) {
+                availableCell.style.color = '#ef4444';
+            }
+        }
+    });
+});
+
+// Add filter functionality
+function filterByStockStatus(status) {
+    const url = new URL(window.location);
+    if (status) {
+        url.searchParams.set('stock_status', status);
+    } else {
+        url.searchParams.delete('stock_status');
+    }
+    window.location = url.toString();
+}
+</script>
+{% endblock %}

@@ -1,0 +1,282 @@
+{% extends "admin/change_form.html" %}
+{% load i18n admin_urls static %}
+
+{% block extrahead %}
+{{ block.super }}
+<style>
+.inventory-dashboard {
+    background: #f8f9fa;
+    border-radius: 8px;
+    padding: 20px;
+    margin-bottom: 20px;
+    border-left: 4px solid #2563eb;
+}
+
+.stock-summary {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+    gap: 15px;
+    margin-bottom: 20px;
+}
+
+.summary-card {
+    background: white;
+    padding: 15px;
+    border-radius: 8px;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+    text-align: center;
+    border-top: 3px solid transparent;
+}
+
+.summary-card h3 {
+    margin: 0 0 10px 0;
+    font-size: 14px;
+    color: #6b7280;
+    text-transform: uppercase;
+    font-weight: 600;
+}
+
+.summary-card .value {
+    font-size: 24px;
+    font-weight: bold;
+    margin: 5px 0;
+}
+
+.summary-card.quantity { border-top-color: #2563eb; }
+.summary-card.available { border-top-color: #10b981; }
+.summary-card.reserved { border-top-color: #f59e0b; }
+.summary-card.status { border-top-color: #ef4444; }
+
+.summary-card.quantity .value { color: #2563eb; }
+.summary-card.available .value { color: #10b981; }
+.summary-card.reserved .value { color: #f59e0b; }
+
+.stock-status-badge {
+    padding: 6px 12px;
+    border-radius: 20px;
+    font-size: 12px;
+    font-weight: bold;
+    color: white;
+    text-transform: uppercase;
+}
+
+.stock-status-ok { background: #10b981; }
+.stock-status-low { background: #f59e0b; }
+.stock-status-out { background: #ef4444; }
+
+.quick-actions {
+    display: flex;
+    gap: 10px;
+    margin: 15px 0;
+    flex-wrap: wrap;
+}
+
+.quick-action-btn {
+    padding: 8px 16px;
+    border: none;
+    border-radius: 6px;
+    cursor: pointer;
+    font-size: 14px;
+    font-weight: 500;
+    transition: all 0.2s;
+}
+
+.quick-action-btn:hover {
+    transform: translateY(-1px);
+    box-shadow: 0 4px 8px rgba(0,0,0,0.15);
+}
+
+.btn-primary { background: #2563eb; color: white; }
+.btn-success { background: #10b981; color: white; }
+.btn-warning { background: #f59e0b; color: white; }
+.btn-danger { background: #ef4444; color: white; }
+
+.movement-history {
+    margin-top: 20px;
+}
+
+.alert-banner {
+    padding: 12px 16px;
+    border-radius: 6px;
+    margin: 10px 0;
+    font-weight: 500;
+}
+
+.alert-low { background: #fffbeb; border: 1px solid #f59e0b; color: #92400e; }
+.alert-out { background: #fef2f2; border: 1px solid #ef4444; color: #991b1b; }
+.alert-healthy { background: #f0fdf4; border: 1px solid #10b981; color: #065f46; }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="inventory-dashboard">
+    {% if original.pk %}
+    <div class="stock-summary">
+        <div class="summary-card quantity">
+            <h3>Total Stock</h3>
+            <div class="value" id="current-quantity">{{ original.quantity }}</div>
+            <small>Units in inventory</small>
+        </div>
+        <div class="summary-card available">
+            <h3>Available</h3>
+            <div class="value" id="available-quantity">{{ original.available_quantity }}</div>
+            <small>Ready for sale</small>
+        </div>
+        <div class="summary-card reserved">
+            <h3>Reserved</h3>
+            <div class="value" id="reserved-quantity">{{ original.reserved_quantity }}</div>
+            <small>Pending orders</small>
+        </div>
+        <div class="summary-card status">
+            <h3>Status</h3>
+            <div class="value">
+                {% if original.is_stock_out %}
+                    <span class="stock-status-badge stock-status-out">Out of Stock</span>
+                {% elif original.is_low_stock %}
+                    <span class="stock-status-badge stock-status-low">Low Stock</span>
+                {% else %}
+                    <span class="stock-status-badge stock-status-ok">In Stock</span>
+                {% endif %}
+            </div>
+            <small>Threshold: {{ original.low_stock_threshold }}</small>
+        </div>
+    </div>
+
+    <!-- Stock Alerts -->
+    {% if original.is_stock_out %}
+    <div class="alert-banner alert-out">
+        ⚠️ <strong>Out of Stock:</strong> This product has no available inventory.
+    </div>
+    {% elif original.is_low_stock %}
+    <div class="alert-banner alert-low">
+        🔔 <strong>Low Stock Alert:</strong> Only {{ original.available_quantity }} units available (threshold: {{ original.low_stock_threshold }})
+    </div>
+    {% else %}
+    <div class="alert-banner alert-healthy">
+        ✅ <strong>Stock Healthy:</strong> {{ original.available_quantity }} units available
+    </div>
+    {% endif %}
+
+    <div class="quick-actions">
+        <button type="button" class="quick-action-btn btn-primary" onclick="addStock(10)">
+            ➕ Add 10 Units
+        </button>
+        <button type="button" class="quick-action-btn btn-success" onclick="restockItem()">
+            🔄 Restock ({{ original.reorder_quantity }})
+        </button>
+        <button type="button" class="quick-action-btn btn-warning" onclick="showStockHistory()">
+            📊 Movement History
+        </button>
+        {% if original.reserved_quantity > 0 %}
+        <button type="button" class="quick-action-btn btn-danger" onclick="releaseReservation()">
+            🚫 Release Reserved ({{ original.reserved_quantity }})
+        </button>
+        {% endif %}
+    </div>
+    {% else %}
+    <div class="alert-banner alert-low">
+        ℹ️ <strong>New Inventory Item:</strong> Fill in the details below to create a new inventory record.
+    </div>
+    {% endif %}
+</div>
+
+{{ block.super }}
+
+{% if original.pk %}
+<div class="module">
+    <h2>Recent Stock Movements</h2>
+    <div class="movement-history">
+        {% with movements=original.movements.all|slice:":5" %}
+            {% if movements %}
+            <table style="width: 100%;">
+                <thead>
+                    <tr>
+                        <th>Date</th>
+                        <th>Type</th>
+                        <th>Quantity</th>
+                        <th>Reference</th>
+                        <th>User</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for movement in movements %}
+                    <tr>
+                        <td>{{ movement.created_at|date:"M d, Y H:i" }}</td>
+                        <td>
+                            <span class="{% if movement.movement_type == 'in' %}stock-status-ok{% elif movement.movement_type == 'out' %}stock-status-out{% else %}stock-status-low{% endif %}" style="padding: 2px 6px; border-radius: 3px; color: white;">
+                                {{ movement.get_movement_type_display }}
+                            </span>
+                        </td>
+                        <td style="font-weight: bold; color: {% if movement.quantity > 0 %}#10b981{% else %}#ef4444{% endif %};">
+                            {% if movement.quantity > 0 %}+{% endif %}{{ movement.quantity }}
+                        </td>
+                        <td>{{ movement.reference|default:"-" }}</td>
+                        <td>{{ movement.created_by|default:"System" }}</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+            {% else %}
+            <p style="padding: 20px; text-align: center; color: #6b7280;">No stock movements recorded yet.</p>
+            {% endif %}
+        {% endwith %}
+    </div>
+</div>
+{% endif %}
+{% endblock %}
+
+{% block admin_change_form_document_ready %}
+{{ block.super }}
+<script>
+function addStock(quantity) {
+    const currentQty = parseInt(document.getElementById('id_quantity').value) || 0;
+    document.getElementById('id_quantity').value = currentQty + quantity;
+    
+    // Show confirmation message
+    alert(`Added ${quantity} units to stock. Don't forget to save changes!`);
+}
+
+function restockItem() {
+    const reorderQty = {{ original.reorder_quantity|default:10 }};
+    if (reorderQty > 0) {
+        const currentQty = parseInt(document.getElementById('id_quantity').value) || 0;
+        document.getElementById('id_quantity').value = currentQty + reorderQty;
+        alert(`Restocked with reorder quantity: ${reorderQty} units. Total will be ${currentQty + reorderQty} units.`);
+    } else {
+        alert('Please set reorder quantity first in the Thresholds section');
+    }
+}
+
+function releaseReservation() {
+    if (confirm('Release all reserved stock? This should only be done if orders are cancelled.')) {
+        document.getElementById('id_reserved_quantity').value = 0;
+        alert('Reserved quantity cleared. Remember to save changes.');
+    }
+}
+
+function showStockHistory() {
+    // Open stock movement history in new tab
+    window.open('../stockmovement/?inventory__id__exact={{ original.id }}', '_blank');
+}
+
+// Update summary when quantity fields change
+document.addEventListener('DOMContentLoaded', function() {
+    const quantityField = document.getElementById('id_quantity');
+    const reservedField = document.getElementById('id_reserved_quantity');
+    const thresholdField = document.getElementById('id_low_stock_threshold');
+    
+    function updateSummary() {
+        const quantity = parseInt(quantityField?.value) || 0;
+        const reserved = parseInt(reservedField?.value) || 0;
+        const available = Math.max(0, quantity - reserved);
+        
+        document.getElementById('current-quantity').textContent = quantity;
+        document.getElementById('available-quantity').textContent = available;
+        document.getElementById('reserved-quantity').textContent = reserved;
+    }
+    
+    if (quantityField) quantityField.addEventListener('change', updateSummary);
+    if (reservedField) reservedField.addEventListener('change', updateSummary);
+});
+</script>
+{% endblock %}
